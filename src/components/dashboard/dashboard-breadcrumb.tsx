@@ -36,11 +36,11 @@ export function DashboardBreadcrumb() {
             <React.Fragment key={href}>
               <BreadcrumbItem>
                 {isLast ? (
-                  <BreadcrumbPage className="font-semibold text-foreground text-[10px] tracking-wider uppercase">
+                  <BreadcrumbPage className="font-semibold text-foreground text-xs tracking-wider uppercase">
                     {label}
                   </BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink asChild className="text-[10px] tracking-wider uppercase font-semibold text-muted-foreground">
+                  <BreadcrumbLink asChild className="text-xs tracking-wider uppercase font-semibold text-muted-foreground">
                     <Link href={href}>{label}</Link>
                   </BreadcrumbLink>
                 )}

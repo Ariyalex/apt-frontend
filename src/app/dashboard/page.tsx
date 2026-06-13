@@ -51,7 +51,7 @@ export default function Dashboard() {
           return (
             <div key={i} className="rounded-xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   {stat.title}
                 </span>
                 <Icon className={`h-5 w-5 ${stat.color}`} />
@@ -61,7 +61,7 @@ export default function Dashboard() {
                   {stat.value}
                 </span>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {stat.description}
               </p>
             </div>
@@ -87,9 +87,9 @@ export default function Dashboard() {
                 <div key={i} className="flex items-center justify-between border-b border-border/40 pb-3 last:border-0 last:pb-0">
                   <div>
                     <h3 className="text-xs font-semibold text-foreground">{item.title}</h3>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{item.date}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.date}</p>
                   </div>
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium ${
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                     item.type === "success" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
                     item.type === "warning" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
                     "bg-blue-500/10 text-blue-600 dark:text-blue-400"
@@ -100,7 +100,7 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-          <button className="mt-4 flex items-center justify-center gap-1.5 text-[10px] font-semibold text-primary hover:underline self-start cursor-pointer">
+          <button className="mt-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-primary hover:underline self-start cursor-pointer">
             Lihat semua aktivitas <ArrowRight className="h-3 w-3" />
           </button>
         </div>

@@ -86,14 +86,14 @@ export function RekognisiChart({
         )}
       </div>
 
-      <div className="mt-3 border-t border-border/40 pt-3 flex justify-between items-center text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+      <div className="mt-3 border-t border-border/40 pt-3 flex justify-between items-center text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
         <span>Menampilkan {chartBars.length} Jenis Rekognisi</span>
 
         {/* Toggle Expand / Collapse Button */}
         {chartBars.length > 4 && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-[9px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 outline-none"
+            className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 outline-none"
           >
             {isExpanded ? (
               <>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ArrowUpDown, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowUpDown, ExternalLink, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
 import { DosenData } from "@/types/rekognisi";
 
 interface RekognisiTableProps {
@@ -7,9 +8,17 @@ interface RekognisiTableProps {
 }
 
 export function RekognisiTable({ data }: RekognisiTableProps) {
+  const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
   const [sortField, setSortField] = useState<keyof DosenData | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const handleSort = (field: keyof DosenData) => {
     const isAsc = sortField === field && sortDirection === "asc";
@@ -36,7 +45,7 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
       <div className={scrollClass}>
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-muted/30 text-[11px] font-bold text-muted-foreground uppercase">
+            <tr className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase">
               <th className="px-4 py-3 font-semibold sticky top-0 bg-card z-10 border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">NIP</th>
               
               {/* Column sort indicators styled in default theme icons */}
@@ -88,14 +97,15 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
             {sortedData.length > 0 ? (
               sortedData.map((dosen, i) => (
                 <tr 
-                  key={i} 
-                  className="border-b border-border last:border-0 hover:bg-muted/10 text-xs text-foreground transition-colors"
+                  key={dosen.id || i} 
+                  onClick={() => router.push(`/dashboard/rekognisi-dosen/${dosen.id}`)}
+                  className="border-b border-border last:border-0 hover:bg-muted/10 text-xs text-foreground transition-colors cursor-pointer"
                 >
                   <td className="px-4 py-3.5 font-medium text-muted-foreground">{dosen.nip}</td>
                   <td className="px-4 py-3.5 font-semibold">{dosen.nama}</td>
                   <td className="px-4 py-3.5">{dosen.prodi}</td>
                   <td className="px-4 py-3.5">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                       dosen.jenisRekognisi === "Narasumber" ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" :
                       dosen.jenisRekognisi === "Tenaga Ahli" ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" :
                       dosen.jenisRekognisi === "Reviewer Jurnal" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400" :
@@ -110,15 +120,32 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
                     {dosen.deskripsi}
                   </td>
                   <td className="px-4 py-3.5 text-center">
-                    <a 
-                      href={dosen.buktiUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors"
-                      title="Kunjungi Link Bukti"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
+                    <div className="flex items-center justify-center gap-1.5">
+                      <a 
+                        href={dosen.buktiUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors"
+                        title="Kunjungi Link Bukti"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopy(dosen.id, dosen.buktiUrl);
+                        }}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+                        title="Salin Link Bukti"
+                      >
+                        {copiedId === dosen.id ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -134,14 +161,14 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
       </div>
 
       {/* Table Footer Actions */}
-      <div className="flex justify-between items-center text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider pt-2">
+      <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider pt-2">
         <span>Menampilkan {sortedData.length} baris data</span>
 
         {/* Toggle Expand / Collapse Button */}
         {sortedData.length > 5 && (
           <button 
             onClick={() => setIsExpanded(!isExpanded)} 
-            className="text-[9px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 outline-none"
+            className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 outline-none"
           >
             {isExpanded ? (
               <>Sembunyikan <ChevronUp className="h-3.5 w-3.5" /></>

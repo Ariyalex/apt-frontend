@@ -167,7 +167,7 @@ function SidebarItem({
     ? "text-xs font-semibold uppercase tracking-wider text-foreground/95"
     : isLevel1
       ? "text-xs font-medium text-muted-foreground hover:text-foreground"
-      : "text-[11px] font-normal text-muted-foreground/80 hover:text-foreground";
+      : "text-xs font-normal text-muted-foreground/80 hover:text-foreground";
 
   const paddingStyle = isLevel0
     ? "px-3 py-2"
@@ -266,12 +266,10 @@ export function Sidebar() {
       {/* Footer / Info Singkat */}
       <div className="border-t border-border p-4">
         <div className="rounded-lg bg-muted/30 p-3 text-center">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Sistem Mutu Akademik
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Aplikasi Penjamin Mutu
           </p>
-          <p className="mt-1 text-[9px] text-muted-foreground/60">
-            v1.0.0-beta
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground/60">v1.0.0-beta</p>
         </div>
       </div>
     </aside>

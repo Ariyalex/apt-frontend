@@ -1,4 +1,5 @@
 export interface DosenData {
+  id: string;
   nip: string;
   nama: string;
   prodi: string;

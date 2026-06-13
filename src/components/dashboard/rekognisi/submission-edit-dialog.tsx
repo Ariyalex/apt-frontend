@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { Save, CheckCircle } from "lucide-react";
-import { initialData } from "@/dummy-data/rekognisi";
+import React, { useState, useEffect } from "react";
+import { Save } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
@@ -12,69 +12,84 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { initialData } from "@/dummy-data/rekognisi";
+import { Submission } from "@/dummy-data/bagikan-form";
 
-export function IsiDataManualForm() {
-  const [submitted, setSubmitted] = useState(false);
-  
+interface SubmissionEditDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  submission: Submission | null;
+  onSave: (updated: Submission) => void;
+}
+
+export function SubmissionEditDialog({
+  open,
+  onOpenChange,
+  submission,
+  onSave,
+}: SubmissionEditDialogProps) {
   // Form states
   const [selectedNip, setSelectedNip] = useState("");
   const [jenisRekognisi, setJenisRekognisi] = useState("Narasumber");
-  const [tahun, setTahun] = useState(new Date().getFullYear().toString());
+  const [tahun, setTahun] = useState("2026");
   const [deskripsi, setDeskripsi] = useState("");
   const [linkBukti, setLinkBukti] = useState("");
 
-  // Extract unique lecturers (NIP & Name) from dummy data
+  // Extract lecturers list
   const lecturers = Array.from(
     new Map(initialData.map((item) => [item.nip, item.nama])).entries()
   ).map(([nip, nama]) => ({ nip, nama }));
 
-  // Map to Combobox option structure
   const nipOptions = lecturers.map((l) => ({
     value: l.nip,
     label: `${l.nip} - ${l.nama}`,
   }));
 
-  // Find dynamic lecturer name based on chosen NIP
   const selectedLecturerName = lecturers.find((l) => l.nip === selectedNip)?.nama || "";
-
-  // Extract unique kinds of recognition
   const jenisList = Array.from(new Set(initialData.map((item) => item.jenisRekognisi)));
-
-  // Generate years list from 2020 to 2030
   const years = Array.from({ length: 11 }, (_, i) => (2020 + i).toString());
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      // Reset form
-      setSelectedNip("");
-      setJenisRekognisi("Narasumber");
-      setTahun(new Date().getFullYear().toString());
-      setDeskripsi("");
-      setLinkBukti("");
-    }, 2500);
+  useEffect(() => {
+    if (open && submission) {
+      setSelectedNip(submission.nip);
+      setJenisRekognisi(submission.jenisRekognisi);
+      setTahun(submission.tahun);
+      setDeskripsi(submission.deskripsi);
+      setLinkBukti(submission.linkBukti);
+    }
+  }, [open, submission]);
+
+  const handleSave = () => {
+    if (!submission) return;
+    onSave({
+      ...submission,
+      nip: selectedNip,
+      nama: selectedLecturerName || submission.nama,
+      jenisRekognisi,
+      tahun,
+      deskripsi,
+      linkBukti,
+    });
+    onOpenChange(false);
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-      {submitted ? (
-        <div className="flex flex-col items-center justify-center py-10 space-y-3 text-center">
-          <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-            <CheckCircle className="h-8 w-8 animate-bounce" />
-          </div>
-          <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">Data Berhasil Disimpan!</h2>
-          <p className="text-xs text-muted-foreground max-w-sm">
-            Rekognisi dosen telah berhasil diinput dan tautan bukti dokumen telah disimpan ke sistem.
-          </p>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/40 pb-2 mb-2">
-            Isi Data Rekognisi
-          </h3>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg bg-card border border-border p-6 rounded-xl overflow-y-auto max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
+            Edit Data Pengajuan
+          </DialogTitle>
+        </DialogHeader>
 
+        <div className="space-y-4 py-3">
           {/* Field 1: NIP Dosen */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
@@ -93,7 +108,7 @@ export function IsiDataManualForm() {
 
           {/* Field 2: Nama Dosen (Display Text, not input field) */}
           {selectedNip && (
-            <div className="space-y-1 p-3.5 bg-muted/25 border border-border/60 rounded-lg animate-fadeIn">
+            <div className="space-y-1 p-3 bg-muted/20 border border-border/60 rounded-lg">
               <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nama Dosen</span>
               <p className="text-xs font-bold text-foreground">{selectedLecturerName}</p>
             </div>
@@ -101,7 +116,7 @@ export function IsiDataManualForm() {
 
           {/* Field 3: Jenis Rekognisi */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Jenis Rekognisi
               <span className="text-rose-500">*</span>
             </label>
@@ -124,7 +139,7 @@ export function IsiDataManualForm() {
 
           {/* Field 4: Tahun */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Tahun
               <span className="text-rose-500">*</span>
             </label>
@@ -147,14 +162,14 @@ export function IsiDataManualForm() {
 
           {/* Field 5: Deskripsi */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Deskripsi Kegiatan
               <span className="text-rose-500">*</span>
             </label>
             <textarea 
               required
               rows={3}
-              placeholder="Contoh: Pembicara dalam Seminar Nasional Teknologi Informasi..."
+              placeholder="Contoh: Pembicara dalam Seminar Nasional..."
               value={deskripsi}
               onChange={(e) => setDeskripsi(e.target.value)}
               className="w-full bg-muted/20 border border-border rounded-lg px-3.5 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none text-foreground"
@@ -163,7 +178,7 @@ export function IsiDataManualForm() {
 
           {/* Field 6: Link Bukti */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Link Bukti Dokumen
               <span className="text-rose-500">*</span>
             </label>
@@ -176,22 +191,25 @@ export function IsiDataManualForm() {
               className="w-full bg-muted/20 border border-border rounded-lg px-3.5 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none text-foreground font-mono"
             />
           </div>
+        </div>
 
-          {/* Form Actions */}
-          <div className="pt-2 flex justify-end gap-3">
-            <Link href="/dashboard/rekognisi-dosen" className="bg-muted text-muted-foreground font-semibold text-xs px-4 py-2 rounded-lg hover:bg-muted/80 transition-colors">
-              Batal
-            </Link>
-            <button 
-              type="submit" 
-              disabled={!selectedNip}
-              className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold text-xs px-4 py-2 rounded-lg hover:bg-primary/95 shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-            >
-              <Save className="h-3.5 w-3.5" /> Simpan Data
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
+        <DialogFooter className="flex justify-end gap-2 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="text-xs font-semibold h-9 rounded-lg"
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!selectedNip || !deskripsi || !linkBukti}
+            className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+          >
+            <Save className="h-3.5 w-3.5" /> Simpan Perubahan
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

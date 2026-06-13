@@ -30,7 +30,7 @@ export function Header() {
             <span className="text-xs font-semibold text-foreground leading-tight">
               Ahmad Fauzi
             </span>
-            <span className="text-[10px] font-medium text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               Fakultas
             </span>
           </div>

@@ -1,0 +1,164 @@
+"use client";
+
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ExternalLink, Copy, Check, Edit2, CheckCircle2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Submission } from "@/dummy-data/bagikan-form";
+
+interface BagikanFormSubmissionsTableProps {
+  submissions: Submission[];
+  onAccept: (subId: string) => void;
+  onDecline: (subId: string) => void;
+  onEdit: (sub: Submission) => void;
+}
+
+export function BagikanFormSubmissionsTable({
+  submissions,
+  onAccept,
+  onDecline,
+  onEdit,
+}: BagikanFormSubmissionsTableProps) {
+  const router = useRouter();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = (e: React.MouseEvent, id: string, text: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  if (submissions.length === 0) {
+    return (
+      <div className="py-8 text-center text-xs text-muted-foreground border-t border-border/40">
+        Belum ada data pengisian dosen untuk link ini.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto w-full border-t border-border/40">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="border-b border-border/40 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            <th className="px-4 py-3">NIP</th>
+            <th className="px-4 py-3">Nama Dosen</th>
+            <th className="px-4 py-3">Prodi</th>
+            <th className="px-4 py-3">Jenis Rekognisi</th>
+            <th className="px-4 py-3">Tahun</th>
+            <th className="px-4 py-3 max-w-[180px]">Deskripsi</th>
+            <th className="px-4 py-3">Bukti</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3 text-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/20 text-xs">
+          {submissions.map((sub) => (
+            <tr 
+              key={sub.id} 
+              onClick={() => router.push(`/dashboard/rekognisi-dosen/${sub.id}`)}
+              className="hover:bg-muted/15 transition-colors cursor-pointer"
+            >
+              <td className="px-4 py-3 font-mono font-semibold">{sub.nip}</td>
+              <td className="px-4 py-3 font-semibold text-foreground">{sub.nama}</td>
+              <td className="px-4 py-3 text-muted-foreground">{sub.prodi}</td>
+              <td className="px-4 py-3 font-semibold text-muted-foreground">{sub.jenisRekognisi}</td>
+              <td className="px-4 py-3 text-muted-foreground">{sub.tahun}</td>
+              <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate" title={sub.deskripsi}>
+                {sub.deskripsi}
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-1">
+                  <a
+                    href={sub.linkBukti}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex h-7 items-center gap-1 rounded bg-muted/65 border border-border px-2 text-xs font-bold text-foreground hover:bg-muted transition-all cursor-pointer"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Kunjungi
+                  </a>
+                  <Button
+                    variant="outline"
+                    onClick={(e) => handleCopy(e, sub.id, sub.linkBukti)}
+                    className="h-7 items-center gap-1 rounded px-2 text-xs font-bold cursor-pointer"
+                  >
+                    {copiedId === sub.id ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        Tersalin
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        Salin
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                {sub.status === "approved" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3 w-3" /> Disetujui
+                  </span>
+                )}
+                {sub.status === "declined" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-xs font-bold text-rose-600 dark:text-rose-400">
+                    <XCircle className="h-3 w-3" /> Ditolak
+                  </span>
+                )}
+                {sub.status === "pending" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                    Menunggu
+                  </span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <div className="flex justify-end items-center gap-1.5">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(sub);
+                    }}
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                    title="Edit Data"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
+                  
+                  {sub.status !== "approved" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAccept(sub.id);
+                      }}
+                      className="h-7 rounded bg-emerald-500/10 px-2.5 text-xs font-bold text-emerald-600 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                    >
+                      Acc
+                    </button>
+                  )}
+                  {sub.status !== "declined" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDecline(sub.id);
+                      }}
+                      className="h-7 rounded bg-rose-500/10 px-2.5 text-xs font-bold text-rose-600 hover:bg-rose-500/20 transition-all cursor-pointer"
+                    >
+                      Decline
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

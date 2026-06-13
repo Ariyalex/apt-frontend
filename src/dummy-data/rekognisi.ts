@@ -2,6 +2,7 @@ import { DosenData } from "@/types/rekognisi";
 
 export const initialData: DosenData[] = [
   {
+    id: "rec-1",
     nip: "198503122011011002",
     nama: "Dr. H. Ahmad Rofiq, M.Ag.",
     prodi: "Pendidikan Agama Islam",
@@ -11,6 +12,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-2",
     nip: "197805232008012004",
     nama: "Fitriani, M.Kom.",
     prodi: "Teknik Informatika",
@@ -20,6 +22,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-3",
     nip: "199109052020121008",
     nama: "Zainal Abidin, Ph.D.",
     prodi: "Perbankan Syariah",
@@ -29,6 +32,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-4",
     nip: "198301142010012003",
     nama: "Dr. Siti Aminah, M.A.",
     prodi: "Pendidikan Agama Islam",
@@ -38,6 +42,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-5",
     nip: "197511302005011001",
     nama: "Prof. Dr. Irwan, M.T.",
     prodi: "Teknik Informatika",
@@ -47,6 +52,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-6",
     nip: "198904222019031005",
     nama: "Muhammad Yusuf, M.Pd.",
     prodi: "PGMI",
@@ -56,6 +62,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-7",
     nip: "198107152009122002",
     nama: "Dr. Lilik Herawati, M.Pd.I.",
     prodi: "MPI",
@@ -65,6 +72,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-8",
     nip: "199302182022031007",
     nama: "Rahmat Hidayat, M.I.Kom.",
     prodi: "Komunikasi Penyiaran Islam",
@@ -74,6 +82,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-9",
     nip: "198710052015032004",
     nama: "Dr. Halimah, M.Hum.",
     prodi: "Bahasa dan Sastra Arab",
@@ -83,6 +92,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-10",
     nip: "198212122009011003",
     nama: "Dr. H. Sulaiman, M.H.",
     prodi: "Hukum Ekonomi Syariah",
@@ -92,6 +102,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-11",
     nip: "199505242024011009",
     nama: "Fadel Muhammad, M.Hum.",
     prodi: "Tadris Bahasa Inggris",
@@ -101,6 +112,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-12",
     nip: "197208141999032001",
     nama: "Prof. Dr. Rahmawati, M.Ag.",
     prodi: "Pendidikan Agama Islam",
@@ -110,6 +122,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-13",
     nip: "198610052014021003",
     nama: "Nurhadi, M.T.",
     prodi: "Teknik Informatika",
@@ -119,6 +132,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-14",
     nip: "199011122020122011",
     nama: "Aisyah, M.E.",
     prodi: "Perbankan Syariah",
@@ -128,6 +142,7 @@ export const initialData: DosenData[] = [
     buktiUrl: "#"
   },
   {
+    id: "rec-15",
     nip: "198409252011012008",
     nama: "Dr. Khadijah, M.H.",
     prodi: "Hukum Keluarga Islam",
