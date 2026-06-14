@@ -19,6 +19,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { initialData } from "@/dummy-data/rekognisi";
 import { Submission } from "@/dummy-data/bagikan-form";
 
@@ -91,11 +94,12 @@ export function SubmissionEditDialog({
 
         <div className="space-y-4 py-3">
           {/* Field 1: NIP Dosen */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              NIP Dosen
-              <span className="text-rose-500">*</span>
-            </label>
+          <Field>
+            <FieldLabel>
+              <FieldTitle>
+                NIP Dosen <span className="text-rose-500 ml-0.5">*</span>
+              </FieldTitle>
+            </FieldLabel>
             <Combobox
               options={nipOptions}
               value={selectedNip}
@@ -104,7 +108,7 @@ export function SubmissionEditDialog({
               searchPlaceholder="Cari NIP..."
               className="w-full justify-between"
             />
-          </div>
+          </Field>
 
           {/* Field 2: Nama Dosen (Display Text, not input field) */}
           {selectedNip && (
@@ -115,16 +119,17 @@ export function SubmissionEditDialog({
           )}
 
           {/* Field 3: Jenis Rekognisi */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Jenis Rekognisi
-              <span className="text-rose-500">*</span>
-            </label>
+          <Field>
+            <FieldLabel>
+              <FieldTitle>
+                Jenis Rekognisi <span className="text-rose-500 ml-0.5">*</span>
+              </FieldTitle>
+            </FieldLabel>
             <Select
               value={jenisRekognisi}
               onValueChange={setJenisRekognisi}
             >
-              <SelectTrigger className="w-full bg-muted/20 border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
+              <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
                 <SelectValue placeholder="Pilih Jenis Rekognisi" />
               </SelectTrigger>
               <SelectContent>
@@ -135,62 +140,63 @@ export function SubmissionEditDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
           {/* Field 4: Tahun */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Tahun
-              <span className="text-rose-500">*</span>
-            </label>
-            <Select
-              value={tahun}
-              onValueChange={setTahun}
-            >
-              <SelectTrigger className="w-full bg-muted/20 border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
-                <SelectValue placeholder="Pilih Tahun" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((y) => (
-                  <SelectItem key={y} value={y} className="text-xs font-semibold cursor-pointer">
-                    {y}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Field>
+            <FieldLabel>
+              <FieldTitle>
+                Tahun <span className="text-rose-500 ml-0.5">*</span>
+              </FieldTitle>
+            </FieldLabel>
+            <DatePicker
+              selected={tahun ? new Date(parseInt(tahun), 0, 1) : null}
+              onChange={(date: Date | null) => {
+                if (date) {
+                  setTahun(date.getFullYear().toString());
+                }
+              }}
+              showYearPicker
+              dateFormat="yyyy"
+              customInput={
+                <input className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer text-foreground text-left" />
+              }
+            />
+          </Field>
 
           {/* Field 5: Deskripsi */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Deskripsi Kegiatan
-              <span className="text-rose-500">*</span>
-            </label>
+          <Field>
+            <FieldLabel>
+              <FieldTitle>
+                Deskripsi Kegiatan <span className="text-rose-500 ml-0.5">*</span>
+              </FieldTitle>
+            </FieldLabel>
             <textarea 
               required
               rows={3}
               placeholder="Contoh: Pembicara dalam Seminar Nasional..."
               value={deskripsi}
               onChange={(e) => setDeskripsi(e.target.value)}
-              className="w-full bg-muted/20 border border-border rounded-lg px-3.5 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none text-foreground"
+              className="w-full bg-card border border-border rounded-lg px-3.5 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none text-foreground"
             />
-          </div>
+          </Field>
 
           {/* Field 6: Link Bukti */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Link Bukti Dokumen
-              <span className="text-rose-500">*</span>
-            </label>
+          <Field>
+            <FieldLabel>
+              <FieldTitle>
+                Link Bukti Dokumen <span className="text-rose-500 ml-0.5">*</span>
+              </FieldTitle>
+            </FieldLabel>
             <textarea 
               required
               rows={2}
               placeholder="Contoh: https://drive.google.com/file/d/..."
               value={linkBukti}
               onChange={(e) => setLinkBukti(e.target.value)}
-              className="w-full bg-muted/20 border border-border rounded-lg px-3.5 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none text-foreground font-mono"
+              className="w-full bg-card border border-border rounded-lg px-3.5 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none text-foreground font-mono"
             />
-          </div>
+          </Field>
         </div>
 
         <DialogFooter className="flex justify-end gap-2 pt-2">

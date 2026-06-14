@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpDown, ExternalLink, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
 import { DosenData } from "@/types/rekognisi";
 
 interface RekognisiTableProps {
@@ -35,6 +35,17 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
     return 0;
   });
 
+  const renderSortIcon = (field: keyof DosenData) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 text-muted-foreground/70 group-hover:text-foreground transition-colors" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-3 w-3 text-primary transition-colors" />
+    ) : (
+      <ArrowDown className="h-3 w-3 text-primary transition-colors" />
+    );
+  };
+
   const scrollClass = isExpanded 
     ? "overflow-x-auto rounded-lg border border-border pr-1" 
     : "overflow-x-auto rounded-lg border border-border max-h-[300px] overflow-y-auto pr-1 scrollbar-thin";
@@ -55,7 +66,7 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
               >
                 <div className="flex items-center gap-1.5">
                   Nama Dosen
-                  <ArrowUpDown className="h-3 w-3 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
+                  {renderSortIcon("nama")}
                 </div>
               </th>
               
@@ -65,7 +76,7 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
               >
                 <div className="flex items-center gap-1.5">
                   Prodi
-                  <ArrowUpDown className="h-3 w-3 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
+                  {renderSortIcon("prodi")}
                 </div>
               </th>
               
@@ -75,7 +86,7 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
               >
                 <div className="flex items-center gap-1.5">
                   Jenis Rekognisi
-                  <ArrowUpDown className="h-3 w-3 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
+                  {renderSortIcon("jenisRekognisi")}
                 </div>
               </th>
               
@@ -85,7 +96,7 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
               >
                 <div className="flex items-center gap-1.5">
                   Tahun
-                  <ArrowUpDown className="h-3 w-3 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
+                  {renderSortIcon("tahun")}
                 </div>
               </th>
               

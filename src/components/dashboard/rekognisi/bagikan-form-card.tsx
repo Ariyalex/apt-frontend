@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { format } from "date-fns";
+import { id } from "date-fns/locale";
 import { MoreVertical, Calendar, Check, Copy, Link as LinkIcon, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,7 +75,7 @@ export function BagikanFormCard({
           {/* Expiration date */}
           <div className="flex items-center gap-1 text-xs text-muted-foreground font-semibold shrink-0">
             <Calendar className="h-3.5 w-3.5 opacity-60" />
-            Masa Berlaku: {format(new Date(link.expiredAt), "d MMMM yyyy HH:mm")}
+            Masa Berlaku: {format(new Date(link.expiredAt), "d MMMM yyyy HH:mm", { locale: id })}
           </div>
 
           {/* Status Badge */}

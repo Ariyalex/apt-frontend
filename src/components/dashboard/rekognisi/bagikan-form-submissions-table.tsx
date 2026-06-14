@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Copy, Check, Edit2, CheckCircle2, XCircle } from "lucide-react";
+import { ExternalLink, Copy, Check, Edit2, CheckCircle2, XCircle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Submission } from "@/dummy-data/bagikan-form";
 
@@ -21,12 +21,40 @@ export function BagikanFormSubmissionsTable({
 }: BagikanFormSubmissionsTableProps) {
   const router = useRouter();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<keyof Submission | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const handleCopy = (e: React.MouseEvent, id: string, text: string) => {
     e.stopPropagation();
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleSort = (field: keyof Submission) => {
+    const isAsc = sortField === field && sortDirection === "asc";
+    setSortField(field);
+    setSortDirection(isAsc ? "desc" : "asc");
+  };
+
+  const sortedSubmissions = [...submissions].sort((a, b) => {
+    if (!sortField) return 0;
+    const valA = (a[sortField] || "").toString().toLowerCase();
+    const valB = (b[sortField] || "").toString().toLowerCase();
+    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const renderSortIcon = (field: keyof Submission) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 text-muted-foreground/70 group-hover:text-foreground transition-colors" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-3 w-3 text-primary transition-colors" />
+    ) : (
+      <ArrowDown className="h-3 w-3 text-primary transition-colors" />
+    );
   };
 
   if (submissions.length === 0) {
@@ -43,18 +71,42 @@ export function BagikanFormSubmissionsTable({
         <thead>
           <tr className="border-b border-border/40 text-xs font-bold text-muted-foreground uppercase tracking-wider">
             <th className="px-4 py-3">NIP</th>
-            <th className="px-4 py-3">Nama Dosen</th>
+            <th 
+              onClick={() => handleSort("nama")} 
+              className="px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors group"
+            >
+              <div className="flex items-center gap-1.5">
+                Nama Dosen
+                {renderSortIcon("nama")}
+              </div>
+            </th>
             <th className="px-4 py-3">Prodi</th>
             <th className="px-4 py-3">Jenis Rekognisi</th>
-            <th className="px-4 py-3">Tahun</th>
+            <th 
+              onClick={() => handleSort("tahun")} 
+              className="px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors group"
+            >
+              <div className="flex items-center gap-1.5">
+                Tahun
+                {renderSortIcon("tahun")}
+              </div>
+            </th>
             <th className="px-4 py-3 max-w-[180px]">Deskripsi</th>
             <th className="px-4 py-3">Bukti</th>
-            <th className="px-4 py-3">Status</th>
+            <th 
+              onClick={() => handleSort("status")} 
+              className="px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors group"
+            >
+              <div className="flex items-center gap-1.5">
+                Status
+                {renderSortIcon("status")}
+              </div>
+            </th>
             <th className="px-4 py-3 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/20 text-xs">
-          {submissions.map((sub) => (
+          {sortedSubmissions.map((sub) => (
             <tr 
               key={sub.id} 
               onClick={() => router.push(`/dashboard/rekognisi-dosen/${sub.id}`)}

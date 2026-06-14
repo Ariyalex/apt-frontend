@@ -1,14 +1,28 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ShieldCheck,
   ChevronDown,
   GraduationCap,
+  LogOut,
+  Users,
+  Building2,
+  Activity,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface SidebarItemType {
   title: string;
@@ -135,6 +149,29 @@ const menuItems: SidebarItemType[] = [
   },
 ];
 
+const adminMenuItems: SidebarItemType[] = [
+  {
+    title: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/dashboard",
+  },
+  {
+    title: "Kelola User",
+    icon: Users,
+    href: "/dashboard/kelola-user",
+  },
+  {
+    title: "Kelola Lembaga",
+    icon: Building2,
+    href: "/dashboard/kelola-lembaga",
+  },
+  {
+    title: "Aktivitas User",
+    icon: Activity,
+    href: "/dashboard/aktivitas-user",
+  },
+];
+
 function SidebarItem({
   item,
   depth = 0,
@@ -254,24 +291,84 @@ function SidebarItem({
 }
 
 export function Sidebar() {
-  return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-card">
-      {/* Navigation Links */}
-      <nav className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin">
-        {menuItems.map((item) => (
-          <SidebarItem key={item.title} item={item} />
-        ))}
-      </nav>
+  const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
-      {/* Footer / Info Singkat */}
-      <div className="border-t border-border p-4">
-        <div className="rounded-lg bg-muted/30 p-3 text-center">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Aplikasi Penjamin Mutu
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground/60">v1.0.0-beta</p>
+  useEffect(() => {
+    const raw = localStorage.getItem("userSession");
+    if (raw) {
+      try {
+        const session = JSON.parse(raw);
+        if (session.username === "admin" || session.role === "Administrator") {
+          setIsAdmin(true);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  const confirmLogout = () => {
+    localStorage.removeItem("userSession");
+    router.push("/login");
+  };
+
+  const activeMenuItems = isAdmin ? adminMenuItems : menuItems;
+
+  return (
+    <>
+      <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-card">
+        {/* Navigation Links */}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin">
+          {activeMenuItems.map((item) => (
+            <SidebarItem key={item.title} item={item} />
+          ))}
+        </nav>
+
+        {/* Footer / Info Singkat */}
+        <div className="border-t border-border p-4 flex flex-col gap-3">
+          <button
+            onClick={() => setLogoutOpen(true)}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all duration-200 cursor-pointer"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span>Keluar</span>
+          </button>
+
+          <div className="rounded-lg bg-muted/30 p-3 text-center">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Aplikasi Penjamin Mutu
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground/60">v1.0.0-beta</p>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <AlertDialogContent className="bg-card border border-border p-6 rounded-xl sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
+              Konfirmasi Keluar
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              Apakah Anda yakin ingin keluar dari sistem? Anda harus memasukkan kembali kredensial Anda untuk mengakses dasbor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-end gap-2 pt-2">
+            <AlertDialogCancel className="h-10 text-xs font-bold px-4 rounded-lg cursor-pointer">
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmLogout}
+              className="bg-primary text-primary-foreground font-semibold text-xs h-10 px-4 rounded-lg hover:bg-primary/95 cursor-pointer"
+            >
+              Keluar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
+import { id } from "date-fns/locale";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -18,6 +19,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+
+import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 
 interface EditExpiryDialogProps {
   open: boolean;
@@ -70,17 +73,17 @@ export function EditExpiryDialog({
         <div className="space-y-4 py-4">
           <div className="flex flex-row gap-4">
             {/* Date Picker using Shadcn Popover & Calendar */}
-            <div className="flex-1 space-y-1.5">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Tanggal Kadalwarsa
-              </label>
+            <Field className="flex-1">
+              <FieldLabel>
+                <FieldTitle>Tanggal Kadalwarsa</FieldTitle>
+              </FieldLabel>
               <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className="w-full justify-between text-xs font-semibold hover:bg-muted/80 cursor-pointer h-10 border border-border rounded-lg px-3"
                   >
-                    {date ? format(date, "PPP") : <span className="text-muted-foreground">Pilih Tanggal</span>}
+                    {date ? format(date, "PPP", { locale: id }) : <span className="text-muted-foreground">Pilih Tanggal</span>}
                     <CalendarIcon className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -92,23 +95,24 @@ export function EditExpiryDialog({
                       setDate(d);
                       setPopoverOpen(false);
                     }}
+                    locale={id}
                   />
                 </PopoverContent>
               </Popover>
-            </div>
+            </Field>
 
             {/* Time Picker */}
-            <div className="w-32 space-y-1.5">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Waktu
-              </label>
+            <Field className="w-32">
+              <FieldLabel>
+                <FieldTitle>Waktu</FieldTitle>
+              </FieldLabel>
               <Input
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 className="h-10 text-xs font-semibold border border-border rounded-lg bg-transparent px-3 text-foreground"
               />
-            </div>
+            </Field>
           </div>
         </div>
 

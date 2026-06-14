@@ -1,11 +1,39 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import logoUin from "../../../public/logo_uin.png";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+interface UserSession {
+  name: string;
+  role: string;
+  username: string;
+  initials: string;
+  avatarUrl?: string;
+}
+
 export function Header() {
+  const [session, setSession] = useState<UserSession | null>(null);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("userSession");
+    if (raw) {
+      try {
+        setSession(JSON.parse(raw));
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  const displayName = session?.name || "Ahmad Fauzi";
+  const displayRole = session?.role || "Fakultas";
+  const displayInitials = session?.initials || "AF";
+  const displayAvatar = session?.avatarUrl || "";
+
   return (
-    <header className="flex h-16 w-full items-center justify-between border-b border-border bg-card px-6">
+    <header className="flex h-16 w-full items-center justify-between border-b border-border bg-card px-6 z-20">
       {/* Kiri: Logo */}
       <div className="flex items-center gap-2.5">
         <Image
@@ -28,19 +56,21 @@ export function Header() {
         <div className="flex items-center gap-3">
           <div className="flex flex-col text-right">
             <span className="text-xs font-semibold text-foreground leading-tight">
-              Ahmad Fauzi
+              {displayName}
             </span>
             <span className="text-xs font-medium text-muted-foreground">
-              Fakultas
+              {displayRole}
             </span>
           </div>
           <Avatar className="h-9 w-9 border border-border shadow-sm">
-            <AvatarImage
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop"
-              alt="Ahmad Fauzi"
-            />
+            {displayAvatar ? (
+              <AvatarImage
+                src={displayAvatar}
+                alt={displayName}
+              />
+            ) : null}
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-              AF
+              {displayInitials}
             </AvatarFallback>
           </Avatar>
         </div>

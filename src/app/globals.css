@@ -143,3 +143,76 @@
     cursor: pointer;
   }
 }
+
+/* Custom React Datepicker overrides to match Shadcn UI theme */
+.react-datepicker {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  font-family: inherit !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+}
+
+.react-datepicker__header {
+  background-color: var(--card) !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-top-left-radius: var(--radius-lg) !important;
+  border-top-right-radius: var(--radius-lg) !important;
+  padding-top: 8px !important;
+}
+
+.react-datepicker__header .react-datepicker__current-month {
+  color: var(--foreground) !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__year-container {
+  padding: 8px !important;
+  background-color: var(--card) !important;
+}
+
+.react-datepicker__year-text {
+  color: var(--foreground) !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  border-radius: var(--radius-md) !important;
+  padding: 6px 0 !important;
+  margin: 2px !important;
+  transition: all 0.15s ease !important;
+}
+
+.react-datepicker__year-text:hover {
+  background-color: var(--muted) !important;
+  color: var(--foreground) !important;
+}
+
+.react-datepicker__year-text--selected {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__year-text--selected:hover {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+.react-datepicker__year-text--today {
+  border: 1px solid var(--primary) !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__navigation {
+  top: 8px !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: var(--muted-foreground) !important;
+  border-width: 2px 2px 0 0 !important;
+}
+
+.react-datepicker-wrapper {
+  width: 100% !important;
+}

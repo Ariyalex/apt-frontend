@@ -1,7 +1,23 @@
+"use client";
+
 import React, { useState } from "react";
 import { DosenData } from "@/types/rekognisi";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 
 interface RekognisiChartProps {
   data: DosenData[];
@@ -9,6 +25,13 @@ interface RekognisiChartProps {
   onProdiChange: (prodi: string) => void;
   prodiOptions: { value: string; label: string }[];
 }
+
+const chartConfig = {
+  count: {
+    label: "Jumlah",
+    color: "var(--primary)",
+  },
+} satisfies ChartConfig;
 
 export function RekognisiChart({
   data,
@@ -24,7 +47,7 @@ export function RekognisiChart({
   );
 
   // Calculate count for each jenisRekognisi
-  const chartBars = jenisList
+  const chartData = jenisList
     .map((jenis) => {
       const count = data.filter((item) => item.jenisRekognisi === jenis).length;
       return { name: jenis, count };
@@ -32,65 +55,97 @@ export function RekognisiChart({
     .sort((a, b) => b.count - a.count); // Sort by count descending
 
   const scrollClass = isExpanded
-    ? "space-y-3 pr-2"
-    : "space-y-3 max-h-[160px] overflow-y-auto pr-2 scrollbar-thin";
+    ? "pt-4"
+    : "pt-4 max-h-[160px] overflow-y-auto pr-2 scrollbar-thin";
+
+  const chartHeight = Math.max(chartData.length * 40, 140);
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-4 pb-2 border-b border-border/40">
-        <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">
-          Jenis Rekognisi Dosen
-        </h2>
-
-        {/* Combobox filter prodi replaces the old badge */}
+      <div className="flex flex-row items-center justify-between pb-4 mb-2 border-b border-border/40">
+        <div className="space-y-1">
+          <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">
+            Jenis Rekognisi Dosen
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Grafik pembagian jenis rekognisi aktif
+          </p>
+        </div>
         <Combobox
           options={prodiOptions}
           value={selectedProdi}
           onChange={onProdiChange}
           placeholder="Filter Prodi..."
           searchPlaceholder="Cari prodi..."
-          className="w-[180px] h-8 text-xs font-semibold"
+          className="w-45 h-8 text-xs font-semibold"
         />
       </div>
-
-      {/* Horizontal Bar Chart - Max height 160px with scroll or auto height based on isExpanded */}
       <div className={scrollClass}>
-        {chartBars.length > 0 ? (
-          chartBars.map((bar, idx) => {
-            const maxCount = Math.max(...chartBars.map((b) => b.count), 1);
-            const percentage = (bar.count / maxCount) * 100;
-            return (
-              <div key={idx} className="flex items-center gap-4">
-                <span
-                  className="w-44 shrink-0 text-xs font-semibold text-foreground text-left truncate"
-                  title={bar.name}
-                >
-                  {bar.name}
-                </span>
-                <div className="flex-1 h-6 bg-muted rounded-md overflow-hidden relative">
-                  <div
-                    className="h-full bg-primary/80 hover:bg-primary transition-all duration-500 rounded-r-md"
-                    style={{ width: `${percentage}%` }}
-                  ></div>
-                </div>
-                <span className="w-10 text-start text-xs font-bold text-muted-foreground">
-                  {bar.count}
-                </span>
-              </div>
-            );
-          })
+        {chartData.length > 0 ? (
+          <ChartContainer
+            config={chartConfig}
+            className="w-full"
+            style={{ height: `${chartHeight}px` }}
+          >
+            <BarChart
+              accessibilityLayer
+              data={chartData}
+              layout="vertical"
+              margin={{
+                left: 10,
+                right: 32,
+                top: 5,
+                bottom: 5,
+              }}
+            >
+              <CartesianGrid
+                horizontal={false}
+                strokeDasharray="3 3"
+                className="stroke-border/50"
+              />
+              <YAxis
+                dataKey="name"
+                type="category"
+                tickLine={false}
+                tickMargin={10}
+                axisLine={false}
+                hide
+              />
+              <XAxis dataKey="count" type="number" hide />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent indicator="line" />}
+              />
+              <Bar dataKey="count" fill="var(--color-count)" radius={6}>
+                <LabelList
+                  dataKey="name"
+                  position="insideLeft"
+                  offset={10}
+                  className="fill-white font-semibold text-xs"
+                  fill="#ffffff"
+                  fontSize={12}
+                />
+                <LabelList
+                  dataKey="count"
+                  position="right"
+                  offset={10}
+                  className="fill-muted-foreground font-bold text-xs"
+                  fontSize={12}
+                />
+              </Bar>
+            </BarChart>
+          </ChartContainer>
         ) : (
-          <div className="py-8 text-center text-xs text-muted-foreground">
+          <div className="py-12 text-center text-xs text-muted-foreground">
             Tidak ada data untuk ditampilkan grafik
           </div>
         )}
       </div>
-
       <div className="mt-3 border-t border-border/40 pt-3 flex justify-between items-center text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">
-        <span>Menampilkan {chartBars.length} Jenis Rekognisi</span>
+        <span>Menampilkan {chartData.length} Jenis Rekognisi</span>
 
         {/* Toggle Expand / Collapse Button */}
-        {chartBars.length > 4 && (
+        {chartData.length > 4 && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 outline-none"
