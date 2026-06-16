@@ -16,6 +16,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: set lower case owner name
+        run: |
+          echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -30,7 +34,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ env.REPO_LC }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -38,8 +42,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ env.REPO_LC }}:latest
+            ghcr.io/${{ env.REPO_LC }}:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
 
           cache-from: type=gha
@@ -57,7 +61,7 @@ jobs:
       - name: Update Deployment YAML
         run: |
           cd gitops-repo/frontend 
-          sed -i "s|image: ghcr.io/${{ github.repository }}:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" deployment.yaml
+          sed -i "s|image: ghcr.io/${{ env.REPO_LC }}:.*|image: ghcr.io/${{ env.REPO_LC }}:${{ github.sha }}|g" deployment.yaml
           
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
