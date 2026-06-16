@@ -1,0 +1,66 @@
+name: Build and Publish Next.js to GHCR
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # build-args: | # aktifkan baris ini jika Next.js butuh ENV variabel saat build-time
+          #   NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+
+      - name: Update Image Tag in GitOps Repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'teknohole/lpm-k8s-config'
+          token: ${{ secrets.PAT_LPM_K8S_CONFIG }}
+          path: 'gitops-repo'
+
+      - name: Update Deployment YAML
+        run: |
+          cd gitops-repo/frontend 
+          sed -i "s|image: ghcr.io/${{ github.repository }}:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" deployment.yaml
+          
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add deployment.yaml
+          git commit -m "chore(frontend): update image tag to ${{ github.sha }}"
+          git push origin main
