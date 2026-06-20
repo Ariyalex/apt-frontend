@@ -6,7 +6,7 @@ import logoUin from "../../../../../public/logo_uin.png";
 import { Save, CheckCircle, AlertCircle, FileText } from "lucide-react";
 import { initialData } from "@/dummy-data/rekognisi";
 import { initialSharingLinks } from "@/dummy-data/bagikan-form";
-import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -18,14 +18,27 @@ import {
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { DosenSearchDialog } from "@/components/dashboard/rekognisi/dosen-search-dialog";
+import { initialDosenList } from "@/dummy-data/dosen";
+import { toast } from "sonner";
+
+const facultySlugToName: Record<string, string> = {
+  "sains-dan-teknologi": "Fakultas Sains dan Teknologi",
+  "ilmu-tarbiyah-dan-keguruan": "Fakultas Ilmu Tarbiyah dan Keguruan",
+  "ekonomi-dan-bisnis-islam": "Fakultas Ekonomi dan Bisnis Islam",
+  "dakwah-dan-komunikasi": "Fakultas Dakwah dan Komunikasi",
+  "adab-dan-ilmu-budaya": "Fakultas Adab dan Ilmu Budaya",
+  "syariah-dan-hukum": "Fakultas Syariah dan Hukum",
+};
 
 interface PublicFormPageProps {
-  params: Promise<{ customLink: string }>;
+  params: Promise<{ faculty: string; customLink: string }>;
 }
 
 export default function PublicFormPage({ params }: PublicFormPageProps) {
-  const { customLink } = use(params);
+  const { faculty, customLink } = use(params);
   const [submitted, setSubmitted] = useState(false);
+  const facultyName = facultySlugToName[faculty] || "Fakultas Sains dan Teknologi";
 
   // Form states
   const [selectedNip, setSelectedNip] = useState("");
@@ -34,8 +47,10 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
   const [deskripsi, setDeskripsi] = useState("");
   const [linkBukti, setLinkBukti] = useState("");
 
-  // Find sharing link by name (which is customLink)
-  const linkInfo = initialSharingLinks.find((l) => l.name === customLink);
+  // Find sharing link by name (which is customLink) and match facultySlug
+  const linkInfo = initialSharingLinks.find(
+    (l) => l.name === customLink && l.facultySlug === faculty
+  );
 
   // Check link validity
   const isLinkFound = !!linkInfo;
@@ -43,19 +58,10 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
   const isLinkExpired = linkInfo ? new Date() > new Date(linkInfo.expiredAt) : false;
   const isLinkInvalid = !isLinkFound || isLinkClosed || isLinkExpired;
 
-  // Extract unique lecturers (NIP & Name) from dummy data
-  const lecturers = Array.from(
-    new Map(initialData.map((item) => [item.nip, item.nama])).entries()
-  ).map(([nip, nama]) => ({ nip, nama }));
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
 
-  // Map to Combobox option structure
-  const nipOptions = lecturers.map((l) => ({
-    value: l.nip,
-    label: `${l.nip} - ${l.nama}`,
-  }));
-
-  // Find dynamic lecturer name based on chosen NIP
-  const selectedLecturerName = lecturers.find((l) => l.nip === selectedNip)?.nama || "";
+  // Find dynamic lecturer name based on chosen NIP from initialDosenList
+  const selectedLecturerName = initialDosenList.find((l) => l.nip === selectedNip)?.nama || "";
 
   // Extract unique kinds of recognition
   const jenisList = Array.from(new Set(initialData.map((item) => item.jenisRekognisi)));
@@ -66,6 +72,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
+    toast.success("Tanggapan rekognisi berhasil dikirim!");
   };
 
   const handleResetForm = () => {
@@ -104,7 +111,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
         <Header />
         <main className="flex-1 flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-card border border-border rounded-xl p-8 text-center space-y-6 shadow-sm animate-fadeIn">
-            <div className="mx-auto h-12 w-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
+            <div className="mx-auto h-12 w-12 rounded-full bg-error/10 flex items-center justify-center text-error">
               <AlertCircle className="h-6 w-6" />
             </div>
             
@@ -153,7 +160,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm animate-fadeIn">
             {submitted ? (
               <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
-                <div className="h-14 w-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                <div className="h-14 w-14 rounded-full bg-success/10 flex items-center justify-center text-success">
                   <CheckCircle className="h-9 w-9 animate-bounce" />
                 </div>
                 <div className="space-y-1">
@@ -193,16 +200,24 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                   <FieldLabel>
                     <FieldTitle>
                       NIP Dosen
-                      <span className="text-rose-500 ml-0.5">*</span>
+                      <span className="text-error ml-0.5">*</span>
                     </FieldTitle>
                   </FieldLabel>
-                  <Combobox
-                    options={nipOptions}
+                  <Input
+                    readOnly
+                    placeholder="Klik untuk mencari NIP Dosen..."
                     value={selectedNip}
-                    onChange={setSelectedNip}
-                    placeholder="Pilih atau cari NIP Dosen..."
-                    searchPlaceholder="Cari NIP..."
-                    className="w-full justify-between"
+                    onClick={() => setSearchDialogOpen(true)}
+                    className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono cursor-pointer"
+                  />
+                  <DosenSearchDialog
+                    open={searchDialogOpen}
+                    onOpenChange={setSearchDialogOpen}
+                    onSelect={(nip, name) => {
+                      setSelectedNip(nip);
+                    }}
+                    userRole="Guest"
+                    defaultFaculty={facultyName}
                   />
                 </Field>
 
@@ -219,7 +234,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                   <FieldLabel>
                     <FieldTitle>
                       Jenis Rekognisi
-                      <span className="text-rose-500 ml-0.5">*</span>
+                      <span className="text-error ml-0.5">*</span>
                     </FieldTitle>
                   </FieldLabel>
                   <Select
@@ -244,7 +259,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                   <FieldLabel>
                     <FieldTitle>
                       Tahun
-                      <span className="text-rose-500 ml-0.5">*</span>
+                      <span className="text-error ml-0.5">*</span>
                     </FieldTitle>
                   </FieldLabel>
                   <DatePicker
@@ -267,7 +282,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                   <FieldLabel>
                     <FieldTitle>
                       Deskripsi Kegiatan
-                      <span className="text-rose-500 ml-0.5">*</span>
+                      <span className="text-error ml-0.5">*</span>
                     </FieldTitle>
                   </FieldLabel>
                   <textarea 
@@ -285,7 +300,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                   <FieldLabel>
                     <FieldTitle>
                       Link Bukti Dokumen
-                      <span className="text-rose-500 ml-0.5">*</span>
+                      <span className="text-error ml-0.5">*</span>
                     </FieldTitle>
                   </FieldLabel>
                   <textarea 

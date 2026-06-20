@@ -12,6 +12,7 @@ import {
   Users,
   Building2,
   Activity,
+  Settings,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -147,6 +148,13 @@ const menuItems: SidebarItemType[] = [
       { title: "Isi Data", href: "/dashboard/rekognisi-dosen/isi-data" },
     ],
   },
+  {
+    title: "Setting",
+    icon: Settings,
+    children: [
+      { title: "Dosen", href: "/dashboard/setting/dosen" },
+    ],
+  },
 ];
 
 const adminMenuItems: SidebarItemType[] = [
@@ -169,6 +177,11 @@ const adminMenuItems: SidebarItemType[] = [
     title: "Aktivitas User",
     icon: Activity,
     href: "/dashboard/aktivitas-user",
+  },
+  {
+    title: "Kelola Dosen",
+    icon: GraduationCap,
+    href: "/dashboard/setting/dosen",
   },
 ];
 
@@ -311,7 +324,7 @@ export function Sidebar() {
 
   const confirmLogout = () => {
     localStorage.removeItem("userSession");
-    router.push("/login");
+    router.push("/");
   };
 
   const activeMenuItems = isAdmin ? adminMenuItems : menuItems;

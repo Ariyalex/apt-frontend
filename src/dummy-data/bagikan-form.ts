@@ -17,6 +17,7 @@ export interface SharingLink {
   expiredAt: string; // ISO datetime string
   createdAt: string; // ISO datetime string
   submissions: Submission[];
+  facultySlug: string; // e.g. "fakultas-sains-dan-teknologi"
 }
 
 export const initialSharingLinks: SharingLink[] = [
@@ -26,6 +27,7 @@ export const initialSharingLinks: SharingLink[] = [
     status: "active",
     expiredAt: "2026-07-31T23:59:00.000Z",
     createdAt: "2026-06-12T10:00:00.000Z",
+    facultySlug: "sains-dan-teknologi",
     submissions: [
       {
         id: "sub-1",
@@ -57,6 +59,7 @@ export const initialSharingLinks: SharingLink[] = [
     status: "closed",
     expiredAt: "2026-01-15T23:59:00.000Z",
     createdAt: "2025-12-01T08:30:00.000Z",
+    facultySlug: "sains-dan-teknologi",
     submissions: [
       {
         id: "sub-3",

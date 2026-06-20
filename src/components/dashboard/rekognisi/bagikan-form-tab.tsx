@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BagikanFormCard } from "./bagikan-form-card";
@@ -8,9 +8,30 @@ import { BagikanFormDialog } from "./bagikan-form-dialog";
 import { EditExpiryDialog } from "./edit-expiry-dialog";
 import { SubmissionEditDialog } from "./submission-edit-dialog";
 import { initialSharingLinks, SharingLink, Submission } from "@/dummy-data/bagikan-form";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function BagikanFormTab() {
   const [links, setLinks] = useState<SharingLink[]>(initialSharingLinks);
+  const [userFacultySlug, setUserFacultySlug] = useState("sains-dan-teknologi");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("userSession");
+    if (raw) {
+      try {
+        const session = JSON.parse(raw);
+        if (session.role === "Administrator" || session.username === "admin") {
+          setUserFacultySlug("administrator");
+        } else {
+          setUserFacultySlug("sains-dan-teknologi");
+        }
+      } catch (e) {}
+    }
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Dialog control states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -35,6 +56,7 @@ export function BagikanFormTab() {
       expiredAt,
       createdAt: new Date().toISOString(),
       submissions: [],
+      facultySlug: userFacultySlug,
     };
     setLinks([newLink, ...links]);
   };
@@ -131,7 +153,26 @@ export function BagikanFormTab() {
 
       {/* Cards Stack */}
       <div className="space-y-6">
-        {links.length === 0 ? (
+        {isLoading ? (
+          [1, 2].map((i) => (
+            <div key={i} className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-5 animate-pulse">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-border/40">
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-48 rounded" />
+                  <Skeleton className="h-4 w-72 rounded" />
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Skeleton className="h-8 w-24 rounded" />
+                  <Skeleton className="h-8 w-20 rounded" />
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                <Skeleton className="h-4 w-32 rounded" />
+                <Skeleton className="h-10 w-full rounded" />
+              </div>
+            </div>
+          ))
+        ) : links.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center text-xs text-muted-foreground">
             Belum ada link yang dibuat. Klik tombol "Tambah Link" di atas untuk membuat link pengisian baru.
           </div>
@@ -155,6 +196,7 @@ export function BagikanFormTab() {
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
         onSave={handleCreateLink}
+        facultySlug={userFacultySlug}
       />
 
       {/* Dialog: Edit Masa Berlaku */}

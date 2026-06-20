@@ -32,7 +32,7 @@ export function BagikanFormCard({
   onEditSubmission,
 }: BagikanFormCardProps) {
   const [copied, setCopied] = useState(false);
-  const baseUrl = "http://localhost:3000/form/rekognisi/";
+  const baseUrl = `http://localhost:3000/rekognisi/${link.facultySlug || "sains-dan-teknologi"}/`;
   const fullUrl = `${baseUrl}${link.name}`;
 
   const handleCopyLink = () => {

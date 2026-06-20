@@ -1,14 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Plus } from "lucide-react";
 import Link from "next/link";
 import { initialData } from "@/dummy-data/rekognisi";
 import { RekognisiChart } from "@/components/dashboard/rekognisi/rekognisi-chart";
 import { RekognisiTable } from "@/components/dashboard/rekognisi/rekognisi-table";
 import { Combobox } from "@/components/ui/combobox";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function RekognisiDosenPage() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
   // Separate filter states for Chart and Table
   const [chartProdi, setChartProdi] = useState<string>("Semua");
   const [tableProdi, setTableProdi] = useState<string>("Semua");
@@ -86,12 +95,27 @@ export default function RekognisiDosenPage() {
       </div>
 
       {/* Grid 1: Bar Chart Component (with Prodi Filter built-in) */}
-      <RekognisiChart
-        data={chartFilteredData}
-        selectedProdi={chartProdi}
-        onProdiChange={setChartProdi}
-        prodiOptions={prodiComboboxOptions}
-      />
+      {isLoading ? (
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4 animate-pulse">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-48 rounded" />
+            <Skeleton className="h-9 w-40 rounded" />
+          </div>
+          <div className="space-y-3 pt-4">
+            <Skeleton className="h-9 w-[70%] rounded-r-lg" />
+            <Skeleton className="h-9 w-[85%] rounded-r-lg" />
+            <Skeleton className="h-9 w-[45%] rounded-r-lg" />
+            <Skeleton className="h-9 w-[90%] rounded-r-lg" />
+          </div>
+        </div>
+      ) : (
+        <RekognisiChart
+          data={chartFilteredData}
+          selectedProdi={chartProdi}
+          onProdiChange={setChartProdi}
+          prodiOptions={prodiComboboxOptions}
+        />
+      )}
 
       {/* Grid 2: Table Component */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -145,7 +169,28 @@ export default function RekognisiDosenPage() {
         </div>
 
         {/* Table representation */}
-        <RekognisiTable data={tableFilteredData} />
+        {isLoading ? (
+          <div className="space-y-4 py-2 animate-pulse">
+            <div className="flex gap-4 border-b border-border/50 pb-2">
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex gap-4 items-center py-2.5 border-b border-border/20 last:border-0">
+                <Skeleton className="h-3.5 w-12" />
+                <Skeleton className="h-3.5 w-28" />
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-32" />
+                <Skeleton className="h-3.5 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <RekognisiTable data={tableFilteredData} />
+        )}
       </div>
     </div>
   );

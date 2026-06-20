@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -22,7 +21,8 @@ import {
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { initialData } from "@/dummy-data/rekognisi";
+import { DosenSearchDialog } from "./dosen-search-dialog";
+import { initialDosenList } from "@/dummy-data/dosen";
 import { Submission } from "@/dummy-data/bagikan-form";
 
 interface SubmissionEditDialogProps {
@@ -45,18 +45,23 @@ export function SubmissionEditDialog({
   const [deskripsi, setDeskripsi] = useState("");
   const [linkBukti, setLinkBukti] = useState("");
 
-  // Extract lecturers list
-  const lecturers = Array.from(
-    new Map(initialData.map((item) => [item.nip, item.nama])).entries()
-  ).map(([nip, nama]) => ({ nip, nama }));
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
+  const [userRole, setUserRole] = useState<"Fakultas" | "Administrator">("Fakultas");
 
-  const nipOptions = lecturers.map((l) => ({
-    value: l.nip,
-    label: `${l.nip} - ${l.nama}`,
-  }));
+  useEffect(() => {
+    const raw = localStorage.getItem("userSession");
+    if (raw) {
+      try {
+        const session = JSON.parse(raw);
+        if (session.role === "Administrator") {
+          setUserRole("Administrator");
+        }
+      } catch (e) {}
+    }
+  }, []);
 
-  const selectedLecturerName = lecturers.find((l) => l.nip === selectedNip)?.nama || "";
-  const jenisList = Array.from(new Set(initialData.map((item) => item.jenisRekognisi)));
+  const selectedLecturerName = initialDosenList.find((l) => l.nip === selectedNip)?.nama || "";
+  const jenisList = ["Narasumber", "Tenaga Ahli", "Fasilitator", "Reviewer Jurnal", "Asesor Akreditasi", "Editor Jurnal", "Dosen Tamu", "Juri Kompetensi"];
   const years = Array.from({ length: 11 }, (_, i) => (2020 + i).toString());
 
   useEffect(() => {
@@ -97,16 +102,24 @@ export function SubmissionEditDialog({
           <Field>
             <FieldLabel>
               <FieldTitle>
-                NIP Dosen <span className="text-rose-500 ml-0.5">*</span>
+                NIP Dosen <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
-            <Combobox
-              options={nipOptions}
+            <Input
+              readOnly
+              placeholder="Klik untuk mencari NIP Dosen..."
               value={selectedNip}
-              onChange={setSelectedNip}
-              placeholder="Pilih atau cari NIP Dosen..."
-              searchPlaceholder="Cari NIP..."
-              className="w-full justify-between"
+              onClick={() => setSearchDialogOpen(true)}
+              className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono cursor-pointer"
+            />
+            <DosenSearchDialog
+              open={searchDialogOpen}
+              onOpenChange={setSearchDialogOpen}
+              onSelect={(nip, name) => {
+                setSelectedNip(nip);
+              }}
+              userRole={userRole}
+              defaultFaculty="Fakultas Sains dan Teknologi"
             />
           </Field>
 
@@ -122,7 +135,7 @@ export function SubmissionEditDialog({
           <Field>
             <FieldLabel>
               <FieldTitle>
-                Jenis Rekognisi <span className="text-rose-500 ml-0.5">*</span>
+                Jenis Rekognisi <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
             <Select
@@ -146,7 +159,7 @@ export function SubmissionEditDialog({
           <Field>
             <FieldLabel>
               <FieldTitle>
-                Tahun <span className="text-rose-500 ml-0.5">*</span>
+                Tahun <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
             <DatePicker
@@ -168,7 +181,7 @@ export function SubmissionEditDialog({
           <Field>
             <FieldLabel>
               <FieldTitle>
-                Deskripsi Kegiatan <span className="text-rose-500 ml-0.5">*</span>
+                Deskripsi Kegiatan <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
             <textarea 
@@ -185,7 +198,7 @@ export function SubmissionEditDialog({
           <Field>
             <FieldLabel>
               <FieldTitle>
-                Link Bukti Dokumen <span className="text-rose-500 ml-0.5">*</span>
+                Link Bukti Dokumen <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
             <textarea 

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Save, CheckCircle } from "lucide-react";
 import { initialData } from "@/dummy-data/rekognisi";
-import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -15,6 +15,9 @@ import {
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { DosenSearchDialog } from "./dosen-search-dialog";
+import { initialDosenList } from "@/dummy-data/dosen";
+import { toast } from "sonner";
 
 export function IsiDataManualForm() {
   const [submitted, setSubmitted] = useState(false);
@@ -25,20 +28,10 @@ export function IsiDataManualForm() {
   const [tahun, setTahun] = useState(new Date().getFullYear().toString());
   const [deskripsi, setDeskripsi] = useState("");
   const [linkBukti, setLinkBukti] = useState("");
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
 
-  // Extract unique lecturers (NIP & Name) from dummy data
-  const lecturers = Array.from(
-    new Map(initialData.map((item) => [item.nip, item.nama])).entries()
-  ).map(([nip, nama]) => ({ nip, nama }));
-
-  // Map to Combobox option structure
-  const nipOptions = lecturers.map((l) => ({
-    value: l.nip,
-    label: `${l.nip} - ${l.nama}`,
-  }));
-
-  // Find dynamic lecturer name based on chosen NIP
-  const selectedLecturerName = lecturers.find((l) => l.nip === selectedNip)?.nama || "";
+  // Find dynamic lecturer name based on chosen NIP from initialDosenList
+  const selectedLecturerName = initialDosenList.find((l) => l.nip === selectedNip)?.nama || "";
 
   // Extract unique kinds of recognition
   const jenisList = Array.from(new Set(initialData.map((item) => item.jenisRekognisi)));
@@ -49,6 +42,7 @@ export function IsiDataManualForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
+    toast.success("Data rekognisi dosen berhasil disimpan!");
     setTimeout(() => {
       setSubmitted(false);
       // Reset form
@@ -64,7 +58,7 @@ export function IsiDataManualForm() {
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
       {submitted ? (
         <div className="flex flex-col items-center justify-center py-10 space-y-3 text-center">
-          <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+          <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center text-success">
             <CheckCircle className="h-8 w-8 animate-bounce" />
           </div>
           <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">Data Berhasil Disimpan!</h2>
@@ -82,16 +76,24 @@ export function IsiDataManualForm() {
           <Field>
             <FieldLabel>
               <FieldTitle>
-                NIP Dosen <span className="text-rose-500 ml-0.5">*</span>
+                NIP Dosen <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
-            <Combobox
-              options={nipOptions}
+            <Input
+              readOnly
+              placeholder="Klik untuk mencari NIP Dosen..."
               value={selectedNip}
-              onChange={setSelectedNip}
-              placeholder="Pilih atau cari NIP Dosen..."
-              searchPlaceholder="Cari NIP..."
-              className="w-full justify-between"
+              onClick={() => setSearchDialogOpen(true)}
+              className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono cursor-pointer"
+            />
+            <DosenSearchDialog
+              open={searchDialogOpen}
+              onOpenChange={setSearchDialogOpen}
+              onSelect={(nip, name) => {
+                setSelectedNip(nip);
+              }}
+              userRole="Fakultas"
+              defaultFaculty="Fakultas Sains dan Teknologi"
             />
           </Field>
 
@@ -107,7 +109,7 @@ export function IsiDataManualForm() {
           <Field>
             <FieldLabel>
               <FieldTitle>
-                Jenis Rekognisi <span className="text-rose-500 ml-0.5">*</span>
+                Jenis Rekognisi <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
             <Select
@@ -131,7 +133,7 @@ export function IsiDataManualForm() {
           <Field>
             <FieldLabel>
               <FieldTitle>
-                Tahun <span className="text-rose-500 ml-0.5">*</span>
+                Tahun <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
             <DatePicker
@@ -153,7 +155,7 @@ export function IsiDataManualForm() {
           <Field>
             <FieldLabel>
               <FieldTitle>
-                Deskripsi Kegiatan <span className="text-rose-500 ml-0.5">*</span>
+                Deskripsi Kegiatan <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
             <textarea 
@@ -170,7 +172,7 @@ export function IsiDataManualForm() {
           <Field>
             <FieldLabel>
               <FieldTitle>
-                Link Bukti Dokumen <span className="text-rose-500 ml-0.5">*</span>
+                Link Bukti Dokumen <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
             <textarea 

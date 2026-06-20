@@ -26,12 +26,14 @@ interface BagikanFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (name: string, expiredAt: string) => void;
+  facultySlug: string;
 }
 
 export function BagikanFormDialog({
   open,
   onOpenChange,
   onSave,
+  facultySlug,
 }: BagikanFormDialogProps) {
   const [name, setName] = useState("");
   const [date, setDate] = useState<Date | undefined>(undefined);
@@ -49,7 +51,7 @@ export function BagikanFormDialog({
     }
   }, [open]);
 
-  const baseUrl = "http://localhost:3000/form/rekognisi/";
+  const baseUrl = `http://localhost:3000/rekognisi/${facultySlug}/`;
 
   const handleSave = () => {
     if (!name || !date) return;
