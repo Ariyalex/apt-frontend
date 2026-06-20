@@ -35,12 +35,14 @@ export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProp
               lembagaList.map((lemb, index) => {
                 // Determine jenis lembaga badge color
                 let typeBadgeColor = "bg-muted text-muted-foreground";
-                if (userMatchesType(lemb.jenisLembaga, "fakultas")) {
+                if (lemb.jenisLembaga === "Auditee") {
                   typeBadgeColor = "bg-blue-500/10 text-blue-600 dark:text-blue-400";
-                } else if (userMatchesType(lemb.jenisLembaga, "lembaga")) {
+                } else if (lemb.jenisLembaga === "Auditor") {
                   typeBadgeColor = "bg-purple-500/10 text-purple-600 dark:text-purple-400";
-                } else if (userMatchesType(lemb.jenisLembaga, "assessor")) {
+                } else if (lemb.jenisLembaga === "Assessor") {
                   typeBadgeColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
+                } else if (lemb.jenisLembaga === "None") {
+                  typeBadgeColor = "bg-muted text-muted-foreground/80 border border-border";
                 }
 
                 return (
@@ -56,7 +58,7 @@ export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProp
                     </td>
                     <td className="px-5 py-3.5">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-bold uppercase tracking-wide text-[10px] ${typeBadgeColor}`}>
-                        {lemb.jenisLembaga}
+                        {lemb.jenisLembaga === "None" ? "Netral/None" : lemb.jenisLembaga}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right">

@@ -132,9 +132,10 @@ export function LembagaDialog({
                 <SelectValue placeholder="Pilih Jenis Lembaga" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="fakultas" className="text-xs font-semibold cursor-pointer">fakultas</SelectItem>
-                <SelectItem value="lembaga" className="text-xs font-semibold cursor-pointer">lembaga</SelectItem>
-                <SelectItem value="assessor" className="text-xs font-semibold cursor-pointer">assessor</SelectItem>
+                <SelectItem value="Auditee" className="text-xs font-semibold cursor-pointer">Auditee</SelectItem>
+                <SelectItem value="Auditor" className="text-xs font-semibold cursor-pointer">Auditor</SelectItem>
+                <SelectItem value="Assessor" className="text-xs font-semibold cursor-pointer">Assessor</SelectItem>
+                <SelectItem value="None" className="text-xs font-semibold cursor-pointer">Netral / None</SelectItem>
               </SelectContent>
             </Select>
           </Field>

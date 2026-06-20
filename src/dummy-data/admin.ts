@@ -2,7 +2,7 @@ export interface AdminUser {
   id: string;
   username: string;
   password?: string;
-  jenisAkun: "prodi" | "LPM" | "admin" | "asessor";
+  jenisAkun: "Auditee" | "Auditor" | "Admin" | "Assessor";
   lembaga: string;
   createdAt: string;
   status: "active" | "banned";
@@ -12,7 +12,7 @@ export interface AdminLembaga {
   id: string;
   nama: string;
   deskripsi: string;
-  jenisLembaga: "fakultas" | "lembaga" | "assessor";
+  jenisLembaga: "Auditee" | "Auditor" | "Assessor" | "None";
 }
 
 export interface AdminAktivitas {
@@ -28,7 +28,7 @@ export const initialAdminUsers: AdminUser[] = [
     id: "usr-1",
     username: "fakultas",
     password: "password",
-    jenisAkun: "prodi",
+    jenisAkun: "Auditee",
     lembaga: "Fakultas Sains dan Teknologi",
     createdAt: "2026-06-01",
     status: "active",
@@ -37,8 +37,8 @@ export const initialAdminUsers: AdminUser[] = [
     id: "usr-2",
     username: "admin",
     password: "password",
-    jenisAkun: "admin",
-    lembaga: "Lembaga Penjaminan Mutu",
+    jenisAkun: "Admin",
+    lembaga: "Tidak Ada",
     createdAt: "2026-05-15",
     status: "active",
   },
@@ -46,7 +46,7 @@ export const initialAdminUsers: AdminUser[] = [
     id: "usr-3",
     username: "siti",
     password: "password",
-    jenisAkun: "LPM",
+    jenisAkun: "Auditor",
     lembaga: "Lembaga Penjaminan Mutu",
     createdAt: "2026-06-10",
     status: "active",
@@ -55,8 +55,8 @@ export const initialAdminUsers: AdminUser[] = [
     id: "usr-4",
     username: "budi",
     password: "password",
-    jenisAkun: "asessor",
-    lembaga: "Fakultas Tarbiyah dan Keguruan",
+    jenisAkun: "Assessor",
+    lembaga: "Tidak Ada",
     createdAt: "2026-04-20",
     status: "banned",
   },
@@ -67,25 +67,25 @@ export const initialAdminLembaga: AdminLembaga[] = [
     id: "lemb-1",
     nama: "Fakultas Sains dan Teknologi",
     deskripsi: "Mengelola rumpun program studi eksakta, teknik, dan sains murni.",
-    jenisLembaga: "fakultas",
+    jenisLembaga: "Auditee",
   },
   {
     id: "lemb-2",
     nama: "Fakultas Tarbiyah dan Keguruan",
     deskripsi: "Mengelola pendidikan calon guru dan tenaga kependidikan Islam.",
-    jenisLembaga: "fakultas",
+    jenisLembaga: "Auditee",
   },
   {
     id: "lemb-3",
     nama: "Fakultas Syariah dan Hukum",
     deskripsi: "Mengelola program studi hukum Islam, hukum umum, dan tata negara.",
-    jenisLembaga: "fakultas",
+    jenisLembaga: "Auditee",
   },
   {
     id: "lemb-4",
     nama: "Lembaga Penjaminan Mutu",
     deskripsi: "Pusat penjaminan mutu dan audit internal universitas secara berkala.",
-    jenisLembaga: "lembaga",
+    jenisLembaga: "Auditor",
   },
 ];
 

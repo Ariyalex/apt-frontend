@@ -4,7 +4,9 @@ import React, { useState, useEffect } from "react";
 import { UserPlus } from "lucide-react";
 import { UserTable } from "@/components/dashboard/admin/user-table";
 import { UserDialog } from "@/components/dashboard/admin/user-dialog";
+import { ResetPasswordDialog } from "@/components/dashboard/admin/reset-password-dialog";
 import { AdminUser, AdminLembaga, initialAdminUsers, initialAdminLembaga } from "@/dummy-data/admin";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +24,10 @@ export default function KelolaUserPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+
+  // Reset password states
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetUser, setResetUser] = useState<AdminUser | null>(null);
 
   // Load from localStorage or initialize with dummy data
   useEffect(() => {
@@ -42,15 +48,57 @@ export default function KelolaUserPage() {
 
     // Load Users
     const storedUsers = localStorage.getItem("adminUsers");
+    let loadedUsers: AdminUser[] = [];
+    let needsMigration = false;
+    
     if (storedUsers) {
       try {
-        setUsers(JSON.parse(storedUsers));
+        loadedUsers = JSON.parse(storedUsers);
       } catch (e) {
-        setUsers(initialAdminUsers);
+        loadedUsers = initialAdminUsers;
+        needsMigration = true;
       }
     } else {
-      setUsers(initialAdminUsers);
-      localStorage.setItem("adminUsers", JSON.stringify(initialAdminUsers));
+      loadedUsers = initialAdminUsers;
+      needsMigration = true;
+    }
+
+    // Map old role keys to new ones if found
+    const migratedUsers = loadedUsers.map((u) => {
+      let newRole = u.jenisAkun;
+      if ((u.jenisAkun as string) === "prodi") {
+        newRole = "Auditee";
+        needsMigration = true;
+      } else if ((u.jenisAkun as string) === "LPM") {
+        newRole = "Auditor";
+        needsMigration = true;
+      } else if ((u.jenisAkun as string) === "admin") {
+        newRole = "Admin";
+        needsMigration = true;
+      } else if ((u.jenisAkun as string) === "asessor") {
+        newRole = "Assessor";
+        needsMigration = true;
+      }
+      
+      let newLembaga = u.lembaga;
+      if (newRole === "Admin" && u.lembaga === "Lembaga Penjaminan Mutu") {
+        newLembaga = "Tidak Ada";
+        needsMigration = true;
+      } else if (newRole === "Assessor" && u.lembaga === "Fakultas Tarbiyah dan Keguruan") {
+        newLembaga = "Tidak Ada";
+        needsMigration = true;
+      }
+
+      return {
+        ...u,
+        jenisAkun: newRole,
+        lembaga: newLembaga,
+      };
+    });
+
+    setUsers(migratedUsers);
+    if (needsMigration) {
+      localStorage.setItem("adminUsers", JSON.stringify(migratedUsers));
     }
   }, []);
 
@@ -64,18 +112,40 @@ export default function KelolaUserPage() {
     setDialogOpen(true);
   };
 
+  const handleResetPasswordClick = (user: AdminUser) => {
+    setResetUser(user);
+    setResetDialogOpen(true);
+  };
+
+  const handleSaveResetPassword = (userId: string, newPassword: string) => {
+    const updated = users.map((u) => {
+      if (u.id === userId) {
+        return { ...u, password: newPassword };
+      }
+      return u;
+    });
+    setUsers(updated);
+    localStorage.setItem("adminUsers", JSON.stringify(updated));
+
+    const targetUser = users.find((u) => u.id === userId);
+    logActivity("admin", `mereset password user: ${targetUser?.username}`);
+    toast.success(`Password untuk user "${targetUser?.username}" berhasil direset!`);
+  };
+
   const handleDeleteUser = (userId: string) => {
     setDeleteUserId(userId);
   };
 
   const confirmDeleteUser = () => {
     if (!deleteUserId) return;
+    const targetUser = users.find((u) => u.id === deleteUserId);
     const updated = users.filter((u) => u.id !== deleteUserId);
     setUsers(updated);
     localStorage.setItem("adminUsers", JSON.stringify(updated));
 
     // Append to activity log
-    logActivity("admin", `menghapus user dengan ID: ${deleteUserId}`);
+    logActivity("admin", `menghapus user: ${targetUser?.username || deleteUserId}`);
+    toast.success(`User "${targetUser?.username || deleteUserId}" berhasil dihapus.`);
     setDeleteUserId(null);
   };
 
@@ -86,9 +156,11 @@ export default function KelolaUserPage() {
     if (exists) {
       updated = users.map((u) => (u.id === savedUser.id ? savedUser : u));
       logActivity("admin", `memperbarui data user: ${savedUser.username}`);
+      toast.success(`Data user "${savedUser.username}" berhasil diperbarui.`);
     } else {
       updated = [...users, savedUser];
       logActivity("admin", `menambah user baru: ${savedUser.username}`);
+      toast.success(`User baru "${savedUser.username}" berhasil ditambahkan.`);
     }
 
     setUsers(updated);
@@ -147,6 +219,7 @@ export default function KelolaUserPage() {
         users={users}
         onEdit={handleEditUser}
         onDelete={handleDeleteUser}
+        onResetPassword={handleResetPasswordClick}
       />
 
       <UserDialog
@@ -155,6 +228,13 @@ export default function KelolaUserPage() {
         user={selectedUser}
         lembagaList={lembagaList}
         onSave={handleSaveUser}
+      />
+
+      <ResetPasswordDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        user={resetUser}
+        onSave={handleSaveResetPassword}
       />
 
       {/* Delete User Confirmation Dialog */}

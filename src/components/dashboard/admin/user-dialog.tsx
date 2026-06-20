@@ -43,6 +43,8 @@ export function UserDialog({
   const [status, setStatus] = useState<AdminUser["status"]>("active");
   const [error, setError] = useState("");
 
+  const isEdit = !!user;
+
   useEffect(() => {
     if (open) {
       if (user) {
@@ -63,16 +65,33 @@ export function UserDialog({
     }
   }, [open, user, lembagaList]);
 
+  const handleJenisAkunChange = (val: AdminUser["jenisAkun"]) => {
+    setJenisAkun(val);
+    if (val === "Auditee") {
+      const fakultasOnly = lembagaList.filter((l) => l.jenisLembaga === "Auditee");
+      setLembaga(fakultasOnly[0]?.nama || "");
+    } else if (val === "Auditor") {
+      const lpmOnly = lembagaList.filter((l) => l.jenisLembaga === "Auditor");
+      setLembaga(lpmOnly[0]?.nama || "");
+    } else {
+      setLembaga("Tidak Ada");
+    }
+  };
+
   const handleSave = () => {
-    if (!username.trim() || !password.trim()) {
-      setError("Username dan Password wajib diisi!");
+    if (!username.trim()) {
+      setError("Username wajib diisi!");
+      return;
+    }
+    if (!isEdit && !password.trim()) {
+      setError("Password wajib diisi!");
       return;
     }
     if (!jenisAkun) {
       setError("Silakan pilih Jenis Akun!");
       return;
     }
-    if (!lembaga) {
+    if ((jenisAkun === "Auditee" || jenisAkun === "Auditor") && !lembaga) {
       setError("Silakan pilih Lembaga!");
       return;
     }
@@ -80,16 +99,14 @@ export function UserDialog({
     onSave({
       id: user?.id || `usr-${Date.now()}`,
       username: username.trim(),
-      password: password.trim(),
+      password: isEdit ? user.password : password.trim(), // Keep existing password if editing
       jenisAkun: jenisAkun as AdminUser["jenisAkun"],
-      lembaga,
+      lembaga: (jenisAkun === "Admin" || jenisAkun === "Assessor") ? "Tidak Ada" : lembaga,
       createdAt: user?.createdAt || new Date().toISOString().split("T")[0],
       status: user ? status : "active",
     });
     onOpenChange(false);
   };
-
-  const isEdit = !!user;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -122,32 +139,34 @@ export function UserDialog({
             />
           </Field>
 
-          {/* Password (password input field with show/hide suffix) */}
-          <Field>
-            <FieldLabel>
-              <FieldTitle>Password</FieldTitle>
-            </FieldLabel>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan password..."
-                className="w-full h-10 rounded-lg border border-border bg-card pl-3 pr-10 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-          </Field>
+          {/* Password - only displayed if creating new user */}
+          {!isEdit && (
+            <Field>
+              <FieldLabel>
+                <FieldTitle>Password</FieldTitle>
+              </FieldLabel>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Masukkan password..."
+                  className="w-full h-10 rounded-lg border border-border bg-card pl-3 pr-10 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </Field>
+          )}
 
           {/* Jenis Akun (Shadcn select dropdown) */}
           <Field>
@@ -156,41 +175,62 @@ export function UserDialog({
             </FieldLabel>
             <Select
               value={jenisAkun}
-              onValueChange={(val) => setJenisAkun(val as any)}
+              onValueChange={(val) => handleJenisAkunChange(val as AdminUser["jenisAkun"])}
             >
               <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
                 <SelectValue placeholder="Pilih Jenis Akun" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="prodi" className="text-xs font-semibold cursor-pointer">prodi</SelectItem>
-                <SelectItem value="LPM" className="text-xs font-semibold cursor-pointer">LPM</SelectItem>
-                <SelectItem value="admin" className="text-xs font-semibold cursor-pointer">admin</SelectItem>
-                <SelectItem value="asessor" className="text-xs font-semibold cursor-pointer">asessor</SelectItem>
+                <SelectItem value="Auditee" className="text-xs font-semibold cursor-pointer">Auditee</SelectItem>
+                <SelectItem value="Auditor" className="text-xs font-semibold cursor-pointer">Auditor</SelectItem>
+                <SelectItem value="Admin" className="text-xs font-semibold cursor-pointer">Admin</SelectItem>
+                <SelectItem value="Assessor" className="text-xs font-semibold cursor-pointer">Assessor</SelectItem>
               </SelectContent>
             </Select>
           </Field>
 
-          {/* Lembaga (Shadcn select dropdown) */}
-          <Field>
-            <FieldLabel>
-              <FieldTitle>Lembaga</FieldTitle>
-            </FieldLabel>
-            <Select
-              value={lembaga}
-              onValueChange={setLembaga}
-            >
-              <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
-                <SelectValue placeholder="Pilih Lembaga" />
-              </SelectTrigger>
-              <SelectContent>
-                {lembagaList.map((lemb) => (
-                  <SelectItem key={lemb.id} value={lemb.nama} className="text-xs font-semibold cursor-pointer">
-                    {lemb.nama}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+          {/* Lembaga */}
+          {(jenisAkun === "Auditee" || jenisAkun === "Auditor") ? (
+            <Field>
+              <FieldLabel>
+                <FieldTitle>Lembaga</FieldTitle>
+              </FieldLabel>
+              <Select
+                value={lembaga}
+                onValueChange={setLembaga}
+              >
+                <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
+                  <SelectValue placeholder="Pilih Lembaga" />
+                </SelectTrigger>
+                <SelectContent>
+                  {lembagaList
+                    .filter((lemb) =>
+                      jenisAkun === "Auditee"
+                        ? lemb.jenisLembaga === "Auditee"
+                        : lemb.jenisLembaga === "Auditor"
+                    )
+                    .map((lemb) => (
+                      <SelectItem key={lemb.id} value={lemb.nama} className="text-xs font-semibold cursor-pointer">
+                        {lemb.nama}
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : jenisAkun ? (
+            <Field>
+              <FieldLabel>
+                <FieldTitle>Lembaga</FieldTitle>
+              </FieldLabel>
+              <input
+                type="text"
+                disabled
+                value="Tidak Ada"
+                className="w-full h-10 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground font-semibold"
+              />
+            </Field>
+          ) : null}
 
           {/* Status (radio, edit only) */}
           {isEdit && (

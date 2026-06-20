@@ -24,15 +24,39 @@ export default function KelolaLembagaPage() {
 
   useEffect(() => {
     const storedLemb = localStorage.getItem("adminLembaga");
+    let loadedLemb: AdminLembaga[] = [];
+    let needsMigration = false;
+
     if (storedLemb) {
       try {
-        setLembagaList(JSON.parse(storedLemb));
+        loadedLemb = JSON.parse(storedLemb);
       } catch (e) {
-        setLembagaList(initialAdminLembaga);
+        loadedLemb = initialAdminLembaga;
+        needsMigration = true;
       }
     } else {
-      setLembagaList(initialAdminLembaga);
-      localStorage.setItem("adminLembaga", JSON.stringify(initialAdminLembaga));
+      loadedLemb = initialAdminLembaga;
+      needsMigration = true;
+    }
+
+    const migratedLemb = loadedLemb.map((l) => {
+      let newType = l.jenisLembaga;
+      if ((l.jenisLembaga as string) === "fakultas") {
+        newType = "Auditee";
+        needsMigration = true;
+      } else if ((l.jenisLembaga as string) === "lembaga") {
+        newType = "Auditor";
+        needsMigration = true;
+      } else if ((l.jenisLembaga as string) === "assessor") {
+        newType = "Assessor";
+        needsMigration = true;
+      }
+      return { ...l, jenisLembaga: newType };
+    });
+
+    setLembagaList(migratedLemb);
+    if (needsMigration) {
+      localStorage.setItem("adminLembaga", JSON.stringify(migratedLemb));
     }
   }, []);
 

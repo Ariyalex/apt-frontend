@@ -1,16 +1,17 @@
 "use client";
 
 import React from "react";
-import { Edit, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, Key } from "lucide-react";
 import { AdminUser } from "@/dummy-data/admin";
 
 interface UserTableProps {
   users: AdminUser[];
   onEdit: (user: AdminUser) => void;
   onDelete: (userId: string) => void;
+  onResetPassword: (user: AdminUser) => void;
 }
 
-export function UserTable({ users, onEdit, onDelete }: UserTableProps) {
+export function UserTable({ users, onEdit, onDelete, onResetPassword }: UserTableProps) {
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
@@ -19,7 +20,6 @@ export function UserTable({ users, onEdit, onDelete }: UserTableProps) {
             <tr className="border-b border-border bg-muted/20 text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">
               <th className="px-5 py-3 w-16 text-center">No</th>
               <th className="px-5 py-3">Username</th>
-              <th className="px-5 py-3">Password</th>
               <th className="px-5 py-3">Jenis Akun</th>
               <th className="px-5 py-3">Lembaga</th>
               <th className="px-5 py-3">Created At</th>
@@ -30,7 +30,7 @@ export function UserTable({ users, onEdit, onDelete }: UserTableProps) {
           <tbody className="divide-y divide-border/60 text-xs">
             {users.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-muted-foreground">
+                <td colSpan={7} className="px-5 py-8 text-center text-muted-foreground">
                   Tidak ada data pengguna.
                 </td>
               </tr>
@@ -38,18 +38,15 @@ export function UserTable({ users, onEdit, onDelete }: UserTableProps) {
               users.map((user, index) => {
                 // Determine jenis akun badge color
                 let typeBadgeColor = "bg-muted text-muted-foreground";
-                if (user.jenisAkun === "admin") {
+                if (user.jenisAkun === "Admin") {
                   typeBadgeColor = "bg-amber-500/10 text-amber-600 dark:text-amber-400";
-                } else if (user.jenisAkun === "prodi") {
+                } else if (user.jenisAkun === "Auditee") {
                   typeBadgeColor = "bg-blue-500/10 text-blue-600 dark:text-blue-400";
-                } else if (user.jenisAkun === "LPM") {
+                } else if (user.jenisAkun === "Auditor") {
                   typeBadgeColor = "bg-purple-500/10 text-purple-600 dark:text-purple-400";
-                } else if (user.jenisAkun === "asessor") {
+                } else if (user.jenisAkun === "Assessor") {
                   typeBadgeColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
                 }
-
-                // Mask password
-                const maskedPassword = "••••••••";
 
                 return (
                   <tr key={user.id} className="hover:bg-muted/5 transition-colors">
@@ -58,9 +55,6 @@ export function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                     </td>
                     <td className="px-5 py-3.5 font-bold text-foreground">
                       {user.username}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-muted-foreground/60 select-none">
-                      {maskedPassword}
                     </td>
                     <td className="px-5 py-3.5">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-bold uppercase tracking-wide text-[10px] ${typeBadgeColor}`}>
@@ -94,6 +88,13 @@ export function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex justify-end gap-1.5">
+                        <button
+                          onClick={() => onResetPassword(user)}
+                          title="Reset Password"
+                          className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        >
+                          <Key className="h-4 w-4" />
+                        </button>
                         <button
                           onClick={() => onEdit(user)}
                           title="Edit User"
