@@ -35,10 +35,31 @@ interface PublicFormPageProps {
   params: Promise<{ faculty: string; customLink: string }>;
 }
 
+// Header Component (shared layout for both states)
+const Header = () => (
+  <header className="flex h-16 w-full items-center justify-between border-b border-border bg-card px-6 animate-fadeIn">
+    {/* Left: Logo */}
+    <div className="flex items-center gap-2.5">
+      <Image
+        src={logoUin}
+        alt="Logo UIN"
+        className="object-contain h-11 w-auto"
+      />
+    </div>
+    {/* Right: App Title Only (No User Profile, No Sidebar) */}
+    <div className="flex items-center">
+      <span className="text-sm font-semibold text-muted-foreground">
+        Aplikasi Penjamin Mutu
+      </span>
+    </div>
+  </header>
+);
+
 export default function PublicFormPage({ params }: PublicFormPageProps) {
   const { faculty, customLink } = use(params);
   const [submitted, setSubmitted] = useState(false);
-  const facultyName = facultySlugToName[faculty] || "Fakultas Sains dan Teknologi";
+  const facultyName =
+    facultySlugToName[faculty] || "Fakultas Sains dan Teknologi";
 
   // Form states
   const [selectedNip, setSelectedNip] = useState("");
@@ -49,25 +70,27 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
 
   // Find sharing link by name (which is customLink) and match facultySlug
   const linkInfo = initialSharingLinks.find(
-    (l) => l.name === customLink && l.facultySlug === faculty
+    (l) => l.name === customLink && l.facultySlug === faculty,
   );
 
   // Check link validity
   const isLinkFound = !!linkInfo;
   const isLinkClosed = linkInfo?.status === "closed";
-  const isLinkExpired = linkInfo ? new Date() > new Date(linkInfo.expiredAt) : false;
+  const isLinkExpired = linkInfo
+    ? new Date() > new Date(linkInfo.expiredAt)
+    : false;
   const isLinkInvalid = !isLinkFound || isLinkClosed || isLinkExpired;
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
 
   // Find dynamic lecturer name based on chosen NIP from initialDosenList
-  const selectedLecturerName = initialDosenList.find((l) => l.nip === selectedNip)?.nama || "";
+  const selectedLecturerName =
+    initialDosenList.find((l) => l.nip === selectedNip)?.nama || "";
 
   // Extract unique kinds of recognition
-  const jenisList = Array.from(new Set(initialData.map((item) => item.jenisRekognisi)));
-
-  // Generate years list from 2020 to 2030
-  const years = Array.from({ length: 11 }, (_, i) => (2020 + i).toString());
+  const jenisList = Array.from(
+    new Set(initialData.map((item) => item.jenisRekognisi)),
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,26 +107,6 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
     setLinkBukti("");
   };
 
-  // Header Component (shared layout for both states)
-  const Header = () => (
-    <header className="flex h-16 w-full items-center justify-between border-b border-border bg-card px-6 animate-fadeIn">
-      {/* Left: Logo */}
-      <div className="flex items-center gap-2.5">
-        <Image
-          src={logoUin}
-          alt="Logo UIN"
-          className="object-contain h-11 w-auto"
-        />
-      </div>
-      {/* Right: App Title Only (No User Profile, No Sidebar) */}
-      <div className="flex items-center">
-        <span className="text-sm font-semibold text-muted-foreground">
-          Aplikasi Penjamin Mutu
-        </span>
-      </div>
-    </header>
-  );
-
   // Error/Invalid Screen
   if (isLinkInvalid) {
     return (
@@ -114,13 +117,15 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
             <div className="mx-auto h-12 w-12 rounded-full bg-error/10 flex items-center justify-center text-error">
               <AlertCircle className="h-6 w-6" />
             </div>
-            
+
             <div className="space-y-2">
               <h1 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                {!isLinkFound ? "Tautan Tidak Ditemukan" : "Formulir Sudah Ditutup"}
+                {!isLinkFound
+                  ? "Tautan Tidak Ditemukan"
+                  : "Formulir Sudah Ditutup"}
               </h1>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {!isLinkFound 
+                {!isLinkFound
                   ? `Tautan formulir dengan pengenal "${customLink}" tidak terdaftar dalam sistem.`
                   : `Formulir pengisian untuk "${linkInfo?.name}" saat ini dinonaktifkan atau telah melewati batas waktu pengisian.`}
               </p>
@@ -130,7 +135,9 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
               <div className="bg-muted/30 border border-border/50 rounded-lg p-3 text-left space-y-1.5">
                 <div className="text-xs text-muted-foreground flex justify-between">
                   <span>Nama Form:</span>
-                  <span className="font-bold text-foreground">{linkInfo.name}</span>
+                  <span className="font-bold text-foreground">
+                    {linkInfo.name}
+                  </span>
                 </div>
                 <div className="text-xs text-muted-foreground flex justify-between">
                   <span>Batas Waktu:</span>
@@ -152,10 +159,9 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
   return (
     <div className="min-h-screen bg-muted/10 flex flex-col font-sans">
       <Header />
-      
+
       <main className="flex-1 flex flex-col py-8 px-4 items-center">
         <div className="max-w-2xl w-full space-y-6">
-          
           {/* Main Card */}
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm animate-fadeIn">
             {submitted ? (
@@ -164,13 +170,20 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                   <CheckCircle className="h-9 w-9 animate-bounce" />
                 </div>
                 <div className="space-y-1">
-                  <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">Tanggapan Berhasil Dikirim!</h2>
+                  <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Tanggapan Berhasil Dikirim!
+                  </h2>
                   <p className="text-xs text-muted-foreground max-w-sm">
-                    Terima kasih, data rekognisi Anda telah berhasil direkam ke dalam form <span className="font-bold text-foreground">"{linkInfo.name}"</span>.
+                    Terima kasih, data rekognisi Anda telah berhasil direkam ke
+                    dalam form{" "}
+                    <span className="font-bold text-foreground">
+                      &quot;{linkInfo.name}&quot;
+                    </span>
+                    .
                   </p>
                 </div>
                 <div className="pt-4">
-                  <Button 
+                  <Button
                     onClick={handleResetForm}
                     className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold text-xs px-4 py-2 rounded-lg hover:bg-primary/95 shadow-sm transition-colors cursor-pointer"
                   >
@@ -180,18 +193,21 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
-                
                 {/* Form Header Info */}
                 <div className="border-b border-border/40 pb-4 mb-2 space-y-1">
                   <div className="flex items-center gap-2 text-primary">
                     <FileText className="h-5 w-5" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Formulir Rekognisi Dosen</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      Formulir Rekognisi Dosen
+                    </span>
                   </div>
                   <h1 className="text-sm font-bold text-foreground leading-tight">
                     {linkInfo.name}
                   </h1>
                   <p className="text-xs text-muted-foreground">
-                    Gunakan formulir ini untuk mengajukan data rekognisi Anda. Data akan divalidasi oleh Administrator sebelum dipublikasikan.
+                    Gunakan formulir ini untuk mengajukan data rekognisi Anda.
+                    Data akan divalidasi oleh Administrator sebelum
+                    dipublikasikan.
                   </p>
                 </div>
 
@@ -210,22 +226,17 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                     onClick={() => setSearchDialogOpen(true)}
                     className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono cursor-pointer"
                   />
-                  <DosenSearchDialog
-                    open={searchDialogOpen}
-                    onOpenChange={setSearchDialogOpen}
-                    onSelect={(nip, name) => {
-                      setSelectedNip(nip);
-                    }}
-                    userRole="Guest"
-                    defaultFaculty={facultyName}
-                  />
                 </Field>
 
                 {/* Field 2: Nama Dosen (Display Text, not input field) */}
                 {selectedNip && (
                   <div className="space-y-1 p-3.5 bg-muted/25 border border-border/60 rounded-lg animate-fadeIn">
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nama Dosen</span>
-                    <p className="text-xs font-bold text-foreground">{selectedLecturerName}</p>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Nama Dosen
+                    </span>
+                    <p className="text-xs font-bold text-foreground">
+                      {selectedLecturerName}
+                    </p>
                   </div>
                 )}
 
@@ -246,7 +257,11 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                     </SelectTrigger>
                     <SelectContent>
                       {jenisList.map((jenis) => (
-                        <SelectItem key={jenis} value={jenis} className="text-xs font-semibold cursor-pointer">
+                        <SelectItem
+                          key={jenis}
+                          value={jenis}
+                          className="text-xs font-semibold cursor-pointer"
+                        >
                           {jenis}
                         </SelectItem>
                       ))}
@@ -285,7 +300,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                       <span className="text-error ml-0.5">*</span>
                     </FieldTitle>
                   </FieldLabel>
-                  <textarea 
+                  <textarea
                     required
                     rows={3}
                     placeholder="Contoh: Pembicara dalam Seminar Nasional Teknologi Informasi..."
@@ -303,7 +318,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                       <span className="text-error ml-0.5">*</span>
                     </FieldTitle>
                   </FieldLabel>
-                  <textarea 
+                  <textarea
                     required
                     rows={2}
                     placeholder="Contoh: https://drive.google.com/file/d/..."
@@ -315,8 +330,8 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
 
                 {/* Form Actions */}
                 <div className="pt-2 flex justify-end">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={!selectedNip}
                     className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold text-xs px-4 py-2 rounded-lg hover:bg-primary/95 shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                   >
@@ -326,9 +341,18 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
               </form>
             )}
           </div>
-          
         </div>
       </main>
+
+      <DosenSearchDialog
+        open={searchDialogOpen}
+        onOpenChange={setSearchDialogOpen}
+        onSelect={(nip) => {
+          setSelectedNip(nip);
+        }}
+        userRole="Guest"
+        defaultFaculty={facultyName}
+      />
     </div>
   );
 }

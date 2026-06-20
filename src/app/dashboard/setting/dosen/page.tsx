@@ -120,6 +120,7 @@ export default function DosenManagementPage() {
   const [addNama, setAddNama] = useState("");
   const [addFaculty, setAddFaculty] = useState("");
   const [addProdi, setAddProdi] = useState("");
+  const [addEmail, setAddEmail] = useState("");
   const [addPhotoUrl, setAddPhotoUrl] = useState("");
 
   // Delete Dosen Dialog States
@@ -133,6 +134,7 @@ export default function DosenManagementPage() {
   const [editDosenNama, setEditDosenNama] = useState("");
   const [editDosenFaculty, setEditDosenFaculty] = useState("");
   const [editDosenProdi, setEditDosenProdi] = useState("");
+  const [editDosenEmail, setEditDosenEmail] = useState("");
   const [editDosenPhotoUrl, setEditDosenPhotoUrl] = useState("");
 
   // Edit Pengajuan Dialog States
@@ -142,6 +144,7 @@ export default function DosenManagementPage() {
   const [editNama, setEditNama] = useState("");
   const [editFaculty, setEditFaculty] = useState("");
   const [editProdi, setEditProdi] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editPhotoUrl, setEditPhotoUrl] = useState("");
 
   // Load Session and lists
@@ -204,20 +207,33 @@ export default function DosenManagementPage() {
     setPengajuanList(newList);
   };
 
+  const validateUinEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return false;
+    const domain = email.split("@")[1].toLowerCase();
+    return domain === "uin-suka.ac.id" || domain.endsWith(".uin-suka.ac.id");
+  };
+
   // Add Dosen
   const handleOpenAdd = () => {
     setAddNip("");
     setAddNama("");
     setAddFaculty(isAdmin ? faculties[0] : userFaculty);
     setAddProdi(prodis[0]);
+    setAddEmail("");
     setAddPhotoUrl("");
     setIsAddOpen(true);
   };
 
   const handleAddDosen = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addNip.trim() || !addNama.trim()) {
-      toast.error("NIP dan Nama wajib diisi.");
+    if (!addNip.trim() || !addNama.trim() || !addEmail.trim()) {
+      toast.error("NIP, Nama, dan Email wajib diisi.");
+      return;
+    }
+
+    if (!validateUinEmail(addEmail.trim())) {
+      toast.error("Email harus menggunakan domain resmi uin-suka.ac.id atau subdomainnya.");
       return;
     }
 
@@ -232,6 +248,7 @@ export default function DosenManagementPage() {
       nama: addNama.trim(),
       fakultas: addFaculty,
       prodi: addProdi,
+      email: addEmail.trim(),
       photoUrl: addPhotoUrl.trim() || undefined,
     };
 
@@ -266,6 +283,7 @@ export default function DosenManagementPage() {
       nama: pengajuan.nama,
       fakultas: pengajuan.fakultas,
       prodi: pengajuan.prodi,
+      email: pengajuan.email,
       photoUrl: pengajuan.photoUrl,
     };
 
@@ -288,6 +306,7 @@ export default function DosenManagementPage() {
     setEditNama(pengajuan.nama);
     setEditFaculty(pengajuan.fakultas);
     setEditProdi(pengajuan.prodi);
+    setEditEmail(pengajuan.email || "");
     setEditPhotoUrl(pengajuan.photoUrl || "");
     setIsEditOpen(true);
   };
@@ -299,6 +318,7 @@ export default function DosenManagementPage() {
     setEditDosenNama(dosen.nama);
     setEditDosenFaculty(dosen.fakultas);
     setEditDosenProdi(dosen.prodi);
+    setEditDosenEmail(dosen.email || "");
     setEditDosenPhotoUrl(dosen.photoUrl || "");
     setIsEditDosenOpen(true);
   };
@@ -308,8 +328,13 @@ export default function DosenManagementPage() {
     e.preventDefault();
     if (!editingDosen) return;
 
-    if (!editDosenNip.trim() || !editDosenNama.trim()) {
-      toast.error("NIP dan Nama wajib diisi.");
+    if (!editDosenNip.trim() || !editDosenNama.trim() || !editDosenEmail.trim()) {
+      toast.error("NIP, Nama, and Email wajib diisi.");
+      return;
+    }
+
+    if (!validateUinEmail(editDosenEmail.trim())) {
+      toast.error("Email harus menggunakan domain resmi uin-suka.ac.id atau subdomainnya.");
       return;
     }
 
@@ -328,6 +353,7 @@ export default function DosenManagementPage() {
           nama: editDosenNama.trim(),
           fakultas: editDosenFaculty,
           prodi: editDosenProdi,
+          email: editDosenEmail.trim(),
           photoUrl: editDosenPhotoUrl.trim() || undefined,
         };
       }
@@ -344,8 +370,13 @@ export default function DosenManagementPage() {
     e.preventDefault();
     if (!editingPengajuan) return;
 
-    if (!editNama.trim()) {
-      toast.error("Nama wajib diisi.");
+    if (!editNama.trim() || !editEmail.trim()) {
+      toast.error("Nama dan Email wajib diisi.");
+      return;
+    }
+
+    if (!validateUinEmail(editEmail.trim())) {
+      toast.error("Email harus menggunakan domain resmi uin-suka.ac.id atau subdomainnya.");
       return;
     }
 
@@ -357,6 +388,7 @@ export default function DosenManagementPage() {
           nama: editNama.trim(),
           fakultas: editFaculty,
           prodi: editProdi,
+          email: editEmail.trim(),
           photoUrl: editPhotoUrl.trim() || undefined,
         };
       }
@@ -757,6 +789,21 @@ export default function DosenManagementPage() {
               </Select>
             </Field>
 
+            {/* Input Email */}
+            <Field>
+              <FieldLabel>
+                <FieldTitle>Email <span className="text-error">*</span></FieldTitle>
+              </FieldLabel>
+              <Input
+                type="email"
+                required
+                placeholder="dosen@uin-suka.ac.id"
+                value={addEmail}
+                onChange={(e) => setAddEmail(e.target.value)}
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+              />
+            </Field>
+
             {/* Input Foto (Opsional, Upload Gambar) */}
             <Field>
               <FieldLabel>
@@ -918,6 +965,21 @@ export default function DosenManagementPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </Field>
+
+              {/* Input Email */}
+              <Field>
+                <FieldLabel>
+                  <FieldTitle>Email <span className="text-error">*</span></FieldTitle>
+                </FieldLabel>
+                <Input
+                  type="email"
+                  required
+                  placeholder="dosen@uin-suka.ac.id"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                />
               </Field>
 
               {/* Input Foto (Opsional, Upload Gambar) */}
@@ -1082,6 +1144,21 @@ export default function DosenManagementPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </Field>
+
+              {/* Input Email */}
+              <Field>
+                <FieldLabel>
+                  <FieldTitle>Email <span className="text-error">*</span></FieldTitle>
+                </FieldLabel>
+                <Input
+                  type="email"
+                  required
+                  placeholder="dosen@uin-suka.ac.id"
+                  value={editDosenEmail}
+                  onChange={(e) => setEditDosenEmail(e.target.value)}
+                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                />
               </Field>
 
               {/* Input Foto (Opsional, Upload Gambar) */}

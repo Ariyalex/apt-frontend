@@ -4,6 +4,7 @@ export interface Dosen {
   fakultas: string;
   prodi: string;
   photoUrl?: string;
+  email?: string;
 }
 
 export interface DosenPengajuan extends Dosen {

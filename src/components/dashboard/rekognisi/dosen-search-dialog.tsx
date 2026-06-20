@@ -103,6 +103,7 @@ export function DosenSearchDialog({
   const [newName, setNewName] = useState("");
   const [newFaculty, setNewFaculty] = useState("");
   const [newProdi, setNewProdi] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
 
   // Reset dialog state when opened
@@ -116,6 +117,7 @@ export function DosenSearchDialog({
       // Init form fields
       setNewNip("");
       setNewName("");
+      setNewEmail("");
       const initialFaculty = (userRole === "Fakultas" || userRole === "Guest") ? defaultFaculty : faculties[0];
       setNewFaculty(initialFaculty);
       
@@ -151,10 +153,22 @@ export function DosenSearchDialog({
     setShowForm(true);
   };
 
+  const validateUinEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return false;
+    const domain = email.split("@")[1].toLowerCase();
+    return domain === "uin-suka.ac.id" || domain.endsWith(".uin-suka.ac.id");
+  };
+
   const handleSubmitNewDosen = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNip.trim() || !newName.trim()) {
-      toast.error("NIP dan Nama wajib diisi.");
+    if (!newNip.trim() || !newName.trim() || !newEmail.trim()) {
+      toast.error("NIP, Nama, dan Email wajib diisi.");
+      return;
+    }
+
+    if (!validateUinEmail(newEmail.trim())) {
+      toast.error("Email harus menggunakan domain resmi uin-suka.ac.id atau subdomainnya.");
       return;
     }
 
@@ -170,6 +184,7 @@ export function DosenSearchDialog({
       nama: newName.trim(),
       fakultas: newFaculty,
       prodi: newProdi,
+      email: newEmail.trim(),
       photoUrl: newPhotoUrl.trim() || undefined,
     };
 
@@ -187,9 +202,9 @@ export function DosenSearchDialog({
       // Add directly
       initialDosenList.push(lecturerData);
       toast.success("Data dosen baru berhasil ditambahkan!");
+      onSelect(newNip.trim(), newName.trim());
     }
 
-    onSelect(newNip.trim(), newName.trim());
     onOpenChange(false);
   };
 
@@ -358,6 +373,21 @@ export function DosenSearchDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </Field>
+
+            {/* Input Email */}
+            <Field>
+              <FieldLabel>
+                <FieldTitle>Email <span className="text-error">*</span></FieldTitle>
+              </FieldLabel>
+              <Input
+                type="email"
+                required
+                placeholder="dosen@uin-suka.ac.id"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+              />
             </Field>
 
             {/* Input Foto (Opsional, Upload Gambar) */}
