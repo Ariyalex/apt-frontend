@@ -28,7 +28,7 @@ export function Header() {
   }, []);
 
   const displayName = session?.name || "Ahmad Fauzi";
-  const displayRole = session?.role || "Fakultas";
+  const displayRole = session?.role || "Auditee";
   const displayInitials = session?.initials || "AF";
   const displayAvatar = session?.avatarUrl || "";
 
@@ -64,10 +64,7 @@ export function Header() {
           </div>
           <Avatar className="h-9 w-9 border border-border shadow-sm">
             {displayAvatar ? (
-              <AvatarImage
-                src={displayAvatar}
-                alt={displayName}
-              />
+              <AvatarImage src={displayAvatar} alt={displayName} />
             ) : null}
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
               {displayInitials}

@@ -35,7 +35,6 @@ export function LembagaDialog({
 }: LembagaDialogProps) {
   const [nama, setNama] = useState("");
   const [deskripsi, setDeskripsi] = useState("");
-  const [jenisLembaga, setJenisLembaga] = useState<AdminLembaga["jenisLembaga"] | "">("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -43,11 +42,9 @@ export function LembagaDialog({
       if (lembaga) {
         setNama(lembaga.nama);
         setDeskripsi(lembaga.deskripsi);
-        setJenisLembaga(lembaga.jenisLembaga);
       } else {
         setNama("");
         setDeskripsi("");
-        setJenisLembaga("");
       }
       setError("");
     }
@@ -58,16 +55,12 @@ export function LembagaDialog({
       setError("Nama dan Deskripsi wajib diisi!");
       return;
     }
-    if (!jenisLembaga) {
-      setError("Silakan pilih Jenis Lembaga!");
-      return;
-    }
 
     onSave({
       id: lembaga?.id || `lemb-${Date.now()}`,
       nama: nama.trim(),
       deskripsi: deskripsi.trim(),
-      jenisLembaga: jenisLembaga as AdminLembaga["jenisLembaga"],
+      jenisLembaga: "None",
     });
     onOpenChange(false);
   };
@@ -118,27 +111,6 @@ export function LembagaDialog({
               className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px]"
             />
           </Field>
-
-          {/* Jenis Lembaga (Shadcn select dropdown) */}
-          <Field>
-            <FieldLabel>
-              <FieldTitle>Jenis Lembaga</FieldTitle>
-            </FieldLabel>
-            <Select
-              value={jenisLembaga}
-              onValueChange={(val) => setJenisLembaga(val as any)}
-            >
-              <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
-                <SelectValue placeholder="Pilih Jenis Lembaga" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Auditee" className="text-xs font-semibold cursor-pointer">Auditee</SelectItem>
-                <SelectItem value="Auditor" className="text-xs font-semibold cursor-pointer">Auditor</SelectItem>
-                <SelectItem value="Assessor" className="text-xs font-semibold cursor-pointer">Assessor</SelectItem>
-                <SelectItem value="None" className="text-xs font-semibold cursor-pointer">Netral / None</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
         </div>
 
         <DialogFooter className="flex justify-end gap-2 pt-2">
@@ -162,3 +134,4 @@ export function LembagaDialog({
     </Dialog>
   );
 }
+

@@ -44,11 +44,35 @@ export default function RootLoginPage() {
           "userSession",
           JSON.stringify({
             name: "Ahmad Fauzi",
-            role: "Fakultas",
+            role: "Auditee",
             username: "fakultas",
             initials: "AF",
             avatarUrl:
               "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop",
+          }),
+        );
+        router.push("/dashboard");
+      } else if (normalizedUser === "auditor" && password === "password") {
+        localStorage.setItem(
+          "userSession",
+          JSON.stringify({
+            name: "Budi Santoso",
+            role: "Auditor",
+            username: "auditor",
+            initials: "BS",
+            avatarUrl: "",
+          }),
+        );
+        router.push("/dashboard");
+      } else if (normalizedUser === "assessor" && password === "password") {
+        localStorage.setItem(
+          "userSession",
+          JSON.stringify({
+            name: "Dr. Diana Putri",
+            role: "Assessor",
+            username: "assessor",
+            initials: "DP",
+            avatarUrl: "",
           }),
         );
         router.push("/dashboard");
@@ -186,36 +210,46 @@ export default function RootLoginPage() {
             <div className="grid grid-cols-2 gap-2">
               <div className="p-2.5 rounded-lg bg-muted/20 border border-border/50 text-[11px] space-y-0.5">
                 <span className="font-bold text-foreground block leading-tight">
-                  Tipe Fakultas:
+                  Auditee (Fakultas):
                 </span>
                 <span className="text-muted-foreground block">
-                  U:{" "}
-                  <span className="font-mono font-semibold text-foreground">
-                    fakultas
-                  </span>
+                  U: <span className="font-mono font-semibold text-foreground">fakultas</span>
                 </span>
                 <span className="text-muted-foreground block">
-                  P:{" "}
-                  <span className="font-mono font-semibold text-foreground">
-                    password
-                  </span>
+                  P: <span className="font-mono font-semibold text-foreground">password</span>
                 </span>
               </div>
               <div className="p-2.5 rounded-lg bg-muted/20 border border-border/50 text-[11px] space-y-0.5">
                 <span className="font-bold text-foreground block leading-tight">
-                  Tipe Admin:
+                  Admin:
                 </span>
                 <span className="text-muted-foreground block">
-                  U:{" "}
-                  <span className="font-mono font-semibold text-foreground">
-                    admin
-                  </span>
+                  U: <span className="font-mono font-semibold text-foreground">admin</span>
                 </span>
                 <span className="text-muted-foreground block">
-                  P:{" "}
-                  <span className="font-mono font-semibold text-foreground">
-                    password
-                  </span>
+                  P: <span className="font-mono font-semibold text-foreground">password</span>
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-muted/20 border border-border/50 text-[11px] space-y-0.5">
+                <span className="font-bold text-foreground block leading-tight">
+                  Auditor (LPM):
+                </span>
+                <span className="text-muted-foreground block">
+                  U: <span className="font-mono font-semibold text-foreground">auditor</span>
+                </span>
+                <span className="text-muted-foreground block">
+                  P: <span className="font-mono font-semibold text-foreground">password</span>
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-muted/20 border border-border/50 text-[11px] space-y-0.5">
+                <span className="font-bold text-foreground block leading-tight">
+                  Assessor:
+                </span>
+                <span className="text-muted-foreground block">
+                  U: <span className="font-mono font-semibold text-foreground">assessor</span>
+                </span>
+                <span className="text-muted-foreground block">
+                  P: <span className="font-mono font-semibold text-foreground">password</span>
                 </span>
               </div>
             </div>

@@ -32,8 +32,8 @@ export function BagikanFormCard({
   onEditSubmission,
 }: BagikanFormCardProps) {
   const [copied, setCopied] = useState(false);
-  const baseUrl = `http://localhost:3000/rekognisi/${link.facultySlug || "sains-dan-teknologi"}/`;
-  const fullUrl = `${baseUrl}${link.name}`;
+  const baseUrl = `http://localhost:3000/`;
+  const fullUrl = `${baseUrl}rekognisi-${link.name}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(fullUrl);
@@ -56,7 +56,7 @@ export function BagikanFormCard({
             title="Klik untuk menyalin link"
           >
             <div className="flex items-center gap-1">
-              <span className="text-xs font-mono text-muted-foreground">{baseUrl}</span>
+              <span className="text-xs font-mono text-muted-foreground">{baseUrl}rekognisi-</span>
               <span className="text-xs font-mono font-bold text-primary underline decoration-primary/40 group-hover:decoration-primary transition-all">
                 {link.name}
               </span>

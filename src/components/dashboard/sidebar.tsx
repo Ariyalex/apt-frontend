@@ -152,7 +152,7 @@ const menuItems: SidebarItemType[] = [
     title: "Setting",
     icon: Settings,
     children: [
-      { title: "Dosen", href: "/dashboard/setting/dosen" },
+      { title: "Dosen", href: "/dashboard/kelola-dosen" },
     ],
   },
 ];
@@ -181,7 +181,7 @@ const adminMenuItems: SidebarItemType[] = [
   {
     title: "Kelola Dosen",
     icon: GraduationCap,
-    href: "/dashboard/setting/dosen",
+    href: "/dashboard/kelola-dosen",
   },
 ];
 
@@ -306,6 +306,7 @@ function SidebarItem({
 export function Sidebar() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState("");
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   useEffect(() => {
@@ -316,6 +317,7 @@ export function Sidebar() {
         if (session.username === "admin" || session.role === "Administrator") {
           setIsAdmin(true);
         }
+        setUserRole(session.role || "");
       } catch (e) {
         // ignore
       }
@@ -327,7 +329,24 @@ export function Sidebar() {
     router.push("/");
   };
 
-  const activeMenuItems = isAdmin ? adminMenuItems : menuItems;
+  let activeMenuItems = isAdmin ? adminMenuItems : menuItems;
+
+  if (!isAdmin) {
+    activeMenuItems = menuItems.map(item => {
+      if (item.title === "Rekognisi Dosen" && (userRole === "Auditor" || userRole === "Assessor")) {
+        return {
+          title: item.title,
+          icon: item.icon,
+          href: item.href,
+        };
+      }
+      return item;
+    });
+
+    if (userRole === "Auditor" || userRole === "Assessor") {
+      activeMenuItems = activeMenuItems.filter(item => item.title !== "Setting");
+    }
+  }
 
   return (
     <>

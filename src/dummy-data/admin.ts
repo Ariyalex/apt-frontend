@@ -1,5 +1,6 @@
 export interface AdminUser {
   id: string;
+  name: string;
   username: string;
   password?: string;
   jenisAkun: "Auditee" | "Auditor" | "Admin" | "Assessor";
@@ -26,6 +27,7 @@ export interface AdminAktivitas {
 export const initialAdminUsers: AdminUser[] = [
   {
     id: "usr-1",
+    name: "User Auditee Sains dan Teknologi",
     username: "fakultas",
     password: "password",
     jenisAkun: "Auditee",
@@ -35,6 +37,7 @@ export const initialAdminUsers: AdminUser[] = [
   },
   {
     id: "usr-2",
+    name: "System Administrator",
     username: "admin",
     password: "password",
     jenisAkun: "Admin",
@@ -44,6 +47,7 @@ export const initialAdminUsers: AdminUser[] = [
   },
   {
     id: "usr-3",
+    name: "Dr. Siti Aminah, M.A. (Auditor)",
     username: "siti",
     password: "password",
     jenisAkun: "Auditor",
@@ -53,6 +57,7 @@ export const initialAdminUsers: AdminUser[] = [
   },
   {
     id: "usr-4",
+    name: "Budi Santoso, Ph.D. (Assessor)",
     username: "budi",
     password: "password",
     jenisAkun: "Assessor",

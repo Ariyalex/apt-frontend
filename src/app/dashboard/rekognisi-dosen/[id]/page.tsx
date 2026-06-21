@@ -26,7 +26,7 @@ interface DetailPageProps {
 
 export default function DetailRekognisiPage({ params }: DetailPageProps) {
   const { id } = use(params);
-  const [copied, setCopied] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Search in standard initialData
   let record = initialData.find((item) => item.id === id);
@@ -142,12 +142,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps) {
     return "Fakultas Ushuluddin dan Filsafat (FUF)";
   };
 
-  const handleCopyLink = () => {
-    if (!record) return;
-    navigator.clipboard.writeText(record.buktiUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // No single copy handler needed as it is handled inline per link
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 py-6">
@@ -282,38 +277,46 @@ export default function DetailRekognisiPage({ params }: DetailPageProps) {
                 <BookOpen className="h-3.5 w-3.5 text-muted-foreground/60" /> Link Bukti Dokumen
               </span>
               
-              <div className="sm:col-span-2 space-y-2">
-                <div className="text-muted-foreground font-mono text-xs truncate bg-muted/20 border border-border/40 p-2 rounded-lg select-all" title={record.buktiUrl}>
-                  {record.buktiUrl}
-                </div>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={record.buktiUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-muted border border-border px-3 text-xs font-bold text-foreground hover:bg-muted/80 transition-all cursor-pointer"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Kunjungi Tautan Bukti
-                  </a>
-                  <Button
-                    variant="outline"
-                    onClick={handleCopyLink}
-                    className="h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-bold cursor-pointer"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-emerald-500" />
-                        Tersalin
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        Salin Tautan
-                      </>
-                    )}
-                  </Button>
-                </div>
+              <div className="sm:col-span-2 space-y-4">
+                {record.buktiUrl.split(",").filter(Boolean).map((url, idx) => (
+                  <div key={idx} className="space-y-2 border-b border-border/10 pb-3 last:border-0 last:pb-0">
+                    <div className="text-muted-foreground font-mono text-xs truncate bg-muted/20 border border-border/40 p-2 rounded-lg select-all" title={url}>
+                      {url}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-muted border border-border px-3 text-xs font-bold text-foreground hover:bg-muted/80 transition-all cursor-pointer"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Kunjungi Tautan Bukti
+                      </a>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText(url);
+                          setCopiedIndex(idx);
+                          setTimeout(() => setCopiedIndex(null), 2000);
+                        }}
+                        className="h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-bold cursor-pointer"
+                      >
+                        {copiedIndex === idx ? (
+                          <>
+                            <Check className="h-3.5 w-3.5 text-success" />
+                            Tersalin
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" />
+                            Salin Tautan
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
             

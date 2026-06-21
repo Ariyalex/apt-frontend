@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { UserPlus } from "lucide-react";
 import { UserTable } from "@/components/dashboard/admin/user-table";
 import { UserDialog } from "@/components/dashboard/admin/user-dialog";
-import { ResetPasswordDialog } from "@/components/dashboard/admin/reset-password-dialog";
 import { AdminUser, AdminLembaga, initialAdminUsers, initialAdminLembaga } from "@/dummy-data/admin";
 import { toast } from "sonner";
 import {
@@ -28,6 +27,10 @@ export default function KelolaUserPage() {
   // Reset password states
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetUser, setResetUser] = useState<AdminUser | null>(null);
+
+  // Success Added User Alert Dialog
+  const [addedUserAlertOpen, setAddedUserAlertOpen] = useState(false);
+  const [newAddedUser, setNewAddedUser] = useState<AdminUser | null>(null);
 
   // Load from localStorage or initialize with dummy data
   useEffect(() => {
@@ -93,6 +96,7 @@ export default function KelolaUserPage() {
         ...u,
         jenisAkun: newRole,
         lembaga: newLembaga,
+        name: u.name || u.username.charAt(0).toUpperCase() + u.username.slice(1),
       };
     });
 
@@ -117,19 +121,21 @@ export default function KelolaUserPage() {
     setResetDialogOpen(true);
   };
 
-  const handleSaveResetPassword = (userId: string, newPassword: string) => {
+  const confirmResetPassword = () => {
+    if (!resetUser) return;
     const updated = users.map((u) => {
-      if (u.id === userId) {
-        return { ...u, password: newPassword };
+      if (u.id === resetUser.id) {
+        return { ...u, password: resetUser.username };
       }
       return u;
     });
     setUsers(updated);
     localStorage.setItem("adminUsers", JSON.stringify(updated));
 
-    const targetUser = users.find((u) => u.id === userId);
-    logActivity("admin", `mereset password user: ${targetUser?.username}`);
-    toast.success(`Password untuk user "${targetUser?.username}" berhasil direset!`);
+    logActivity("admin", `mereset password user: ${resetUser.username}`);
+    toast.success(`Password untuk user "${resetUser.username}" berhasil direset menjadi "${resetUser.username}"!`);
+    setResetDialogOpen(false);
+    setResetUser(null);
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -160,7 +166,8 @@ export default function KelolaUserPage() {
     } else {
       updated = [...users, savedUser];
       logActivity("admin", `menambah user baru: ${savedUser.username}`);
-      toast.success(`User baru "${savedUser.username}" berhasil ditambahkan.`);
+      setNewAddedUser(savedUser);
+      setAddedUserAlertOpen(true);
     }
 
     setUsers(updated);
@@ -230,12 +237,39 @@ export default function KelolaUserPage() {
         onSave={handleSaveUser}
       />
 
-      <ResetPasswordDialog
-        open={resetDialogOpen}
-        onOpenChange={setResetDialogOpen}
-        user={resetUser}
-        onSave={handleSaveResetPassword}
-      />
+      {/* Reset Password Confirmation Dialog */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent className="bg-card border border-border p-6 rounded-xl sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
+              Konfirmasi Reset Password
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              Apakah Anda yakin ingin mereset password pengguna "{resetUser?.username}"?
+              <span className="block mt-2 font-semibold text-amber-600 dark:text-amber-400">
+                Password akan direset menjadi sama dengan username mereka: "{resetUser?.username}".
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-end gap-2 pt-2">
+            <AlertDialogCancel
+              onClick={() => {
+                setResetDialogOpen(false);
+                setResetUser(null);
+              }}
+              className="h-10 text-xs font-bold px-4 rounded-lg cursor-pointer"
+            >
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmResetPassword}
+              className="bg-primary text-primary-foreground font-semibold text-xs h-10 px-4 rounded-lg hover:bg-primary/95 cursor-pointer"
+            >
+              Reset Password
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete User Confirmation Dialog */}
       <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
@@ -257,6 +291,34 @@ export default function KelolaUserPage() {
               className="bg-rose-600 text-white hover:bg-rose-700 font-semibold text-xs h-10 px-4 rounded-lg cursor-pointer"
             >
               Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Success Added User Alert Dialog */}
+      <AlertDialog open={addedUserAlertOpen} onOpenChange={setAddedUserAlertOpen}>
+        <AlertDialogContent className="bg-card border border-border p-6 rounded-xl sm:max-w-md animate-fadeIn">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+              User Berhasil Ditambahkan
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground mt-2">
+              User baru <span className="font-bold text-foreground">"{newAddedUser?.name}"</span> (@{newAddedUser?.username}) telah sukses ditambahkan ke sistem.
+              <span className="block mt-3.5 font-semibold text-success bg-success/10 border border-success/20 p-3 rounded-lg">
+                Password default untuk user ini diatur sama dengan username: <span className="font-mono underline font-bold">{newAddedUser?.username}</span>
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-end pt-2">
+            <AlertDialogAction
+              onClick={() => {
+                setAddedUserAlertOpen(false);
+                setNewAddedUser(null);
+              }}
+              className="bg-primary text-primary-foreground font-semibold text-xs h-10 px-4 rounded-lg cursor-pointer"
+            >
+              Mengerti
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

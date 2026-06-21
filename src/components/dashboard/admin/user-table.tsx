@@ -53,8 +53,9 @@ export function UserTable({ users, onEdit, onDelete, onResetPassword }: UserTabl
                     <td className="px-5 py-3.5 text-center font-medium text-muted-foreground">
                       {index + 1}
                     </td>
-                    <td className="px-5 py-3.5 font-bold text-foreground">
-                      {user.username}
+                    <td className="px-5 py-3.5 text-foreground">
+                      <div className="font-bold">{user.name || user.username}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">@{user.username}</div>
                     </td>
                     <td className="px-5 py-3.5">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-bold uppercase tracking-wide text-[10px] ${typeBadgeColor}`}>

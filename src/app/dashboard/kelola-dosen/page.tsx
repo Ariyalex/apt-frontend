@@ -92,6 +92,7 @@ const facultyProdiMap: Record<string, string[]> = {
 
 export default function DosenManagementPage() {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAllowed, setIsAllowed] = useState(true);
   const [userFaculty, setUserFaculty] = useState("Fakultas Sains dan Teknologi");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -121,7 +122,6 @@ export default function DosenManagementPage() {
   const [addFaculty, setAddFaculty] = useState("");
   const [addProdi, setAddProdi] = useState("");
   const [addEmail, setAddEmail] = useState("");
-  const [addPhotoUrl, setAddPhotoUrl] = useState("");
 
   // Delete Dosen Dialog States
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -135,7 +135,6 @@ export default function DosenManagementPage() {
   const [editDosenFaculty, setEditDosenFaculty] = useState("");
   const [editDosenProdi, setEditDosenProdi] = useState("");
   const [editDosenEmail, setEditDosenEmail] = useState("");
-  const [editDosenPhotoUrl, setEditDosenPhotoUrl] = useState("");
 
   // Edit Pengajuan Dialog States
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -145,7 +144,6 @@ export default function DosenManagementPage() {
   const [editFaculty, setEditFaculty] = useState("");
   const [editProdi, setEditProdi] = useState("");
   const [editEmail, setEditEmail] = useState("");
-  const [editPhotoUrl, setEditPhotoUrl] = useState("");
 
   // Load Session and lists
   useEffect(() => {
@@ -153,7 +151,9 @@ export default function DosenManagementPage() {
     if (raw) {
       try {
         const session = JSON.parse(raw);
-        if (session.role === "Administrator" || session.username === "admin") {
+        if (session.role === "Auditor" || session.role === "Assessor") {
+          setIsAllowed(false);
+        } else if (session.role === "Administrator" || session.username === "admin") {
           setIsAdmin(true);
         } else {
           // If fakultas user, default to Sains dan Teknologi for mock
@@ -221,7 +221,6 @@ export default function DosenManagementPage() {
     setAddFaculty(isAdmin ? faculties[0] : userFaculty);
     setAddProdi(prodis[0]);
     setAddEmail("");
-    setAddPhotoUrl("");
     setIsAddOpen(true);
   };
 
@@ -249,7 +248,6 @@ export default function DosenManagementPage() {
       fakultas: addFaculty,
       prodi: addProdi,
       email: addEmail.trim(),
-      photoUrl: addPhotoUrl.trim() || undefined,
     };
 
     const updated = [...dosenList, newDosen];
@@ -284,7 +282,6 @@ export default function DosenManagementPage() {
       fakultas: pengajuan.fakultas,
       prodi: pengajuan.prodi,
       email: pengajuan.email,
-      photoUrl: pengajuan.photoUrl,
     };
 
     const updatedDosen = [...dosenList, newDosen];
@@ -307,7 +304,6 @@ export default function DosenManagementPage() {
     setEditFaculty(pengajuan.fakultas);
     setEditProdi(pengajuan.prodi);
     setEditEmail(pengajuan.email || "");
-    setEditPhotoUrl(pengajuan.photoUrl || "");
     setIsEditOpen(true);
   };
 
@@ -319,7 +315,6 @@ export default function DosenManagementPage() {
     setEditDosenFaculty(dosen.fakultas);
     setEditDosenProdi(dosen.prodi);
     setEditDosenEmail(dosen.email || "");
-    setEditDosenPhotoUrl(dosen.photoUrl || "");
     setIsEditDosenOpen(true);
   };
 
@@ -354,7 +349,6 @@ export default function DosenManagementPage() {
           fakultas: editDosenFaculty,
           prodi: editDosenProdi,
           email: editDosenEmail.trim(),
-          photoUrl: editDosenPhotoUrl.trim() || undefined,
         };
       }
       return d;
@@ -389,7 +383,6 @@ export default function DosenManagementPage() {
           fakultas: editFaculty,
           prodi: editProdi,
           email: editEmail.trim(),
-          photoUrl: editPhotoUrl.trim() || undefined,
         };
       }
       return p;
@@ -399,6 +392,18 @@ export default function DosenManagementPage() {
     toast.success("Pengajuan dosen berhasil diperbarui!");
     setIsEditOpen(false);
   };
+
+  if (!isAllowed) {
+    return (
+      <div className="p-6 border border-border bg-card rounded-xl text-center space-y-4">
+        <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Akses Ditolak</h2>
+        <p className="text-xs text-muted-foreground">Peran Anda tidak diizinkan untuk mengakses halaman pengaturan dosen.</p>
+        <a href="/dashboard" className="inline-block text-xs font-semibold text-primary underline">
+          Kembali ke Dashboard
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-6 animate-fadeIn">
@@ -521,7 +526,6 @@ export default function DosenManagementPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase border-b border-border">
-                    <th className="px-4 py-3 font-semibold">Foto</th>
                     <th className="px-4 py-3 font-semibold">NIP</th>
                     <th className="px-4 py-3 font-semibold">Nama Lengkap</th>
                     {isAdmin && <th className="px-4 py-3 font-semibold">Fakultas</th>}
@@ -533,9 +537,6 @@ export default function DosenManagementPage() {
                   {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <tr key={i} className="border-b border-border/50 text-xs">
-                        <td className="px-4 py-3">
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                        </td>
                         <td className="px-4 py-3">
                           <Skeleton className="h-4 w-28 rounded font-mono" />
                         </td>
@@ -559,17 +560,6 @@ export default function DosenManagementPage() {
                   ) : filteredDosen.length > 0 ? (
                     filteredDosen.map((d, index) => (
                       <tr key={d.nip} className="border-b border-border/50 text-xs hover:bg-muted/10 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="h-8 w-8 rounded-full bg-muted overflow-hidden border border-border">
-                            {d.photoUrl ? (
-                              <img src={d.photoUrl} alt={d.nama} className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary font-bold">
-                                {d.nama.charAt(0)}
-                              </div>
-                            )}
-                          </div>
-                        </td>
                         <td className="px-4 py-3 font-mono font-semibold text-muted-foreground">{d.nip}</td>
                         <td className="px-4 py-3 font-bold text-foreground">{d.nama}</td>
                         {isAdmin && <td className="px-4 py-3 text-foreground">{d.fakultas}</td>}
@@ -595,7 +585,7 @@ export default function DosenManagementPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={isAdmin ? 6 : 5} className="py-8 text-center text-xs text-muted-foreground font-semibold">
+                      <td colSpan={isAdmin ? 5 : 4} className="py-8 text-center text-xs text-muted-foreground font-semibold">
                         Tidak ada data dosen yang terdaftar.
                       </td>
                     </tr>
@@ -741,34 +731,25 @@ export default function DosenManagementPage() {
               <FieldLabel>
                 <FieldTitle>Fakultas <span className="text-error">*</span></FieldTitle>
               </FieldLabel>
-              {isAdmin ? (
-                <Select
-                  value={addFaculty}
-                  onValueChange={(val) => {
-                    setAddFaculty(val);
-                    const allowed = facultyProdiMap[val] || [];
-                    setAddProdi(allowed[0] || "");
-                  }}
-                >
-                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
-                    <SelectValue placeholder="Pilih Fakultas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {faculties.map((f) => (
-                      <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
-                        {f}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  type="text"
-                  disabled
-                  value={addFaculty}
-                  className="h-10 text-xs border border-border rounded-lg bg-muted px-3 text-muted-foreground font-semibold"
-                />
-              )}
+              <Select
+                value={addFaculty}
+                onValueChange={(val) => {
+                  setAddFaculty(val);
+                  const allowed = facultyProdiMap[val] || [];
+                  setAddProdi(allowed[0] || "");
+                }}
+              >
+                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                  <SelectValue placeholder="Pilih Fakultas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {faculties.map((f) => (
+                    <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
+                      {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
 
             <Field>
@@ -804,59 +785,6 @@ export default function DosenManagementPage() {
               />
             </Field>
 
-            {/* Input Foto (Opsional, Upload Gambar) */}
-            <Field>
-              <FieldLabel>
-                <FieldTitle>Foto Dosen (Opsional)</FieldTitle>
-              </FieldLabel>
-              <div className="flex flex-col sm:flex-row items-center gap-4 p-3 bg-muted/10 border border-border rounded-lg">
-                <div className="h-28 w-24 rounded-lg border border-border overflow-hidden bg-muted flex items-center justify-center shrink-0 relative group shadow-sm">
-                  {addPhotoUrl ? (
-                    <>
-                      <img src={addPhotoUrl} alt="Preview" className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setAddPhotoUrl("")}
-                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold cursor-pointer"
-                      >
-                        Hapus Foto
-                      </button>
-                    </>
-                  ) : (
-                    <div className="text-center p-2">
-                      <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">No Photo</span>
-                      <span className="text-[9px] text-muted-foreground block mt-0.5">3 x 4 Ratio</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 w-full space-y-2">
-                  <p className="text-[11px] text-muted-foreground leading-normal">
-                    Pilih file foto formal dengan latar belakang polos. Format yang didukung: JPG, JPEG, atau PNG (Maksimal 2 MB).
-                  </p>
-                  <div className="relative">
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 2 * 1024 * 1024) {
-                            toast.error("Ukuran file maksimal 2 MB.");
-                            return;
-                          }
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setAddPhotoUrl(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="h-10 text-xs border border-border rounded-lg bg-card px-3 py-1.5 text-foreground file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-2.5 file:py-0.5 file:text-[10px] file:font-bold hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
-                    />
-                  </div>
-                </div>
-              </div>
-            </Field>
 
             <DialogFooter className="flex justify-end gap-2 pt-2">
               <Button
@@ -919,34 +847,25 @@ export default function DosenManagementPage() {
                 <FieldLabel>
                   <FieldTitle>Fakultas <span className="text-error">*</span></FieldTitle>
                 </FieldLabel>
-                {isAdmin ? (
-                  <Select
-                    value={editFaculty}
-                    onValueChange={(val) => {
-                      setEditFaculty(val);
-                      const allowed = facultyProdiMap[val] || [];
-                      setEditProdi(allowed[0] || "");
-                    }}
-                  >
-                    <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
-                      <SelectValue placeholder="Pilih Fakultas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {faculties.map((f) => (
-                        <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
-                          {f}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    type="text"
-                    disabled
-                    value={editFaculty}
-                    className="h-10 text-xs border border-border rounded-lg bg-muted px-3 text-muted-foreground font-semibold"
-                  />
-                )}
+                <Select
+                  value={editFaculty}
+                  onValueChange={(val) => {
+                    setEditFaculty(val);
+                    const allowed = facultyProdiMap[val] || [];
+                    setEditProdi(allowed[0] || "");
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                    <SelectValue placeholder="Pilih Fakultas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {faculties.map((f) => (
+                      <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
+                        {f}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
 
               <Field>
@@ -982,59 +901,6 @@ export default function DosenManagementPage() {
                 />
               </Field>
 
-              {/* Input Foto (Opsional, Upload Gambar) */}
-              <Field>
-                <FieldLabel>
-                  <FieldTitle>Foto Dosen (Opsional)</FieldTitle>
-                </FieldLabel>
-                <div className="flex flex-col sm:flex-row items-center gap-4 p-3 bg-muted/10 border border-border rounded-lg">
-                  <div className="h-28 w-24 rounded-lg border border-border overflow-hidden bg-muted flex items-center justify-center shrink-0 relative group shadow-sm">
-                    {editPhotoUrl ? (
-                      <>
-                        <img src={editPhotoUrl} alt="Preview" className="h-full w-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => setEditPhotoUrl("")}
-                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold cursor-pointer"
-                        >
-                          Hapus Foto
-                        </button>
-                      </>
-                    ) : (
-                      <div className="text-center p-2">
-                        <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">No Photo</span>
-                        <span className="text-[9px] text-muted-foreground block mt-0.5">3 x 4 Ratio</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 w-full space-y-2">
-                    <p className="text-[11px] text-muted-foreground leading-normal">
-                      Pilih file foto formal dengan latar belakang polos. Format yang didukung: JPG, JPEG, atau PNG (Maksimal 2 MB).
-                    </p>
-                    <div className="relative">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (file.size > 2 * 1024 * 1024) {
-                              toast.error("Ukuran file maksimal 2 MB.");
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setEditPhotoUrl(reader.result as string);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                        className="h-10 text-xs border border-border rounded-lg bg-card px-3 py-1.5 text-foreground file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-2.5 file:py-0.5 file:text-[10px] file:font-bold hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </Field>
 
               <DialogFooter className="flex justify-end gap-2 pt-2">
                 <Button
@@ -1098,34 +964,25 @@ export default function DosenManagementPage() {
                 <FieldLabel>
                   <FieldTitle>Fakultas <span className="text-error">*</span></FieldTitle>
                 </FieldLabel>
-                {isAdmin ? (
-                  <Select
-                    value={editDosenFaculty}
-                    onValueChange={(val) => {
-                      setEditDosenFaculty(val);
-                      const allowed = facultyProdiMap[val] || [];
-                      setEditDosenProdi(allowed[0] || "");
-                    }}
-                  >
-                    <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
-                      <SelectValue placeholder="Pilih Fakultas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {faculties.map((f) => (
-                        <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
-                          {f}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    type="text"
-                    disabled
-                    value={editDosenFaculty}
-                    className="h-10 text-xs border border-border rounded-lg bg-muted px-3 text-muted-foreground font-semibold"
-                  />
-                )}
+                <Select
+                  value={editDosenFaculty}
+                  onValueChange={(val) => {
+                    setEditDosenFaculty(val);
+                    const allowed = facultyProdiMap[val] || [];
+                    setEditDosenProdi(allowed[0] || "");
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                    <SelectValue placeholder="Pilih Fakultas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {faculties.map((f) => (
+                      <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
+                        {f}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
 
               <Field>
@@ -1161,59 +1018,6 @@ export default function DosenManagementPage() {
                 />
               </Field>
 
-              {/* Input Foto (Opsional, Upload Gambar) */}
-              <Field>
-                <FieldLabel>
-                  <FieldTitle>Foto Dosen (Opsional)</FieldTitle>
-                </FieldLabel>
-                <div className="flex flex-col sm:flex-row items-center gap-4 p-3 bg-muted/10 border border-border rounded-lg">
-                  <div className="h-28 w-24 rounded-lg border border-border overflow-hidden bg-muted flex items-center justify-center shrink-0 relative group shadow-sm">
-                    {editDosenPhotoUrl ? (
-                      <>
-                        <img src={editDosenPhotoUrl} alt="Preview" className="h-full w-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => setEditDosenPhotoUrl("")}
-                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold cursor-pointer"
-                        >
-                          Hapus Foto
-                        </button>
-                      </>
-                    ) : (
-                      <div className="text-center p-2">
-                        <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">No Photo</span>
-                        <span className="text-[9px] text-muted-foreground block mt-0.5">3 x 4 Ratio</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 w-full space-y-2">
-                    <p className="text-[11px] text-muted-foreground leading-normal">
-                      Pilih file foto formal dengan latar belakang polos. Format yang didukung: JPG, JPEG, atau PNG (Maksimal 2 MB).
-                    </p>
-                    <div className="relative">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (file.size > 2 * 1024 * 1024) {
-                              toast.error("Ukuran file maksimal 2 MB.");
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setEditDosenPhotoUrl(reader.result as string);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                        className="h-10 text-xs border border-border rounded-lg bg-card px-3 py-1.5 text-foreground file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-2.5 file:py-0.5 file:text-[10px] file:font-bold hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </Field>
 
               <DialogFooter className="flex justify-end gap-2 pt-2">
                 <Button

@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -18,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { AdminUser, AdminLembaga } from "@/dummy-data/admin";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 
 interface UserDialogProps {
   open: boolean;
@@ -35,9 +33,8 @@ export function UserDialog({
   lembagaList,
   onSave,
 }: UserDialogProps) {
+  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [jenisAkun, setJenisAkun] = useState<AdminUser["jenisAkun"] | "">("");
   const [lembaga, setLembaga] = useState("");
   const [status, setStatus] = useState<AdminUser["status"]>("active");
@@ -48,60 +45,52 @@ export function UserDialog({
   useEffect(() => {
     if (open) {
       if (user) {
+        setName(user.name || "");
         setUsername(user.username);
-        setPassword(user.password || "");
         setJenisAkun(user.jenisAkun);
         setLembaga(user.lembaga);
         setStatus(user.status);
       } else {
+        setName("");
         setUsername("");
-        setPassword("");
         setJenisAkun("");
-        setLembaga("");
+        setLembaga("Tidak Ada");
         setStatus("active");
       }
-      setShowPassword(false);
       setError("");
     }
   }, [open, user, lembagaList]);
 
   const handleJenisAkunChange = (val: AdminUser["jenisAkun"]) => {
     setJenisAkun(val);
-    if (val === "Auditee") {
-      const fakultasOnly = lembagaList.filter((l) => l.jenisLembaga === "Auditee");
-      setLembaga(fakultasOnly[0]?.nama || "");
-    } else if (val === "Auditor") {
-      const lpmOnly = lembagaList.filter((l) => l.jenisLembaga === "Auditor");
-      setLembaga(lpmOnly[0]?.nama || "");
-    } else {
-      setLembaga("Tidak Ada");
-    }
   };
 
   const handleSave = () => {
+    if (!name.trim()) {
+      setError("Nama Lengkap wajib diisi!");
+      return;
+    }
     if (!username.trim()) {
       setError("Username wajib diisi!");
       return;
     }
-    if (!isEdit && !password.trim()) {
-      setError("Password wajib diisi!");
+    // Validation: no spaces, must be all lowercase
+    if (/[A-Z\s]/.test(username)) {
+      setError("Username tidak boleh mengandung spasi atau huruf kapital!");
       return;
     }
     if (!jenisAkun) {
       setError("Silakan pilih Jenis Akun!");
       return;
     }
-    if ((jenisAkun === "Auditee" || jenisAkun === "Auditor") && !lembaga) {
-      setError("Silakan pilih Lembaga!");
-      return;
-    }
 
     onSave({
       id: user?.id || `usr-${Date.now()}`,
+      name: name.trim(),
       username: username.trim(),
-      password: isEdit ? user.password : password.trim(), // Keep existing password if editing
+      password: isEdit ? user.password : username.trim(), // Default password to match username on creation
       jenisAkun: jenisAkun as AdminUser["jenisAkun"],
-      lembaga: (jenisAkun === "Admin" || jenisAkun === "Assessor") ? "Tidak Ada" : lembaga,
+      lembaga: lembaga || "Tidak Ada",
       createdAt: user?.createdAt || new Date().toISOString().split("T")[0],
       status: user ? status : "active",
     });
@@ -125,6 +114,20 @@ export function UserDialog({
         )}
 
         <div className="space-y-4 py-4">
+          {/* Nama Lengkap (text field) */}
+          <Field>
+            <FieldLabel>
+              <FieldTitle>Nama Lengkap</FieldTitle>
+            </FieldLabel>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Masukkan nama lengkap..."
+              className="w-full h-10 rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </Field>
+
           {/* Username (text field) */}
           <Field>
             <FieldLabel>
@@ -138,35 +141,6 @@ export function UserDialog({
               className="w-full h-10 rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </Field>
-
-          {/* Password - only displayed if creating new user */}
-          {!isEdit && (
-            <Field>
-              <FieldLabel>
-                <FieldTitle>Password</FieldTitle>
-              </FieldLabel>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Masukkan password..."
-                  className="w-full h-10 rounded-lg border border-border bg-card pl-3 pr-10 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            </Field>
-          )}
 
           {/* Jenis Akun (Shadcn select dropdown) */}
           <Field>
@@ -189,48 +163,42 @@ export function UserDialog({
             </Select>
           </Field>
 
-          {/* Lembaga */}
-          {(jenisAkun === "Auditee" || jenisAkun === "Auditor") ? (
-            <Field>
-              <FieldLabel>
-                <FieldTitle>Lembaga</FieldTitle>
-              </FieldLabel>
-              <Select
-                value={lembaga}
-                onValueChange={setLembaga}
-              >
-                <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
-                  <SelectValue placeholder="Pilih Lembaga" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lembagaList
-                    .filter((lemb) =>
-                      jenisAkun === "Auditee"
-                        ? lemb.jenisLembaga === "Auditee"
-                        : lemb.jenisLembaga === "Auditor"
-                    )
-                    .map((lemb) => (
+          {/* Lembaga (Universal & Optional) */}
+          <Field>
+            <FieldLabel>
+              <FieldTitle>Lembaga (Opsional)</FieldTitle>
+            </FieldLabel>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Select
+                  value={lembaga || "Tidak Ada"}
+                  onValueChange={(val) => setLembaga(val)}
+                >
+                  <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
+                    <SelectValue placeholder="Pilih Lembaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Tidak Ada" className="text-xs font-semibold cursor-pointer">Tidak Ada</SelectItem>
+                    {lembagaList.map((lemb) => (
                       <SelectItem key={lemb.id} value={lemb.nama} className="text-xs font-semibold cursor-pointer">
                         {lemb.nama}
                       </SelectItem>
-                    ))
-                  }
-                </SelectContent>
-              </Select>
-            </Field>
-          ) : jenisAkun ? (
-            <Field>
-              <FieldLabel>
-                <FieldTitle>Lembaga</FieldTitle>
-              </FieldLabel>
-              <input
-                type="text"
-                disabled
-                value="Tidak Ada"
-                className="w-full h-10 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground font-semibold"
-              />
-            </Field>
-          ) : null}
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {lembaga && lembaga !== "Tidak Ada" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setLembaga("Tidak Ada")}
+                  className="h-10 px-3 border border-border hover:bg-muted/80 shrink-0 cursor-pointer rounded-lg text-xs font-bold text-muted-foreground flex items-center gap-1"
+                >
+                  <X className="h-4 w-4" /> Clear
+                </Button>
+              )}
+            </div>
+          </Field>
 
           {/* Status (radio, edit only) */}
           {isEdit && (
@@ -287,3 +255,4 @@ export function UserDialog({
     </Dialog>
   );
 }
+

@@ -51,7 +51,7 @@ export function BagikanFormDialog({
     }
   }, [open]);
 
-  const baseUrl = `http://localhost:3000/rekognisi/${facultySlug}/`;
+  const baseUrl = `http://localhost:3000/rekognisi-`;
 
   const handleSave = () => {
     if (!name || !date) return;

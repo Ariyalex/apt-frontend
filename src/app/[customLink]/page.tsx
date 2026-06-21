@@ -2,8 +2,8 @@
 
 import React, { use, useState } from "react";
 import Image from "next/image";
-import logoUin from "../../../../../public/logo_uin.png";
-import { Save, CheckCircle, AlertCircle, FileText } from "lucide-react";
+import logoUin from "../../../public/logo_uin.png";
+import { Save, CheckCircle, AlertCircle, FileText, Plus, Trash2, X } from "lucide-react";
 import { initialData } from "@/dummy-data/rekognisi";
 import { initialSharingLinks } from "@/dummy-data/bagikan-form";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,16 @@ import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { DosenSearchDialog } from "@/components/dashboard/rekognisi/dosen-search-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { initialDosenList } from "@/dummy-data/dosen";
 import { toast } from "sonner";
+import { notFound } from "next/navigation";
 
 const facultySlugToName: Record<string, string> = {
   "sains-dan-teknologi": "Fakultas Sains dan Teknologi",
@@ -32,7 +40,7 @@ const facultySlugToName: Record<string, string> = {
 };
 
 interface PublicFormPageProps {
-  params: Promise<{ faculty: string; customLink: string }>;
+  params: Promise<{ customLink: string }>;
 }
 
 // Header Component (shared layout for both states)
@@ -56,8 +64,22 @@ const Header = () => (
 );
 
 export default function PublicFormPage({ params }: PublicFormPageProps) {
-  const { faculty, customLink } = use(params);
+  const { customLink } = use(params);
+
+  // If path doesn't start with "rekognisi-", show standard 404
+  if (!customLink.startsWith("rekognisi-")) {
+    notFound();
+  }
+
   const [submitted, setSubmitted] = useState(false);
+
+  // Find sharing link by name (matching the identifier after "rekognisi-")
+  const identifier = customLink.replace(/^rekognisi-/, "");
+  const linkInfo = initialSharingLinks.find(
+    (l) => l.name === identifier,
+  );
+
+  const faculty = linkInfo?.facultySlug || "sains-dan-teknologi";
   const facultyName =
     facultySlugToName[faculty] || "Fakultas Sains dan Teknologi";
 
@@ -66,12 +88,11 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
   const [jenisRekognisi, setJenisRekognisi] = useState("Narasumber");
   const [tahun, setTahun] = useState(new Date().getFullYear().toString());
   const [deskripsi, setDeskripsi] = useState("");
-  const [linkBukti, setLinkBukti] = useState("");
-
-  // Find sharing link by name (which is customLink) and match facultySlug
-  const linkInfo = initialSharingLinks.find(
-    (l) => l.name === customLink && l.facultySlug === faculty,
-  );
+  
+  // Multiple proof link states
+  const [linkBuktiList, setLinkBuktiList] = useState<string[]>([]);
+  const [addLinkOpen, setAddLinkOpen] = useState(false);
+  const [newLinkUrl, setNewLinkUrl] = useState("");
 
   // Check link validity
   const isLinkFound = !!linkInfo;
@@ -92,8 +113,44 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
     new Set(initialData.map((item) => item.jenisRekognisi)),
   );
 
+  const handleAddLink = () => {
+    if (!newLinkUrl.trim()) return;
+    let url = newLinkUrl.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      url = "https://" + url;
+    }
+    setLinkBuktiList([...linkBuktiList, url]);
+    setNewLinkUrl("");
+    setAddLinkOpen(false);
+  };
+
+  const handleRemoveLink = (indexToRemove: number) => {
+    setLinkBuktiList(linkBuktiList.filter((_, i) => i !== indexToRemove));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (linkBuktiList.length === 0) {
+      toast.error("Silakan tambahkan minimal 1 link bukti dokumen!");
+      return;
+    }
+    
+    // Construct and push new submission joined by comma
+    if (linkInfo) {
+      const prodiName = initialDosenList.find((l) => l.nip === selectedNip)?.prodi || "Teknik Informatika";
+      linkInfo.submissions.push({
+        id: `sub-${Date.now()}`,
+        nip: selectedNip,
+        nama: selectedLecturerName,
+        prodi: prodiName,
+        jenisRekognisi,
+        tahun,
+        deskripsi,
+        linkBukti: linkBuktiList.join(","),
+        status: "pending",
+      });
+    }
+    
     setSubmitted(true);
     toast.success("Tanggapan rekognisi berhasil dikirim!");
   };
@@ -104,8 +161,9 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
     setJenisRekognisi("Narasumber");
     setTahun(new Date().getFullYear().toString());
     setDeskripsi("");
-    setLinkBukti("");
+    setLinkBuktiList([]);
   };
+
 
   // Error/Invalid Screen
   if (isLinkInvalid) {
@@ -310,22 +368,48 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
                   />
                 </Field>
 
-                {/* Field 6: Link Bukti */}
+                {/* Field 6: Link Bukti (Multiple) */}
                 <Field>
-                  <FieldLabel>
-                    <FieldTitle>
-                      Link Bukti Dokumen
-                      <span className="text-error ml-0.5">*</span>
-                    </FieldTitle>
-                  </FieldLabel>
-                  <textarea
-                    required
-                    rows={2}
-                    placeholder="Contoh: https://drive.google.com/file/d/..."
-                    value={linkBukti}
-                    onChange={(e) => setLinkBukti(e.target.value)}
-                    className="w-full bg-muted/20 border border-border rounded-lg px-3.5 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none text-foreground font-mono"
-                  />
+                  <div className="flex justify-between items-center mb-1">
+                    <FieldLabel className="mb-0">
+                      <FieldTitle>
+                        Link Bukti Dokumen
+                        <span className="text-error ml-0.5">*</span>
+                      </FieldTitle>
+                    </FieldLabel>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAddLinkOpen(true)}
+                      className="h-8 px-2.5 border border-border hover:bg-muted/80 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Tambah Link
+                    </Button>
+                  </div>
+
+                  {linkBuktiList.length === 0 ? (
+                    <div className="text-center p-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground">
+                      Belum ada link bukti. Klik tombol "+ Tambah Link" untuk menambahkan.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 scrollbar-thin">
+                      {linkBuktiList.map((link, idx) => (
+                        <div key={idx} className="p-2.5 bg-muted/15 border border-border rounded-lg flex items-center justify-between gap-3 text-xs">
+                          <span className="font-mono text-muted-foreground truncate select-all flex-1" title={link}>
+                            {link}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLink(idx)}
+                            className="p-1 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 rounded transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </Field>
 
                 {/* Form Actions */}
@@ -353,6 +437,58 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
         userRole="Guest"
         defaultFaculty={facultyName}
       />
+
+      {/* Dialog Tambah Link */}
+      <Dialog open={addLinkOpen} onOpenChange={setAddLinkOpen}>
+        <DialogContent className="sm:max-w-md bg-card border border-border p-6 rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
+              Tambah Link Bukti Dokumen
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3">
+            <Field>
+              <FieldLabel>
+                <FieldTitle>URL / Tautan Dokumen</FieldTitle>
+              </FieldLabel>
+              <Input
+                type="text"
+                placeholder="Contoh: drive.google.com/file/d/..."
+                value={newLinkUrl}
+                onChange={(e) => setNewLinkUrl(e.target.value)}
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddLink();
+                  }
+                }}
+              />
+            </Field>
+          </div>
+          <DialogFooter className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setNewLinkUrl("");
+                setAddLinkOpen(false);
+              }}
+              className="text-xs font-semibold h-9 rounded-lg"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddLink}
+              disabled={!newLinkUrl.trim()}
+              className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+            >
+              Tambah
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

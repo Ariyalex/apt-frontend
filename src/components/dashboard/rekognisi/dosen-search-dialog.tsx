@@ -104,7 +104,6 @@ export function DosenSearchDialog({
   const [newFaculty, setNewFaculty] = useState("");
   const [newProdi, setNewProdi] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [newPhotoUrl, setNewPhotoUrl] = useState("");
 
   // Reset dialog state when opened
   useEffect(() => {
@@ -123,7 +122,6 @@ export function DosenSearchDialog({
       
       const allowedProdis = facultyProdiMap[initialFaculty] || prodis;
       setNewProdi(allowedProdis[0]);
-      setNewPhotoUrl("");
     }
   }, [open, userRole, defaultFaculty]);
 
@@ -185,7 +183,6 @@ export function DosenSearchDialog({
       fakultas: newFaculty,
       prodi: newProdi,
       email: newEmail.trim(),
-      photoUrl: newPhotoUrl.trim() || undefined,
     };
 
     if (userRole === "Guest") {
@@ -333,27 +330,18 @@ export function DosenSearchDialog({
               <FieldLabel>
                 <FieldTitle>Fakultas <span className="text-error">*</span></FieldTitle>
               </FieldLabel>
-              {userRole === "Fakultas" || userRole === "Guest" ? (
-                <Input
-                  type="text"
-                  disabled
-                  value={newFaculty}
-                  className="h-10 text-xs border border-border rounded-lg bg-muted px-3 text-muted-foreground font-semibold"
-                />
-              ) : (
-                <Select value={newFaculty} onValueChange={handleFacultyChange}>
-                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
-                    <SelectValue placeholder="Pilih Fakultas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {faculties.map((f) => (
-                      <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
-                        {f}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <Select value={newFaculty} onValueChange={handleFacultyChange}>
+                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                  <SelectValue placeholder="Pilih Fakultas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {faculties.map((f) => (
+                    <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
+                      {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
 
             {/* Input Prodi */}
@@ -388,60 +376,6 @@ export function DosenSearchDialog({
                 onChange={(e) => setNewEmail(e.target.value)}
                 className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
               />
-            </Field>
-
-            {/* Input Foto (Opsional, Upload Gambar) */}
-            <Field>
-              <FieldLabel>
-                <FieldTitle>Foto Dosen (Opsional)</FieldTitle>
-              </FieldLabel>
-              <div className="flex flex-col sm:flex-row items-center gap-4 p-3 bg-muted/10 border border-border rounded-lg">
-                <div className="h-28 w-24 rounded-lg border border-border overflow-hidden bg-muted flex items-center justify-center shrink-0 relative group shadow-sm">
-                  {newPhotoUrl ? (
-                    <>
-                      <img src={newPhotoUrl} alt="Preview" className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setNewPhotoUrl("")}
-                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold cursor-pointer"
-                      >
-                        Hapus Foto
-                      </button>
-                    </>
-                  ) : (
-                    <div className="text-center p-2">
-                      <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">No Photo</span>
-                      <span className="text-[9px] text-muted-foreground block mt-0.5">3 x 4 Ratio</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 w-full space-y-2">
-                  <p className="text-[11px] text-muted-foreground leading-normal">
-                    Pilih file foto formal dengan latar belakang polos. Format yang didukung: JPG, JPEG, atau PNG (Maksimal 2 MB).
-                  </p>
-                  <div className="relative">
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 2 * 1024 * 1024) {
-                            toast.error("Ukuran file maksimal 2 MB.");
-                            return;
-                          }
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setNewPhotoUrl(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="h-10 text-xs border border-border rounded-lg bg-card px-3 py-1.5 text-foreground file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-2.5 file:py-0.5 file:text-[10px] file:font-bold hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
-                    />
-                  </div>
-                </div>
-              </div>
             </Field>
 
             <DialogFooter className="flex justify-end gap-2 pt-2">

@@ -131,31 +131,41 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
                     {dosen.deskripsi}
                   </td>
                   <td className="px-4 py-3.5 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <a 
-                        href={dosen.buktiUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors"
-                        title="Kunjungi Link Bukti"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopy(dosen.id, dosen.buktiUrl);
-                        }}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
-                        title="Salin Link Bukti"
-                      >
-                        {copiedId === dosen.id ? (
-                          <Check className="h-3.5 w-3.5 text-emerald-500" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </button>
+                    <div className="flex flex-col items-center gap-1.5">
+                      {dosen.buktiUrl.split(",").filter(Boolean).map((url, idx) => {
+                        const uniqueKey = `${dosen.id || i}-${idx}`;
+                        return (
+                          <div key={idx} className="flex items-center gap-1">
+                            {dosen.buktiUrl.split(",").filter(Boolean).length > 1 && (
+                              <span className="text-[10px] text-muted-foreground mr-0.5 font-bold">#{idx + 1}</span>
+                            )}
+                            <a 
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors"
+                              title={`Kunjungi Link Bukti ${idx + 1}`}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopy(uniqueKey, url);
+                              }}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+                              title={`Salin Link Bukti ${idx + 1}`}
+                            >
+                              {copiedId === uniqueKey ? (
+                                <Check className="h-3.5 w-3.5 text-success" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </td>
                 </tr>

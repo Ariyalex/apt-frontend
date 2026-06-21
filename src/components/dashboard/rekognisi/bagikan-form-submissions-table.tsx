@@ -121,34 +121,46 @@ export function BagikanFormSubmissionsTable({
                 {sub.deskripsi}
               </td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-1">
-                  <a
-                    href={sub.linkBukti}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex h-7 items-center gap-1 rounded bg-muted/65 border border-border px-2 text-xs font-bold text-foreground hover:bg-muted transition-all cursor-pointer"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Kunjungi
-                  </a>
-                  <Button
-                    variant="outline"
-                    onClick={(e) => handleCopy(e, sub.id, sub.linkBukti)}
-                    className="h-7 items-center gap-1 rounded px-2 text-xs font-bold cursor-pointer"
-                  >
-                    {copiedId === sub.id ? (
-                      <>
-                        <Check className="h-3 w-3 text-emerald-500" />
-                        Tersalin
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        Salin
-                      </>
-                    )}
-                  </Button>
+                <div className="flex flex-col items-start gap-1.5">
+                  {sub.linkBukti.split(",").filter(Boolean).map((url, idx) => {
+                    const uniqueKey = `${sub.id}-${idx}`;
+                    return (
+                      <div key={idx} className="flex items-center gap-1.5">
+                        {sub.linkBukti.split(",").filter(Boolean).length > 1 && (
+                          <span className="text-[10px] text-muted-foreground font-bold">#{idx + 1}</span>
+                        )}
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex h-7 items-center gap-1 rounded bg-muted/65 border border-border px-2 text-xs font-bold text-foreground hover:bg-muted transition-all cursor-pointer"
+                          title={`Kunjungi Link Bukti ${idx + 1}`}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Kunjungi
+                        </a>
+                        <Button
+                          variant="outline"
+                          onClick={(e) => handleCopy(e, uniqueKey, url)}
+                          className="h-7 items-center gap-1 rounded px-2 text-xs font-bold cursor-pointer"
+                          title={`Salin Link Bukti ${idx + 1}`}
+                        >
+                          {copiedId === uniqueKey ? (
+                            <>
+                              <Check className="h-3 w-3 text-success" />
+                              Tersalin
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              Salin
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               </td>
               <td className="px-4 py-3">
