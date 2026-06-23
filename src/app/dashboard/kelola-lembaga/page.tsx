@@ -16,48 +16,52 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export default function KelolaLembagaPage() {
+export default function KelolaLembagaPage(): React.JSX.Element {
   const [lembagaList, setLembagaList] = useState<AdminLembaga[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedLembaga, setSelectedLembaga] = useState<AdminLembaga | null>(null);
   const [deleteLembagaId, setDeleteLembagaId] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedLemb = localStorage.getItem("adminLembaga");
-    let loadedLemb: AdminLembaga[] = [];
-    let needsMigration = false;
+    const timer = setTimeout(() => {
+      const storedLemb = localStorage.getItem("adminLembaga");
+      let loadedLemb: AdminLembaga[] = [];
+      let needsMigration = false;
 
-    if (storedLemb) {
-      try {
-        loadedLemb = JSON.parse(storedLemb);
-      } catch (e) {
+      if (storedLemb) {
+        try {
+          loadedLemb = JSON.parse(storedLemb);
+        } catch {
+          loadedLemb = initialAdminLembaga;
+          needsMigration = true;
+        }
+      } else {
         loadedLemb = initialAdminLembaga;
         needsMigration = true;
       }
-    } else {
-      loadedLemb = initialAdminLembaga;
-      needsMigration = true;
-    }
 
-    const migratedLemb = loadedLemb.map((l) => {
-      let newType = l.jenisLembaga;
-      if ((l.jenisLembaga as string) === "fakultas") {
-        newType = "Auditee";
-        needsMigration = true;
-      } else if ((l.jenisLembaga as string) === "lembaga") {
-        newType = "Auditor";
-        needsMigration = true;
-      } else if ((l.jenisLembaga as string) === "assessor") {
-        newType = "Assessor";
-        needsMigration = true;
+      const migratedLemb = loadedLemb.map((l) => {
+        let newType = l.jenisLembaga;
+        if ((l.jenisLembaga as string) === "fakultas") {
+          newType = "Auditee";
+          needsMigration = true;
+        } else if ((l.jenisLembaga as string) === "lembaga") {
+          newType = "Auditor";
+          needsMigration = true;
+        } else if ((l.jenisLembaga as string) === "assessor") {
+          newType = "Assessor";
+          needsMigration = true;
+        }
+        return { ...l, jenisLembaga: newType };
+      });
+
+      setLembagaList(migratedLemb);
+      if (needsMigration) {
+        localStorage.setItem("adminLembaga", JSON.stringify(migratedLemb));
       }
-      return { ...l, jenisLembaga: newType };
-    });
+    }, 0);
 
-    setLembagaList(migratedLemb);
-    if (needsMigration) {
-      localStorage.setItem("adminLembaga", JSON.stringify(migratedLemb));
-    }
+    return () => clearTimeout(timer);
   }, []);
 
   const handleAddLembaga = () => {
@@ -91,7 +95,7 @@ export default function KelolaLembagaPage() {
         const users: AdminUser[] = JSON.parse(storedUsers);
         const updatedUsers = users.filter((u) => u.lembaga !== targetLemb.nama);
         localStorage.setItem("adminUsers", JSON.stringify(updatedUsers));
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
@@ -127,7 +131,7 @@ export default function KelolaLembagaPage() {
     if (storedLogs) {
       try {
         currentLogs = JSON.parse(storedLogs);
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
@@ -190,7 +194,7 @@ export default function KelolaLembagaPage() {
               Konfirmasi Hapus Lembaga
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground">
-              Apakah Anda yakin ingin menghapus lembaga "{activeDeleteLembagaName}"? 
+              Apakah Anda yakin ingin menghapus lembaga &quot;{activeDeleteLembagaName}&quot;? 
               <span className="block mt-2 font-semibold text-rose-600 dark:text-rose-400">
                 Peringatan: Semua akun pengguna yang terdaftar di lembaga ini juga akan terhapus secara otomatis!
               </span>

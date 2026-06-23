@@ -7,19 +7,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IsiDataManualForm } from "@/components/dashboard/rekognisi/isi-data-manual-form";
 import { BagikanFormTab } from "@/components/dashboard/rekognisi/bagikan-form-tab";
 
-export default function IsiDataRekognisiPage() {
+export default function IsiDataRekognisiPage(): React.JSX.Element {
   const [isAllowed, setIsAllowed] = useState(true);
 
   useEffect(() => {
-    const raw = localStorage.getItem("userSession");
-    if (raw) {
-      try {
-        const session = JSON.parse(raw);
-        if (session.role === "Auditor" || session.role === "Assessor") {
-          setIsAllowed(false);
+    const timer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session.role === "Auditor" || session.role === "Assessor") {
+            setIsAllowed(false);
+          }
+        } catch {
+          // empty
         }
-      } catch (e) {}
-    }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   if (!isAllowed) {

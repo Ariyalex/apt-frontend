@@ -13,7 +13,7 @@ export default function AktivitasUserPage() {
     if (storedLogs) {
       try {
         setLogs(JSON.parse(storedLogs));
-      } catch (e) {
+      } catch {
         setLogs(initialAdminAktivitas);
       }
     } else {
@@ -23,7 +23,10 @@ export default function AktivitasUserPage() {
   };
 
   useEffect(() => {
-    loadLogs();
+    const timer = setTimeout(() => {
+      loadLogs();
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   return (

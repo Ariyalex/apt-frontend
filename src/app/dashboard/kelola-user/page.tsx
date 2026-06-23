@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export default function KelolaUserPage() {
+export default function KelolaUserPage(): React.JSX.Element {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [lembagaList, setLembagaList] = useState<AdminLembaga[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -34,76 +34,80 @@ export default function KelolaUserPage() {
 
   // Load from localStorage or initialize with dummy data
   useEffect(() => {
-    // Load Lembaga first
-    const storedLemb = localStorage.getItem("adminLembaga");
-    let currentLemb: AdminLembaga[] = [];
-    if (storedLemb) {
-      try {
-        currentLemb = JSON.parse(storedLemb);
-      } catch (e) {
+    const timer = setTimeout(() => {
+      // Load Lembaga first
+      const storedLemb = localStorage.getItem("adminLembaga");
+      let currentLemb: AdminLembaga[] = [];
+      if (storedLemb) {
+        try {
+          currentLemb = JSON.parse(storedLemb);
+        } catch {
+          currentLemb = initialAdminLembaga;
+        }
+      } else {
         currentLemb = initialAdminLembaga;
+        localStorage.setItem("adminLembaga", JSON.stringify(initialAdminLembaga));
       }
-    } else {
-      currentLemb = initialAdminLembaga;
-      localStorage.setItem("adminLembaga", JSON.stringify(initialAdminLembaga));
-    }
-    setLembagaList(currentLemb);
+      setLembagaList(currentLemb);
 
-    // Load Users
-    const storedUsers = localStorage.getItem("adminUsers");
-    let loadedUsers: AdminUser[] = [];
-    let needsMigration = false;
-    
-    if (storedUsers) {
-      try {
-        loadedUsers = JSON.parse(storedUsers);
-      } catch (e) {
+      // Load Users
+      const storedUsers = localStorage.getItem("adminUsers");
+      let loadedUsers: AdminUser[] = [];
+      let needsMigration = false;
+      
+      if (storedUsers) {
+        try {
+          loadedUsers = JSON.parse(storedUsers);
+        } catch {
+          loadedUsers = initialAdminUsers;
+          needsMigration = true;
+        }
+      } else {
         loadedUsers = initialAdminUsers;
         needsMigration = true;
       }
-    } else {
-      loadedUsers = initialAdminUsers;
-      needsMigration = true;
-    }
 
-    // Map old role keys to new ones if found
-    const migratedUsers = loadedUsers.map((u) => {
-      let newRole = u.jenisAkun;
-      if ((u.jenisAkun as string) === "prodi") {
-        newRole = "Auditee";
-        needsMigration = true;
-      } else if ((u.jenisAkun as string) === "LPM") {
-        newRole = "Auditor";
-        needsMigration = true;
-      } else if ((u.jenisAkun as string) === "admin") {
-        newRole = "Admin";
-        needsMigration = true;
-      } else if ((u.jenisAkun as string) === "asessor") {
-        newRole = "Assessor";
-        needsMigration = true;
+      // Map old role keys to new ones if found
+      const migratedUsers = loadedUsers.map((u) => {
+        let newRole = u.jenisAkun;
+        if ((u.jenisAkun as string) === "prodi") {
+          newRole = "Auditee";
+          needsMigration = true;
+        } else if ((u.jenisAkun as string) === "LPM") {
+          newRole = "Auditor";
+          needsMigration = true;
+        } else if ((u.jenisAkun as string) === "admin") {
+          newRole = "Admin";
+          needsMigration = true;
+        } else if ((u.jenisAkun as string) === "asessor") {
+          newRole = "Assessor";
+          needsMigration = true;
+        }
+        
+        let newLembaga = u.lembaga;
+        if (newRole === "Admin" && u.lembaga === "Lembaga Penjaminan Mutu") {
+          newLembaga = "Tidak Ada";
+          needsMigration = true;
+        } else if (newRole === "Assessor" && u.lembaga === "Fakultas Tarbiyah dan Keguruan") {
+          newLembaga = "Tidak Ada";
+          needsMigration = true;
+        }
+
+        return {
+          ...u,
+          jenisAkun: newRole,
+          lembaga: newLembaga,
+          name: u.name || u.username.charAt(0).toUpperCase() + u.username.slice(1),
+        };
+      });
+
+      setUsers(migratedUsers);
+      if (needsMigration) {
+        localStorage.setItem("adminUsers", JSON.stringify(migratedUsers));
       }
-      
-      let newLembaga = u.lembaga;
-      if (newRole === "Admin" && u.lembaga === "Lembaga Penjaminan Mutu") {
-        newLembaga = "Tidak Ada";
-        needsMigration = true;
-      } else if (newRole === "Assessor" && u.lembaga === "Fakultas Tarbiyah dan Keguruan") {
-        newLembaga = "Tidak Ada";
-        needsMigration = true;
-      }
+    }, 0);
 
-      return {
-        ...u,
-        jenisAkun: newRole,
-        lembaga: newLembaga,
-        name: u.name || u.username.charAt(0).toUpperCase() + u.username.slice(1),
-      };
-    });
-
-    setUsers(migratedUsers);
-    if (needsMigration) {
-      localStorage.setItem("adminUsers", JSON.stringify(migratedUsers));
-    }
+    return () => clearTimeout(timer);
   }, []);
 
   const handleAddUser = () => {
@@ -180,7 +184,7 @@ export default function KelolaUserPage() {
     if (storedLogs) {
       try {
         currentLogs = JSON.parse(storedLogs);
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
@@ -245,9 +249,9 @@ export default function KelolaUserPage() {
               Konfirmasi Reset Password
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground">
-              Apakah Anda yakin ingin mereset password pengguna "{resetUser?.username}"?
+              Apakah Anda yakin ingin mereset password pengguna &quot;{resetUser?.username}&quot;?
               <span className="block mt-2 font-semibold text-amber-600 dark:text-amber-400">
-                Password akan direset menjadi sama dengan username mereka: "{resetUser?.username}".
+                Password akan direset menjadi sama dengan username mereka: &quot;{resetUser?.username}&quot;.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -304,7 +308,7 @@ export default function KelolaUserPage() {
               User Berhasil Ditambahkan
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground mt-2">
-              User baru <span className="font-bold text-foreground">"{newAddedUser?.name}"</span> (@{newAddedUser?.username}) telah sukses ditambahkan ke sistem.
+              User baru <span className="font-bold text-foreground">&quot;{newAddedUser?.name}&quot;</span> (@{newAddedUser?.username}) telah sukses ditambahkan ke sistem.
               <span className="block mt-3.5 font-semibold text-success bg-success/10 border border-success/20 p-3 rounded-lg">
                 Password default untuk user ini diatur sama dengan username: <span className="font-mono underline font-bold">{newAddedUser?.username}</span>
               </span>

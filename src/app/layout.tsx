@@ -21,6 +21,7 @@ export const metadata: Metadata = {
 };
 
 import { Toaster } from "@/components/ui/sonner";
+import StoreProvider from "@/store/provider";
 
 export default function RootLayout({
   children,
@@ -33,7 +34,9 @@ export default function RootLayout({
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", ibmPlexSans.variable)}
     >
       <body className="min-h-full flex flex-col">
-        {children}
+        <StoreProvider>
+          {children}
+        </StoreProvider>
         <Toaster richColors closeButton />
       </body>
     </html>

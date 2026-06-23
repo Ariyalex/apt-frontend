@@ -37,7 +37,7 @@ export function SubmissionEditDialog({
   onOpenChange,
   submission,
   onSave,
-}: SubmissionEditDialogProps) {
+}: SubmissionEditDialogProps): React.JSX.Element {
   // Form states
   const [selectedNip, setSelectedNip] = useState("");
   const [jenisRekognisi, setJenisRekognisi] = useState("Narasumber");
@@ -53,15 +53,20 @@ export function SubmissionEditDialog({
   const [userRole, setUserRole] = useState<"Fakultas" | "Administrator">("Fakultas");
 
   useEffect(() => {
-    const raw = localStorage.getItem("userSession");
-    if (raw) {
-      try {
-        const session = JSON.parse(raw);
-        if (session.role === "Administrator") {
-          setUserRole("Administrator");
+    const timer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session.role === "Administrator") {
+            setUserRole("Administrator");
+          }
+        } catch {
+          // ignore
         }
-      } catch (e) {}
-    }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const selectedLecturerName = initialDosenList.find((l) => l.nip === selectedNip)?.nama || "";
@@ -69,13 +74,16 @@ export function SubmissionEditDialog({
 
   useEffect(() => {
     if (open && submission) {
-      setSelectedNip(submission.nip);
-      setJenisRekognisi(submission.jenisRekognisi);
-      setTahun(submission.tahun);
-      setDeskripsi(submission.deskripsi);
-      setLinkBuktiList(submission.linkBukti ? submission.linkBukti.split(",").filter(Boolean) : []);
-      setShowAddInput(false);
-      setNewLinkUrl("");
+      const timer = setTimeout(() => {
+        setSelectedNip(submission.nip);
+        setJenisRekognisi(submission.jenisRekognisi);
+        setTahun(submission.tahun);
+        setDeskripsi(submission.deskripsi);
+        setLinkBuktiList(submission.linkBukti ? submission.linkBukti.split(",").filter(Boolean) : []);
+        setShowAddInput(false);
+        setNewLinkUrl("");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open, submission]);
 
@@ -135,7 +143,7 @@ export function SubmissionEditDialog({
             <DosenSearchDialog
               open={searchDialogOpen}
               onOpenChange={setSearchDialogOpen}
-              onSelect={(nip, name) => {
+              onSelect={(nip) => {
                 setSelectedNip(nip);
               }}
               userRole={userRole}
@@ -276,7 +284,7 @@ export function SubmissionEditDialog({
 
             {linkBuktiList.length === 0 ? (
               <div className="text-center p-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground">
-                Belum ada link bukti. Klik tombol "+ Tambah Link" untuk menambahkan.
+                Belum ada link bukti. Klik tombol &quot;+ Tambah Link&quot; untuk menambahkan.
               </div>
             ) : (
               <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 scrollbar-thin">

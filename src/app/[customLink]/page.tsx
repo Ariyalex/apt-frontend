@@ -3,7 +3,7 @@
 import React, { use, useState } from "react";
 import Image from "next/image";
 import logoUin from "../../../public/logo_uin.png";
-import { Save, CheckCircle, AlertCircle, FileText, Plus, Trash2, X } from "lucide-react";
+import { Save, CheckCircle, AlertCircle, FileText, Plus, Trash2 } from "lucide-react";
 import { initialData } from "@/dummy-data/rekognisi";
 import { initialSharingLinks } from "@/dummy-data/bagikan-form";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,10 @@ const Header = () => (
     </div>
   </header>
 );
+
+const generateSubId = (): string => {
+  return `sub-${Date.now()}`;
+};
 
 export default function PublicFormPage({ params }: PublicFormPageProps) {
   const { customLink } = use(params);
@@ -139,7 +143,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
     if (linkInfo) {
       const prodiName = initialDosenList.find((l) => l.nip === selectedNip)?.prodi || "Teknik Informatika";
       linkInfo.submissions.push({
-        id: `sub-${Date.now()}`,
+        id: generateSubId(),
         nip: selectedNip,
         nama: selectedLecturerName,
         prodi: prodiName,
@@ -390,7 +394,7 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
 
                   {linkBuktiList.length === 0 ? (
                     <div className="text-center p-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground">
-                      Belum ada link bukti. Klik tombol "+ Tambah Link" untuk menambahkan.
+                      Belum ada link bukti. Klik tombol &quot;+ Tambah Link&quot; untuk menambahkan.
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 scrollbar-thin">

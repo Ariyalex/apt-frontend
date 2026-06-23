@@ -55,7 +55,7 @@ const facultyProdiMap: Record<string, string[]> = {
   ],
 };
 
-export default function Dashboard() {
+export default function Dashboard(): React.JSX.Element {
   const [session, setSession] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFaculty, setSelectedFaculty] = useState(
@@ -68,7 +68,7 @@ export default function Dashboard() {
     if (raw) {
       try {
         sessionData = JSON.parse(raw);
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
@@ -89,8 +89,6 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, []);
 
-  const isAdmin =
-    session?.username === "admin" || session?.role === "Administrator";
 
   // Reset selected prodi when selected faculty changes
   const handleFacultyChange = (val: string) => {

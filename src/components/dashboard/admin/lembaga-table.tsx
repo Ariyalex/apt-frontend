@@ -10,7 +10,7 @@ interface LembagaTableProps {
   onDelete: (lembagaId: string) => void;
 }
 
-export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProps) {
+export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProps): React.JSX.Element {
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
@@ -73,6 +73,3 @@ export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProp
 }
 
 
-function userMatchesType(val: string, target: string) {
-  return val.trim().toLowerCase() === target.trim().toLowerCase();
-}

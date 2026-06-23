@@ -13,18 +13,21 @@ interface UserSession {
   avatarUrl?: string;
 }
 
-export function Header() {
+export function Header(): React.JSX.Element {
   const [session, setSession] = useState<UserSession | null>(null);
 
   useEffect(() => {
-    const raw = localStorage.getItem("userSession");
-    if (raw) {
-      try {
-        setSession(JSON.parse(raw));
-      } catch (e) {
-        // ignore
+    const timer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          setSession(JSON.parse(raw));
+        } catch {
+          // ignore
+        }
       }
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const displayName = session?.name || "Ahmad Fauzi";

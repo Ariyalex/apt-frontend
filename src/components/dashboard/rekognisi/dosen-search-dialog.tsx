@@ -92,7 +92,7 @@ export function DosenSearchDialog({
   onSelect,
   userRole,
   defaultFaculty = "Fakultas Sains dan Teknologi",
-}: DosenSearchDialogProps) {
+}: DosenSearchDialogProps): React.JSX.Element {
   const [searchNip, setSearchNip] = useState("");
   const [searchResults, setSearchResults] = useState<Dosen[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -108,20 +108,23 @@ export function DosenSearchDialog({
   // Reset dialog state when opened
   useEffect(() => {
     if (open) {
-      setSearchNip("");
-      setSearchResults([]);
-      setHasSearched(false);
-      setShowForm(false);
-      
-      // Init form fields
-      setNewNip("");
-      setNewName("");
-      setNewEmail("");
-      const initialFaculty = (userRole === "Fakultas" || userRole === "Guest") ? defaultFaculty : faculties[0];
-      setNewFaculty(initialFaculty);
-      
-      const allowedProdis = facultyProdiMap[initialFaculty] || prodis;
-      setNewProdi(allowedProdis[0]);
+      const timer = setTimeout(() => {
+        setSearchNip("");
+        setSearchResults([]);
+        setHasSearched(false);
+        setShowForm(false);
+        
+        // Init form fields
+        setNewNip("");
+        setNewName("");
+        setNewEmail("");
+        const initialFaculty = (userRole === "Fakultas" || userRole === "Guest") ? defaultFaculty : faculties[0];
+        setNewFaculty(initialFaculty);
+        
+        const allowedProdis = facultyProdiMap[initialFaculty] || prodis;
+        setNewProdi(allowedProdis[0]);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open, userRole, defaultFaculty]);
 
@@ -271,7 +274,7 @@ export function DosenSearchDialog({
                   /* Result Not Found */
                   <div className="p-4 border border-dashed border-border rounded-lg text-center space-y-3">
                     <p className="text-xs text-muted-foreground">
-                      Dosen dengan NIP mirip <span className="font-mono font-bold text-foreground">"{searchNip}"</span> tidak terdaftar dalam database.
+                      Dosen dengan NIP mirip <span className="font-mono font-bold text-foreground">&quot;{searchNip}&quot;</span> tidak terdaftar dalam database.
                     </p>
                     {userRole === "Guest" ? (
                       <Button

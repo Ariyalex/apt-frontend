@@ -4,7 +4,6 @@ import React, { use, useState } from "react";
 import Link from "next/link";
 import { 
   ArrowLeft, 
-  User, 
   BookOpen, 
   Clock, 
   FileText, 
@@ -24,7 +23,7 @@ interface DetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default function DetailRekognisiPage({ params }: DetailPageProps) {
+export default function DetailRekognisiPage({ params }: DetailPageProps): React.JSX.Element {
   const { id } = use(params);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
@@ -64,7 +63,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps) {
         <div className="space-y-2">
           <h1 className="text-xl font-bold text-foreground">Data Tidak Ditemukan</h1>
           <p className="text-xs text-muted-foreground">
-            Rekognisi dengan ID kustom <span className="font-mono text-foreground font-semibold">"{id}"</span> tidak tersedia atau telah dihapus dari sistem.
+            Rekognisi dengan ID kustom <span className="font-mono text-foreground font-semibold">&quot;{id}&quot;</span> tidak tersedia atau telah dihapus dari sistem.
           </p>
         </div>
         <Link 
@@ -78,7 +77,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps) {
   }
 
   // Get initials for profile placeholder
-  const getInitials = (name: string) => {
+  const getInitials = (name: string): string => {
     return name
       .split(" ")
       .filter((n) => !n.includes(".") && n.length > 0)
@@ -89,7 +88,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps) {
   };
 
   // Get faculty name dynamically based on study program
-  const getFakultas = (prodi: string) => {
+  const getFakultas = (prodi: string): string => {
     const p = prodi.toLowerCase();
     if (
       p.includes("pendidikan agama islam") ||

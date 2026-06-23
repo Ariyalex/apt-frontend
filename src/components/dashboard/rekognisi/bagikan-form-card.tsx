@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { MoreVertical, Calendar, Check, Copy, Link as LinkIcon, Lock, Unlock } from "lucide-react";
+import { MoreVertical, Calendar, Check, Copy, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ export function BagikanFormCard({
   onAcceptSubmission,
   onDeclineSubmission,
   onEditSubmission,
-}: BagikanFormCardProps) {
+}: BagikanFormCardProps): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   const baseUrl = `http://localhost:3000/`;
   const fullUrl = `${baseUrl}rekognisi-${link.name}`;

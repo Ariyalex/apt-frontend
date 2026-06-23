@@ -14,8 +14,6 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 
@@ -23,7 +21,7 @@ interface RekognisiPieChartProps {
   data: DosenData[];
 }
 
-export function RekognisiPieChart({ data }: RekognisiPieChartProps) {
+export function RekognisiPieChart({ data }: RekognisiPieChartProps): React.JSX.Element {
   // Get all unique jenisRekognisi names from the active data
   const jenisList = Array.from(
     new Set(data.map((item) => item.jenisRekognisi))
@@ -31,9 +29,8 @@ export function RekognisiPieChart({ data }: RekognisiPieChartProps) {
 
   // Calculate count and map to colors for each jenis
   // Calculate count and map to colors for each jenis
-  const chartData = jenisList.map((jenis, i) => {
+  const chartData = jenisList.map((jenis) => {
     const count = data.filter((item) => item.jenisRekognisi === jenis).length;
-    const colorIndex = (i % 5) + 1;
     const key = jenis.toLowerCase().replace(/\s+/g, "_");
     return {
       jenisKey: key,

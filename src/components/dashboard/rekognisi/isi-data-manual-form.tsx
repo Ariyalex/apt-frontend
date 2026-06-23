@@ -27,7 +27,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-export function IsiDataManualForm() {
+export function IsiDataManualForm(): React.JSX.Element {
   const [submitted, setSubmitted] = useState(false);
   
   // Form states
@@ -119,7 +119,7 @@ export function IsiDataManualForm() {
               <DosenSearchDialog
                 open={searchDialogOpen}
                 onOpenChange={setSearchDialogOpen}
-                onSelect={(nip, name) => {
+                onSelect={(nip) => {
                   setSelectedNip(nip);
                 }}
                 userRole="Fakultas"
@@ -219,7 +219,7 @@ export function IsiDataManualForm() {
 
               {linkBuktiList.length === 0 ? (
                 <div className="text-center p-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground">
-                  Belum ada link bukti. Klik tombol "+ Tambah Link" untuk menambahkan.
+                  Belum ada link bukti. Klik tombol &quot;+ Tambah Link&quot; untuk menambahkan.
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 scrollbar-thin">

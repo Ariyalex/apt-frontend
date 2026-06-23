@@ -32,7 +32,7 @@ export function UserDialog({
   user,
   lembagaList,
   onSave,
-}: UserDialogProps) {
+}: UserDialogProps): React.JSX.Element {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [jenisAkun, setJenisAkun] = useState<AdminUser["jenisAkun"] | "">("");
@@ -44,20 +44,23 @@ export function UserDialog({
 
   useEffect(() => {
     if (open) {
-      if (user) {
-        setName(user.name || "");
-        setUsername(user.username);
-        setJenisAkun(user.jenisAkun);
-        setLembaga(user.lembaga);
-        setStatus(user.status);
-      } else {
-        setName("");
-        setUsername("");
-        setJenisAkun("");
-        setLembaga("Tidak Ada");
-        setStatus("active");
-      }
-      setError("");
+      const timer = setTimeout(() => {
+        if (user) {
+          setName(user.name || "");
+          setUsername(user.username);
+          setJenisAkun(user.jenisAkun);
+          setLembaga(user.lembaga);
+          setStatus(user.status);
+        } else {
+          setName("");
+          setUsername("");
+          setJenisAkun("");
+          setLembaga("Tidak Ada");
+          setStatus("active");
+        }
+        setError("");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open, user, lembagaList]);
 

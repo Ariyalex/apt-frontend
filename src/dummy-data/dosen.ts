@@ -130,3 +130,14 @@ export const initialDosenPengajuanList: DosenPengajuan[] = [
     photoUrl: ""
   }
 ];
+
+export const syncDosenDatabase = (newList: Dosen[]): void => {
+  initialDosenList.length = 0;
+  initialDosenList.push(...newList);
+};
+
+export const syncPengajuanDatabase = (newList: DosenPengajuan[]): void => {
+  initialDosenPengajuanList.length = 0;
+  initialDosenPengajuanList.push(...newList);
+};
+

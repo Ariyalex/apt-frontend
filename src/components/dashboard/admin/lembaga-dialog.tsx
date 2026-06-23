@@ -9,13 +9,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { AdminLembaga } from "@/dummy-data/admin";
 import { AlertCircle } from "lucide-react";
@@ -32,21 +25,24 @@ export function LembagaDialog({
   onOpenChange,
   lembaga,
   onSave,
-}: LembagaDialogProps) {
+}: LembagaDialogProps): React.JSX.Element {
   const [nama, setNama] = useState("");
   const [deskripsi, setDeskripsi] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
-      if (lembaga) {
-        setNama(lembaga.nama);
-        setDeskripsi(lembaga.deskripsi);
-      } else {
-        setNama("");
-        setDeskripsi("");
-      }
-      setError("");
+      const timer = setTimeout(() => {
+        if (lembaga) {
+          setNama(lembaga.nama);
+          setDeskripsi(lembaga.deskripsi);
+        } else {
+          setNama("");
+          setDeskripsi("");
+        }
+        setError("");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open, lembaga]);
 

@@ -50,4 +50,22 @@ This document outlines the architectural standards, code style, UI constraints, 
 * **Simulated Loading State**: Always implement a simulated loading state (using an `isLoading` state hook set with a short `setTimeout` duration of 600ms - 800ms) on dashboard pages and tab contents that display data fetched dynamically (such as tables, cards, charts, and lists).
 * **Skeleton Placeholders**: During the loading state, render matching shadcn `Skeleton` placeholders that mimic the size, shape, and structure of the actual loaded components (e.g. table rows, card headers, or bar charts) to ensure a smooth layout transition.
 
+## 10. Redux Toolkit & Mock API (RTK Query)
+* **Store vs Hooks Separation**: Custom React-Redux hooks (`useAppDispatch` / `useAppSelector`) must only be placed in `src/store/hooks.ts`. The `src/store/index.ts` file must only contain store configurations (`makeStore`) and TypeScript type definitions.
+* **No Global Store Singleton**: Always use the store generator function `makeStore()` and wrap it inside a React ref in the `StoreProvider` component to prevent state pollution across user requests on the server.
+* **Client Context Boundary**: Redux hooks can only be imported and called inside Client Components containing the `"use client"` directive at the top.
+* **State Co-location**: Only globally shared data (e.g., login session details, shared filters) should be kept in Redux. Local UI states like open/close states or form buffers must remain in React's local state.
+* **Mock API via queryFn & delay**: Until backend services are ready, all RTK Query operations must use `fakeBaseQuery()` and return mock data via `queryFn` directly in-memory, simulating a network delay of `600ms - 1000ms`.
+* **Standard UI States Representation**: Component layers must cleanly handle RTK Query states:
+  * **Loading**: Render matching shadcn `<Skeleton />` loaders (never generic loading text).
+  * **Empty**: Display a styled Empty State component with supportive icon and text if data length is 0.
+  * **Error**: Render a semantic error banner (`bg-error/10`, `text-error`) with a retry call trigger.
+
+## 11. TypeScript Strictness & Type Specifications
+* **Explicit Type Declarations**: Always specify data types explicitly for all variable definitions, function parameters, component props, and API response models. Avoid using implicit `any` at all costs.
+* **Strict TypeScript & ESLint Compliance**:
+  * All functions and methods must explicitly declare their return types (e.g., `const handleSave = (): void => { ... }`, `async queryFn(): Promise<{ data: Dosen[] } | { error: CustomApiError }>`).
+  * Unsafe assertions like `as any` are strictly forbidden. Use custom type guards, type narrowing, or exact interfaces.
+  * Always use `import type` syntax for type-only imports to clarify compile-time dependencies.
+  * Resolve all ESLint errors and warnings. Ensure no unused variables, correctly escaped JSX quotes, and full compliance with React Hook rules (e.g., avoid impure renders and synchronous state updates inside `useEffect`).
 

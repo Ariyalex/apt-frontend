@@ -13,16 +13,23 @@ import {
   InputGroupButton,
 } from "@/components/ui/input-group";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
+import { useLoginMutation } from "@/store/services/authApi";
+import { useAppDispatch } from "@/store/hooks";
+import { setLoginSession } from "@/store/slices/userSlice";
+import { toast } from "sonner";
+import type { CustomApiError } from "@/store/services/apiSlice";
 
-export default function RootLoginPage() {
+export default function RootLoginPage(): React.JSX.Element {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const dispatch = useAppDispatch();
+  const [login, { isLoading }] = useLoginMutation();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (!username || !password) {
@@ -31,67 +38,32 @@ export default function RootLoginPage() {
     }
 
     setError("");
-    setIsLoading(true);
 
-    // Simulate API request and redirect to respective dashboard
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const response = await login({ username, password }).unwrap();
+      
+      toast.success(response.message || "Login berhasil!");
+      
+      dispatch(
+        setLoginSession({
+          accessToken: response.data.access_token,
+          refreshToken: response.data.refresh_token,
+          user: response.data.user,
+        })
+      );
 
-      const normalizedUser = username.trim().toLowerCase();
-
-      if (normalizedUser === "fakultas" && password === "password") {
-        localStorage.setItem(
-          "userSession",
-          JSON.stringify({
-            name: "Ahmad Fauzi",
-            role: "Auditee",
-            username: "fakultas",
-            initials: "AF",
-            avatarUrl:
-              "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop",
-          }),
-        );
-        router.push("/dashboard");
-      } else if (normalizedUser === "auditor" && password === "password") {
-        localStorage.setItem(
-          "userSession",
-          JSON.stringify({
-            name: "Budi Santoso",
-            role: "Auditor",
-            username: "auditor",
-            initials: "BS",
-            avatarUrl: "",
-          }),
-        );
-        router.push("/dashboard");
-      } else if (normalizedUser === "assessor" && password === "password") {
-        localStorage.setItem(
-          "userSession",
-          JSON.stringify({
-            name: "Dr. Diana Putri",
-            role: "Assessor",
-            username: "assessor",
-            initials: "DP",
-            avatarUrl: "",
-          }),
-        );
-        router.push("/dashboard");
-      } else if (normalizedUser === "admin" && password === "password") {
-        localStorage.setItem(
-          "userSession",
-          JSON.stringify({
-            name: "Admin Utama",
-            role: "Administrator",
-            username: "admin",
-            initials: "AU",
-            avatarUrl: "",
-          }),
-        );
-        router.push("/dashboard");
+      if (response.data.user.must_change_password) {
+        toast.info("Anda harus mengganti password default Anda terlebih dahulu.");
+        router.push("/reset-pass");
       } else {
-        setError("Username atau password salah. Silakan coba kembali.");
+        router.push("/dashboard");
       }
-    }, 1200);
+    } catch (err: unknown) {
+      const apiError = err as CustomApiError;
+      const errorMessage = apiError?.data || "Username atau password salah. Silakan coba kembali.";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    }
   };
 
   return (

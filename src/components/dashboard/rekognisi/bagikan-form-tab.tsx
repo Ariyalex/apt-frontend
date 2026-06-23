@@ -10,27 +10,36 @@ import { SubmissionEditDialog } from "./submission-edit-dialog";
 import { initialSharingLinks, SharingLink, Submission } from "@/dummy-data/bagikan-form";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function BagikanFormTab() {
+export function BagikanFormTab(): React.JSX.Element {
   const [links, setLinks] = useState<SharingLink[]>(initialSharingLinks);
   const [userFacultySlug, setUserFacultySlug] = useState("sains-dan-teknologi");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const raw = localStorage.getItem("userSession");
-    if (raw) {
-      try {
-        const session = JSON.parse(raw);
-        if (session.role === "Administrator" || session.username === "admin") {
-          setUserFacultySlug("administrator");
-        } else {
-          setUserFacultySlug("sains-dan-teknologi");
+    const sessionTimer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session.role === "Administrator" || session.username === "admin") {
+            setUserFacultySlug("administrator");
+          } else {
+            setUserFacultySlug("sains-dan-teknologi");
+          }
+        } catch {
+          // empty
         }
-      } catch (e) {}
-    }
+      }
+    }, 0);
+
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 700);
-    return () => clearTimeout(timer);
+
+    return () => {
+      clearTimeout(sessionTimer);
+      clearTimeout(timer);
+    };
   }, []);
 
   // Dialog control states
@@ -174,7 +183,7 @@ export function BagikanFormTab() {
           ))
         ) : links.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center text-xs text-muted-foreground">
-            Belum ada link yang dibuat. Klik tombol "Tambah Link" di atas untuk membuat link pengisian baru.
+            Belum ada link yang dibuat. Klik tombol &quot;Tambah Link&quot; di atas untuk membuat link pengisian baru.
           </div>
         ) : (
           links.map((link) => (

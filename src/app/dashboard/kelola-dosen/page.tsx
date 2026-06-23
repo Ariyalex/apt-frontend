@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Check, X, Edit2, ShieldAlert, Search } from "lucide-react";
+import { Plus, Trash2, Edit2, Search } from "lucide-react";
+import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,7 +32,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { initialDosenList, initialDosenPengajuanList } from "@/dummy-data/dosen";
+import { 
+  initialDosenList, 
+  initialDosenPengajuanList,
+  syncDosenDatabase as dbSyncDosen,
+  syncPengajuanDatabase as dbSyncPengajuan
+} from "@/dummy-data/dosen";
 import { Dosen, DosenPengajuan } from "@/types/dosen";
 import { toast } from "sonner";
 
@@ -90,7 +96,7 @@ const facultyProdiMap: Record<string, string[]> = {
   ],
 };
 
-export default function DosenManagementPage() {
+export default function DosenManagementPage(): React.JSX.Element {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAllowed, setIsAllowed] = useState(true);
   const [userFaculty, setUserFaculty] = useState("Fakultas Sains dan Teknologi");
@@ -147,28 +153,34 @@ export default function DosenManagementPage() {
 
   // Load Session and lists
   useEffect(() => {
-    const raw = localStorage.getItem("userSession");
-    if (raw) {
-      try {
-        const session = JSON.parse(raw);
-        if (session.role === "Auditor" || session.role === "Assessor") {
-          setIsAllowed(false);
-        } else if (session.role === "Administrator" || session.username === "admin") {
-          setIsAdmin(true);
-        } else {
-          // If fakultas user, default to Sains dan Teknologi for mock
-          setUserFaculty("Fakultas Sains dan Teknologi");
+    const sessionTimer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session.role === "Auditor" || session.role === "Assessor") {
+            setIsAllowed(false);
+          } else if (session.role === "Administrator" || session.username === "admin") {
+            setIsAdmin(true);
+          } else {
+            setUserFaculty("Fakultas Sains dan Teknologi");
+          }
+        } catch {
+          // empty
         }
-      } catch (e) {}
-    }
-    // Bind lists
-    setDosenList([...initialDosenList]);
-    setPengajuanList([...initialDosenPengajuanList]);
+      }
+      // Bind lists inside timeout
+      setDosenList([...initialDosenList]);
+      setPengajuanList([...initialDosenPengajuanList]);
+    }, 0);
 
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 700);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(sessionTimer);
+      clearTimeout(timer);
+    };
   }, []);
 
   // Filter based on role, prodi, faculty, and search query
@@ -195,15 +207,13 @@ export default function DosenManagementPage() {
   });
 
   // Sync back to shared mock database
-  const syncDosenDatabase = (newList: Dosen[]) => {
-    initialDosenList.length = 0;
-    initialDosenList.push(...newList);
+  const syncDosenList = (newList: Dosen[]): void => {
+    dbSyncDosen(newList);
     setDosenList(newList);
   };
 
-  const syncPengajuanDatabase = (newList: DosenPengajuan[]) => {
-    initialDosenPengajuanList.length = 0;
-    initialDosenPengajuanList.push(...newList);
+  const syncPengajuanList = (newList: DosenPengajuan[]): void => {
+    dbSyncPengajuan(newList);
     setPengajuanList(newList);
   };
 
@@ -251,15 +261,15 @@ export default function DosenManagementPage() {
     };
 
     const updated = [...dosenList, newDosen];
-    syncDosenDatabase(updated);
+    syncDosenList(updated);
     toast.success(`Dosen "${addNama}" berhasil ditambahkan!`);
     setIsAddOpen(false);
   };
 
   // Delete Dosen
-  const handleDeleteDosen = (nip: string, name: string) => {
+  const handleDeleteDosen = (nip: string, name: string): void => {
     const updated = dosenList.filter((d) => d.nip !== nip);
-    syncDosenDatabase(updated);
+    syncDosenList(updated);
     toast.success(`Data dosen "${name}" telah dihapus.`);
     setIsDeleteOpen(false);
   };
@@ -270,10 +280,10 @@ export default function DosenManagementPage() {
   };
 
   // Accept Submission
-  const handleAcceptPengajuan = (pengajuan: DosenPengajuan) => {
+  const handleAcceptPengajuan = (pengajuan: DosenPengajuan): void => {
     // 1. Remove from pengajuan
     const updatedPengajuan = pengajuanList.filter((p) => p.id !== pengajuan.id);
-    syncPengajuanDatabase(updatedPengajuan);
+    syncPengajuanList(updatedPengajuan);
 
     // 2. Add to main dosen list
     const newDosen: Dosen = {
@@ -285,14 +295,14 @@ export default function DosenManagementPage() {
     };
 
     const updatedDosen = [...dosenList, newDosen];
-    syncDosenDatabase(updatedDosen);
+    syncDosenList(updatedDosen);
     toast.success(`Pengajuan dosen "${pengajuan.nama}" telah disetujui.`);
   };
 
   // Decline Submission
-  const handleDeclinePengajuan = (pengajuan: DosenPengajuan) => {
+  const handleDeclinePengajuan = (pengajuan: DosenPengajuan): void => {
     const updated = pengajuanList.filter((p) => p.id !== pengajuan.id);
-    syncPengajuanDatabase(updated);
+    syncPengajuanList(updated);
     toast.info(`Pengajuan dosen "${pengajuan.nama}" telah ditolak.`);
   };
 
@@ -354,7 +364,7 @@ export default function DosenManagementPage() {
       return d;
     });
 
-    syncDosenDatabase(updated);
+    syncDosenList(updated);
     toast.success("Data dosen berhasil diperbarui!");
     setIsEditDosenOpen(false);
   };
@@ -388,7 +398,7 @@ export default function DosenManagementPage() {
       return p;
     });
 
-    syncPengajuanDatabase(updated);
+    syncPengajuanList(updated);
     toast.success("Pengajuan dosen berhasil diperbarui!");
     setIsEditOpen(false);
   };
@@ -398,9 +408,9 @@ export default function DosenManagementPage() {
       <div className="p-6 border border-border bg-card rounded-xl text-center space-y-4">
         <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Akses Ditolak</h2>
         <p className="text-xs text-muted-foreground">Peran Anda tidak diizinkan untuk mengakses halaman pengaturan dosen.</p>
-        <a href="/dashboard" className="inline-block text-xs font-semibold text-primary underline">
+        <Link href="/dashboard" className="inline-block text-xs font-semibold text-primary underline">
           Kembali ke Dashboard
-        </a>
+        </Link>
       </div>
     );
   }
@@ -558,7 +568,7 @@ export default function DosenManagementPage() {
                       </tr>
                     ))
                   ) : filteredDosen.length > 0 ? (
-                    filteredDosen.map((d, index) => (
+                    filteredDosen.map((d) => (
                       <tr key={d.nip} className="border-b border-border/50 text-xs hover:bg-muted/10 transition-colors">
                         <td className="px-4 py-3 font-mono font-semibold text-muted-foreground">{d.nip}</td>
                         <td className="px-4 py-3 font-bold text-foreground">{d.nama}</td>
@@ -1048,7 +1058,7 @@ export default function DosenManagementPage() {
               Hapus Data Dosen
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground mt-2">
-              Apakah Anda yakin ingin menghapus data dosen <span className="font-bold text-foreground">"{dosenToDelete?.nama}"</span> ({dosenToDelete?.nip})? Tindakan ini tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus data dosen <span className="font-bold text-foreground">&quot;{dosenToDelete?.nama}&quot;</span> ({dosenToDelete?.nip})? Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2 pt-2">

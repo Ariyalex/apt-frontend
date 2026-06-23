@@ -191,7 +191,7 @@ function SidebarItem({
 }: {
   item: SidebarItemType;
   depth?: number;
-}) {
+}): React.JSX.Element {
   const pathname = usePathname();
   // Default open for the first level parent items if they match or if it's Mutu BANPT
   const [isOpen, setIsOpen] = useState(
@@ -303,25 +303,28 @@ function SidebarItem({
   );
 }
 
-export function Sidebar() {
+export function Sidebar(): React.JSX.Element {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState("");
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   useEffect(() => {
-    const raw = localStorage.getItem("userSession");
-    if (raw) {
-      try {
-        const session = JSON.parse(raw);
-        if (session.username === "admin" || session.role === "Administrator") {
-          setIsAdmin(true);
+    const timer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session.username === "admin" || session.role === "Administrator") {
+            setIsAdmin(true);
+          }
+          setUserRole(session.role || "");
+        } catch {
+          // ignore
         }
-        setUserRole(session.role || "");
-      } catch (e) {
-        // ignore
       }
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const confirmLogout = () => {

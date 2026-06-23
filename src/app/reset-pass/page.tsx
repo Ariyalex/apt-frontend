@@ -13,38 +13,52 @@ import {
   InputGroupButton,
 } from "@/components/ui/input-group";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
+import { useResetPasswordMutation } from "@/store/services/authApi";
+import { useAppDispatch } from "@/store/hooks";
+import { clearSession } from "@/store/slices/userSlice";
 import { toast } from "sonner";
+import type { CustomApiError } from "@/store/services/apiSlice";
 
-export default function ResetPasswordPage() {
+interface CurrentUser {
+  name: string;
+  username: string;
+}
+
+export default function ResetPasswordPage(): React.JSX.Element {
   const router = useRouter();
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const dispatch = useAppDispatch();
+  const [resetPassword, { isLoading }] = useResetPasswordMutation();
+
+  const [newPassword, setNewPassword] = useState<string>("");
+  const [confirmPassword, setConfirmPassword] = useState<string>("");
+  const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
   
   // Logged-in user state (defaults to dummy data)
-  const [currentUser, setCurrentUser] = useState({ 
+  const [currentUser, setCurrentUser] = useState<CurrentUser>({ 
     name: "Ahmad Fauzi", 
     username: "fakultas" 
   });
 
   useEffect(() => {
-    const raw = localStorage.getItem("userSession");
-    if (raw) {
-      try {
-        const session = JSON.parse(raw);
-        if (session.name && session.username) {
-          setCurrentUser({ name: session.name, username: session.username });
+    const timer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session.name && session.username) {
+            setCurrentUser({ name: session.name as string, username: session.username as string });
+          }
+        } catch {
+          // Keep fallback dummy data
         }
-      } catch (e) {
-        // Keep fallback dummy data
       }
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (!newPassword || !confirmPassword) {
@@ -63,17 +77,28 @@ export default function ResetPasswordPage() {
     }
 
     setError("");
-    setIsLoading(true);
 
-    // Simulate API request
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success("Password Anda berhasil direset!");
+    try {
+      const response = await resetPassword({
+        password1: newPassword,
+        password2: confirmPassword,
+      }).unwrap();
+
+      toast.success(response.message || "Password Anda berhasil direset!");
       
       // Clear forms
       setNewPassword("");
       setConfirmPassword("");
-    }, 1500);
+
+      // Clear session and redirect to login screen
+      dispatch(clearSession());
+      router.push("/");
+    } catch (err: unknown) {
+      const apiError = err as CustomApiError;
+      const errorMessage = apiError?.data || "Gagal mereset password. Silakan coba kembali.";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    }
   };
 
   return (

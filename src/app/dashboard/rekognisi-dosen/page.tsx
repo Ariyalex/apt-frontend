@@ -1,15 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Plus } from "lucide-react";
-import Link from "next/link";
+import { Search } from "lucide-react";
 import { initialData } from "@/dummy-data/rekognisi";
 import { RekognisiChart } from "@/components/dashboard/rekognisi/rekognisi-chart";
 import { RekognisiTable } from "@/components/dashboard/rekognisi/rekognisi-table";
 import { Combobox } from "@/components/ui/combobox";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function RekognisiDosenPage() {
+export default function RekognisiDosenPage(): React.JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
