@@ -9,13 +9,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { AdminLembaga } from "@/dummy-data/admin";
 import { AlertCircle } from "lucide-react";
@@ -32,24 +25,24 @@ export function LembagaDialog({
   onOpenChange,
   lembaga,
   onSave,
-}: LembagaDialogProps) {
+}: LembagaDialogProps): React.JSX.Element {
   const [nama, setNama] = useState("");
   const [deskripsi, setDeskripsi] = useState("");
-  const [jenisLembaga, setJenisLembaga] = useState<AdminLembaga["jenisLembaga"] | "">("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
-      if (lembaga) {
-        setNama(lembaga.nama);
-        setDeskripsi(lembaga.deskripsi);
-        setJenisLembaga(lembaga.jenisLembaga);
-      } else {
-        setNama("");
-        setDeskripsi("");
-        setJenisLembaga("");
-      }
-      setError("");
+      const timer = setTimeout(() => {
+        if (lembaga) {
+          setNama(lembaga.nama);
+          setDeskripsi(lembaga.deskripsi);
+        } else {
+          setNama("");
+          setDeskripsi("");
+        }
+        setError("");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open, lembaga]);
 
@@ -58,16 +51,12 @@ export function LembagaDialog({
       setError("Nama dan Deskripsi wajib diisi!");
       return;
     }
-    if (!jenisLembaga) {
-      setError("Silakan pilih Jenis Lembaga!");
-      return;
-    }
 
     onSave({
       id: lembaga?.id || `lemb-${Date.now()}`,
       nama: nama.trim(),
       deskripsi: deskripsi.trim(),
-      jenisLembaga: jenisLembaga as AdminLembaga["jenisLembaga"],
+      jenisLembaga: "None",
     });
     onOpenChange(false);
   };
@@ -118,26 +107,6 @@ export function LembagaDialog({
               className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px]"
             />
           </Field>
-
-          {/* Jenis Lembaga (Shadcn select dropdown) */}
-          <Field>
-            <FieldLabel>
-              <FieldTitle>Jenis Lembaga</FieldTitle>
-            </FieldLabel>
-            <Select
-              value={jenisLembaga}
-              onValueChange={(val) => setJenisLembaga(val as any)}
-            >
-              <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
-                <SelectValue placeholder="Pilih Jenis Lembaga" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fakultas" className="text-xs font-semibold cursor-pointer">fakultas</SelectItem>
-                <SelectItem value="lembaga" className="text-xs font-semibold cursor-pointer">lembaga</SelectItem>
-                <SelectItem value="assessor" className="text-xs font-semibold cursor-pointer">assessor</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
         </div>
 
         <DialogFooter className="flex justify-end gap-2 pt-2">
@@ -161,3 +130,4 @@ export function LembagaDialog({
     </Dialog>
   );
 }
+

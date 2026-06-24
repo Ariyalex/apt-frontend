@@ -20,6 +20,10 @@ export const metadata: Metadata = {
   description: "Apt ini sementara",
 };
 
+import { Toaster } from "@/components/ui/sonner";
+import StoreProvider from "@/store/provider";
+import AuthGuard from "@/components/auth/AuthGuard";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,7 +34,14 @@ export default function RootLayout({
       lang="en"
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", ibmPlexSans.variable)}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <StoreProvider>
+          <AuthGuard>
+            {children}
+          </AuthGuard>
+        </StoreProvider>
+        <Toaster richColors closeButton />
+      </body>
     </html>
   );
 }

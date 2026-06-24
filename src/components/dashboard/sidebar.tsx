@@ -12,6 +12,7 @@ import {
   Users,
   Building2,
   Activity,
+  Settings,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -23,6 +24,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { clearSession } from "@/store/slices/userSlice";
+import { useLogoutMutation } from "@/store/services/authApi";
+import { toast } from "sonner";
 
 interface SidebarItemType {
   title: string;
@@ -147,6 +152,13 @@ const menuItems: SidebarItemType[] = [
       { title: "Isi Data", href: "/dashboard/rekognisi-dosen/isi-data" },
     ],
   },
+  {
+    title: "Setting",
+    icon: Settings,
+    children: [
+      { title: "Dosen", href: "/dashboard/kelola-dosen" },
+    ],
+  },
 ];
 
 const adminMenuItems: SidebarItemType[] = [
@@ -170,6 +182,11 @@ const adminMenuItems: SidebarItemType[] = [
     icon: Activity,
     href: "/dashboard/aktivitas-user",
   },
+  {
+    title: "Kelola Dosen",
+    icon: GraduationCap,
+    href: "/dashboard/kelola-dosen",
+  },
 ];
 
 function SidebarItem({
@@ -178,7 +195,7 @@ function SidebarItem({
 }: {
   item: SidebarItemType;
   depth?: number;
-}) {
+}): React.JSX.Element {
   const pathname = usePathname();
   // Default open for the first level parent items if they match or if it's Mutu BANPT
   const [isOpen, setIsOpen] = useState(
@@ -290,31 +307,65 @@ function SidebarItem({
   );
 }
 
-export function Sidebar() {
+export function Sidebar(): React.JSX.Element {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { refreshToken } = useAppSelector((state) => state.user);
+  const [logout] = useLogoutMutation();
+
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState("");
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   useEffect(() => {
-    const raw = localStorage.getItem("userSession");
-    if (raw) {
-      try {
-        const session = JSON.parse(raw);
-        if (session.username === "admin" || session.role === "Administrator") {
-          setIsAdmin(true);
+    const timer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session.username === "admin" || session.role === "Administrator") {
+            setIsAdmin(true);
+          }
+          setUserRole(session.role || "");
+        } catch {
+          // ignore
         }
-      } catch (e) {
-        // ignore
       }
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
-  const confirmLogout = () => {
-    localStorage.removeItem("userSession");
-    router.push("/login");
+  const confirmLogout = async (): Promise<void> => {
+    try {
+      const tokenToUse = refreshToken || (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null) || "";
+      await logout({ refresh_token: tokenToUse }).unwrap();
+      toast.success("Anda berhasil keluar dari sistem.");
+    } catch {
+      toast.error("Gagal memproses keluar di server, sesi lokal dibersihkan.");
+    } finally {
+      dispatch(clearSession());
+      router.push("/");
+    }
   };
 
-  const activeMenuItems = isAdmin ? adminMenuItems : menuItems;
+  let activeMenuItems = isAdmin ? adminMenuItems : menuItems;
+
+  if (!isAdmin) {
+    activeMenuItems = menuItems.map(item => {
+      if (item.title === "Rekognisi Dosen" && (userRole === "Auditor" || userRole === "Assessor")) {
+        return {
+          title: item.title,
+          icon: item.icon,
+          href: item.href,
+        };
+      }
+      return item;
+    });
+
+    if (userRole === "Auditor" || userRole === "Assessor") {
+      activeMenuItems = activeMenuItems.filter(item => item.title !== "Setting");
+    }
+  }
 
   return (
     <>

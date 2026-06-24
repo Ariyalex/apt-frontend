@@ -26,13 +26,14 @@ interface BagikanFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (name: string, expiredAt: string) => void;
+  facultySlug?: string;
 }
 
 export function BagikanFormDialog({
   open,
   onOpenChange,
   onSave,
-}: BagikanFormDialogProps) {
+}: BagikanFormDialogProps): React.JSX.Element {
   const [name, setName] = useState("");
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("23:59");
@@ -41,15 +42,18 @@ export function BagikanFormDialog({
   // Reset states on open
   useEffect(() => {
     if (open) {
-      setName("");
-      const defaultDate = new Date();
-      defaultDate.setDate(defaultDate.getDate() + 7); // Default to 7 days from now
-      setDate(defaultDate);
-      setTime("23:59");
+      const timer = setTimeout(() => {
+        setName("");
+        const defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() + 7); // Default to 7 days from now
+        setDate(defaultDate);
+        setTime("23:59");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 
-  const baseUrl = "http://localhost:3000/form/rekognisi/";
+  const baseUrl = `http://localhost:3000/rekognisi-`;
 
   const handleSave = () => {
     if (!name || !date) return;

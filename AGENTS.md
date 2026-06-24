@@ -13,6 +13,7 @@ This document outlines the architectural standards, code style, UI constraints, 
 ## 1. UI Theme & Colors
 * **Theme Identity**: Always use standard Tailwind CSS semantic color tokens mapped to the theme variables (e.g., `bg-primary`, `bg-card`, `border-border`, `bg-muted`, `text-foreground`, `text-muted-foreground`).
 * **No Ad-hoc Colors**: Do not hardcode specific custom color hex/rgb/hsl values (e.g., red, green, or rose border outlines) from mockups. Let elements adapt automatically to standard project colors.
+* **Success & Error Semantic Colors**: For success, confirmation, and approved actions/badges, always use `success` semantic classes (e.g., `bg-success/10`, `text-success`, `hover:bg-success/20`). For error, validation, declination, deletion, and required asterisks, always use `error` semantic classes (e.g., `bg-error/10`, `text-error`, `hover:bg-error/20`). Avoid using ad-hoc classes like `emerald-*`, `green-*`, `rose-*`, or `red-*`.
 
 ## 2. Typography & Font Sizes
 * **Standard Utility Classes Only**: All font sizing must strictly use standard Tailwind CSS sizing classes (e.g., `text-xs`, `text-sm`, `text-base`, `text-lg`, `text-xl`, `text-2xl`, etc.).
@@ -38,3 +39,33 @@ This document outlines the architectural standards, code style, UI constraints, 
 
 ## 6. Layout Width
 * **Full-Width Pages**: Avoid wrapping content in fixed max-width containers (like `max-w-2xl` on the page wrapper level) for tabular and grid-based dashboards. Utilize `w-full` (fill parent) so that tables, charts, and link cards render across the maximum available screen width.
+
+## 7. Sonner Notification
+* **Sonner Notification for Mutative Actions**: Always trigger a `toast.success` or `toast.error` notification (using shadcn's Sonner UI) for mutative operations such as form submissions, deleting records, accepting/declining requests, or saving settings to provide direct feedback to the user.
+
+## 8. Confirmation for Crucial Actions
+* **Alert Dialog for Crucial Operations**: Always prompt the user with a confirmation popup (`AlertDialog` component) before executing crucial or destructive actions, such as deleting data records, saving changes/updates, or performing other mutative operations, to prevent accidental actions.
+
+## 9. Skeleton Loader for Async Data
+* **Simulated Loading State**: Always implement a simulated loading state (using an `isLoading` state hook set with a short `setTimeout` duration of 600ms - 800ms) on dashboard pages and tab contents that display data fetched dynamically (such as tables, cards, charts, and lists).
+* **Skeleton Placeholders**: During the loading state, render matching shadcn `Skeleton` placeholders that mimic the size, shape, and structure of the actual loaded components (e.g. table rows, card headers, or bar charts) to ensure a smooth layout transition.
+
+## 10. Redux Toolkit & Mock API (RTK Query)
+* **Store vs Hooks Separation**: Custom React-Redux hooks (`useAppDispatch` / `useAppSelector`) must only be placed in `src/store/hooks.ts`. The `src/store/index.ts` file must only contain store configurations (`makeStore`) and TypeScript type definitions.
+* **No Global Store Singleton**: Always use the store generator function `makeStore()` and wrap it inside a React ref in the `StoreProvider` component to prevent state pollution across user requests on the server.
+* **Client Context Boundary**: Redux hooks can only be imported and called inside Client Components containing the `"use client"` directive at the top.
+* **State Co-location**: Only globally shared data (e.g., login session details, shared filters) should be kept in Redux. Local UI states like open/close states or form buffers must remain in React's local state.
+* **Mock API via queryFn & delay**: Until backend services are ready, all RTK Query operations must use `fakeBaseQuery()` and return mock data via `queryFn` directly in-memory, simulating a network delay of `600ms - 1000ms`.
+* **Standard UI States Representation**: Component layers must cleanly handle RTK Query states:
+  * **Loading**: Render matching shadcn `<Skeleton />` loaders (never generic loading text).
+  * **Empty**: Display a styled Empty State component with supportive icon and text if data length is 0.
+  * **Error**: Render a semantic error banner (`bg-error/10`, `text-error`) with a retry call trigger.
+
+## 11. TypeScript Strictness & Type Specifications
+* **Explicit Type Declarations**: Always specify data types explicitly for all variable definitions, function parameters, component props, and API response models. Avoid using implicit `any` at all costs.
+* **Strict TypeScript & ESLint Compliance**:
+  * All functions and methods must explicitly declare their return types (e.g., `const handleSave = (): void => { ... }`, `async queryFn(): Promise<{ data: Dosen[] } | { error: CustomApiError }>`).
+  * Unsafe assertions like `as any` are strictly forbidden. Use custom type guards, type narrowing, or exact interfaces.
+  * Always use `import type` syntax for type-only imports to clarify compile-time dependencies.
+  * Resolve all ESLint errors and warnings. Ensure no unused variables, correctly escaped JSX quotes, and full compliance with React Hook rules (e.g., avoid impure renders and synchronous state updates inside `useEffect`).
+

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { MoreVertical, Calendar, Check, Copy, Link as LinkIcon, Lock, Unlock } from "lucide-react";
+import { MoreVertical, Calendar, Check, Copy, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,10 +30,10 @@ export function BagikanFormCard({
   onAcceptSubmission,
   onDeclineSubmission,
   onEditSubmission,
-}: BagikanFormCardProps) {
+}: BagikanFormCardProps): React.JSX.Element {
   const [copied, setCopied] = useState(false);
-  const baseUrl = "http://localhost:3000/form/rekognisi/";
-  const fullUrl = `${baseUrl}${link.name}`;
+  const baseUrl = `http://localhost:3000/`;
+  const fullUrl = `${baseUrl}rekognisi-${link.name}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(fullUrl);
@@ -56,7 +56,7 @@ export function BagikanFormCard({
             title="Klik untuk menyalin link"
           >
             <div className="flex items-center gap-1">
-              <span className="text-xs font-mono text-muted-foreground">{baseUrl}</span>
+              <span className="text-xs font-mono text-muted-foreground">{baseUrl}rekognisi-</span>
               <span className="text-xs font-mono font-bold text-primary underline decoration-primary/40 group-hover:decoration-primary transition-all">
                 {link.name}
               </span>

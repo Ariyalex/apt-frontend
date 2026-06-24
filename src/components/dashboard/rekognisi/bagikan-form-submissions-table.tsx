@@ -121,44 +121,56 @@ export function BagikanFormSubmissionsTable({
                 {sub.deskripsi}
               </td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-1">
-                  <a
-                    href={sub.linkBukti}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex h-7 items-center gap-1 rounded bg-muted/65 border border-border px-2 text-xs font-bold text-foreground hover:bg-muted transition-all cursor-pointer"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Kunjungi
-                  </a>
-                  <Button
-                    variant="outline"
-                    onClick={(e) => handleCopy(e, sub.id, sub.linkBukti)}
-                    className="h-7 items-center gap-1 rounded px-2 text-xs font-bold cursor-pointer"
-                  >
-                    {copiedId === sub.id ? (
-                      <>
-                        <Check className="h-3 w-3 text-emerald-500" />
-                        Tersalin
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        Salin
-                      </>
-                    )}
-                  </Button>
+                <div className="flex flex-col items-start gap-1.5">
+                  {sub.linkBukti.split(",").filter(Boolean).map((url, idx) => {
+                    const uniqueKey = `${sub.id}-${idx}`;
+                    return (
+                      <div key={idx} className="flex items-center gap-1.5">
+                        {sub.linkBukti.split(",").filter(Boolean).length > 1 && (
+                          <span className="text-[10px] text-muted-foreground font-bold">#{idx + 1}</span>
+                        )}
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex h-7 items-center gap-1 rounded bg-muted/65 border border-border px-2 text-xs font-bold text-foreground hover:bg-muted transition-all cursor-pointer"
+                          title={`Kunjungi Link Bukti ${idx + 1}`}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Kunjungi
+                        </a>
+                        <Button
+                          variant="outline"
+                          onClick={(e) => handleCopy(e, uniqueKey, url)}
+                          className="h-7 items-center gap-1 rounded px-2 text-xs font-bold cursor-pointer"
+                          title={`Salin Link Bukti ${idx + 1}`}
+                        >
+                          {copiedId === uniqueKey ? (
+                            <>
+                              <Check className="h-3 w-3 text-success" />
+                              Tersalin
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              Salin
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               </td>
               <td className="px-4 py-3">
                 {sub.status === "approved" && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-bold text-success">
                     <CheckCircle2 className="h-3 w-3" /> Disetujui
                   </span>
                 )}
                 {sub.status === "declined" && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-xs font-bold text-rose-600 dark:text-rose-400">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-error/10 px-2.5 py-0.5 text-xs font-bold text-error">
                     <XCircle className="h-3 w-3" /> Ditolak
                   </span>
                 )}
@@ -169,41 +181,44 @@ export function BagikanFormSubmissionsTable({
                 )}
               </td>
               <td className="px-4 py-3 text-right">
-                <div className="flex justify-end items-center gap-1.5">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(sub);
-                    }}
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
-                    title="Edit Data"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </Button>
-                  
-                  {sub.status !== "approved" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAccept(sub.id);
-                      }}
-                      className="h-7 rounded bg-emerald-500/10 px-2.5 text-xs font-bold text-emerald-600 hover:bg-emerald-500/20 transition-all cursor-pointer"
-                    >
-                      Acc
-                    </button>
-                  )}
-                  {sub.status !== "declined" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDecline(sub.id);
-                      }}
-                      className="h-7 rounded bg-rose-500/10 px-2.5 text-xs font-bold text-rose-600 hover:bg-rose-500/20 transition-all cursor-pointer"
-                    >
-                      Decline
-                    </button>
+                <div className="flex justify-end items-center gap-1.5 min-h-[28px]">
+                  {sub.status === "pending" ? (
+                    <>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(sub);
+                        }}
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                        title="Edit Data"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAccept(sub.id);
+                        }}
+                        className="h-7 rounded bg-success/10 px-2.5 text-xs font-bold text-success hover:bg-success/20 transition-all cursor-pointer"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDecline(sub.id);
+                        }}
+                        className="h-7 rounded bg-error/10 px-2.5 text-xs font-bold text-error hover:bg-error/20 transition-all cursor-pointer"
+                      >
+                        Decline
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none px-2">
+                      Selesai
+                    </span>
                   )}
                 </div>
               </td>

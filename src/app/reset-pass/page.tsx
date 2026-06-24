@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import logoUin from "../../public/logo_uin.png";
-import { Lock, User, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import logoUin from "../../../public/logo_uin.png";
+import { Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -13,9 +13,9 @@ import {
   InputGroupButton,
 } from "@/components/ui/input-group";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
-import { useLoginMutation } from "@/store/services/authApi";
+import { useResetPasswordMutation } from "@/store/services/authApi";
 import { useAppDispatch } from "@/store/hooks";
-import { setLoginSession } from "@/store/slices/userSlice";
+import { clearSession } from "@/store/slices/userSlice";
 import { toast } from "sonner";
 
 interface CustomErrorObject {
@@ -36,48 +36,83 @@ const extractErrorMessage = (err: unknown): string => {
       return apiError;
     }
   }
-  return "Username atau password salah. Silakan coba kembali.";
+  return "Gagal mereset password. Silakan coba kembali.";
 };
 
-export default function RootLoginPage(): React.JSX.Element {
+interface CurrentUser {
+  name: string;
+  username: string;
+}
+
+export default function ResetPasswordPage(): React.JSX.Element {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const [login, { isLoading }] = useLoginMutation();
+  const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
-  const [username, setUsername] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [newPassword, setNewPassword] = useState<string>("");
+  const [confirmPassword, setConfirmPassword] = useState<string>("");
+  const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  
+  // Logged-in user state (defaults to dummy data)
+  const [currentUser, setCurrentUser] = useState<CurrentUser>({ 
+    name: "Ahmad Fauzi", 
+    username: "fakultas" 
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session.name && session.username) {
+            setCurrentUser({ name: session.name as string, username: session.username as string });
+          }
+        } catch {
+          // Keep fallback dummy data
+        }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
-    if (!username || !password) {
-      setError("Username dan password wajib diisi.");
+    if (!newPassword || !confirmPassword) {
+      setError("Semua field wajib diisi.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError("Password baru minimal harus 6 karakter.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Password konfirmasi tidak cocok.");
       return;
     }
 
     setError("");
 
     try {
-      const response = await login({ username, password }).unwrap();
-      
-      toast.success(response.message || "Login berhasil!");
-      
-      dispatch(
-        setLoginSession({
-          accessToken: response.data.access_token,
-          refreshToken: response.data.refresh_token,
-          user: response.data.user,
-        })
-      );
+      const response = await resetPassword({
+        password1: newPassword,
+        password2: confirmPassword,
+      }).unwrap();
 
-      if (response.data.user.must_change_password) {
-        toast.info("Anda harus mengganti password default Anda terlebih dahulu.");
-        router.push("/reset-pass");
-      } else {
-        router.push("/dashboard");
-      }
+      toast.success(response.message || "Password Anda berhasil direset!");
+      
+      // Clear forms
+      setNewPassword("");
+      setConfirmPassword("");
+
+      // Clear session and redirect to login screen
+      dispatch(clearSession());
+      router.push("/");
     } catch (err: unknown) {
       const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
@@ -101,12 +136,27 @@ export default function RootLoginPage(): React.JSX.Element {
               Aplikasi Penjamin Mutu
             </h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Universitas Islam Negeri Sunan Kalijaga Yogyakarta
+              Reset Password Akun
             </p>
           </div>
         </div>
 
-        {/* Login Form */}
+        {/* User Session Info Card */}
+        <div className="p-3.5 bg-muted/25 border border-border/60 rounded-lg text-xs space-y-1.5 animate-fadeIn">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+            Pengguna yang Sedang Login
+          </span>
+          <div className="flex justify-between items-center gap-4">
+            <span className="font-bold text-foreground truncate max-w-[60%]">
+              {currentUser.name}
+            </span>
+            <span className="font-mono text-muted-foreground text-[11px] shrink-0 font-semibold">
+              @{currentUser.username}
+            </span>
+          </div>
+        </div>
+
+        {/* Reset Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Error Message Display */}
           {error && (
@@ -116,44 +166,21 @@ export default function RootLoginPage(): React.JSX.Element {
             </div>
           )}
 
-          {/* Username Input Field */}
+          {/* New Password Input Field */}
           <Field>
             <FieldLabel>
-              <FieldTitle>Username</FieldTitle>
-            </FieldLabel>
-            <InputGroup className="bg-muted/5">
-              <InputGroupAddon className="px-2">
-                <User className="h-4 w-4 text-muted-foreground/80" />
-              </InputGroupAddon>
-              <InputGroupInput
-                type="text"
-                placeholder="Masukkan username Anda..."
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  if (error) setError("");
-                }}
-                disabled={isLoading}
-                className="h-10 text-xs text-foreground placeholder:text-muted-foreground/60"
-              />
-            </InputGroup>
-          </Field>
-
-          {/* Password Input Field */}
-          <Field>
-            <FieldLabel>
-              <FieldTitle>Password</FieldTitle>
+              <FieldTitle>Password Baru</FieldTitle>
             </FieldLabel>
             <InputGroup className="bg-muted/5">
               <InputGroupAddon className="px-2">
                 <Lock className="h-4 w-4 text-muted-foreground/80" />
               </InputGroupAddon>
               <InputGroupInput
-                type={showPassword ? "text" : "password"}
-                placeholder="Masukkan password Anda..."
-                value={password}
+                type={showNewPassword ? "text" : "password"}
+                placeholder="Masukkan password baru..."
+                value={newPassword}
                 onChange={(e) => {
-                  setPassword(e.target.value);
+                  setNewPassword(e.target.value);
                   if (error) setError("");
                 }}
                 disabled={isLoading}
@@ -161,12 +188,48 @@ export default function RootLoginPage(): React.JSX.Element {
               />
               <InputGroupButton
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowNewPassword(!showNewPassword)}
                 disabled={isLoading}
                 size="icon-sm"
                 className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center shrink-0 w-8"
               >
-                {showPassword ? (
+                {showNewPassword ? (
+                  <EyeOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
+              </InputGroupButton>
+            </InputGroup>
+          </Field>
+
+          {/* Confirm Password Input Field */}
+          <Field>
+            <FieldLabel>
+              <FieldTitle>Ulangi Password</FieldTitle>
+            </FieldLabel>
+            <InputGroup className="bg-muted/5">
+              <InputGroupAddon className="px-2">
+                <Lock className="h-4 w-4 text-muted-foreground/80" />
+              </InputGroupAddon>
+              <InputGroupInput
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Ulangi password baru..."
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (error) setError("");
+                }}
+                disabled={isLoading}
+                className="h-10 text-xs text-foreground placeholder:text-muted-foreground/60"
+              />
+              <InputGroupButton
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                disabled={isLoading}
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center shrink-0 w-8"
+              >
+                {showConfirmPassword ? (
                   <EyeOff className="h-3.5 w-3.5" />
                 ) : (
                   <Eye className="h-3.5 w-3.5" />
@@ -185,10 +248,10 @@ export default function RootLoginPage(): React.JSX.Element {
               {isLoading ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Memproses Masuk...
+                  Memproses Reset...
                 </>
               ) : (
-                "Masuk ke Sistem"
+                "Reset Password"
               )}
             </Button>
           </div>

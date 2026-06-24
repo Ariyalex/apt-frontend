@@ -13,22 +13,25 @@ interface UserSession {
   avatarUrl?: string;
 }
 
-export function Header() {
+export function Header(): React.JSX.Element {
   const [session, setSession] = useState<UserSession | null>(null);
 
   useEffect(() => {
-    const raw = localStorage.getItem("userSession");
-    if (raw) {
-      try {
-        setSession(JSON.parse(raw));
-      } catch (e) {
-        // ignore
+    const timer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          setSession(JSON.parse(raw));
+        } catch {
+          // ignore
+        }
       }
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const displayName = session?.name || "Ahmad Fauzi";
-  const displayRole = session?.role || "Fakultas";
+  const displayRole = session?.role || "Auditee";
   const displayInitials = session?.initials || "AF";
   const displayAvatar = session?.avatarUrl || "";
 
@@ -64,10 +67,7 @@ export function Header() {
           </div>
           <Avatar className="h-9 w-9 border border-border shadow-sm">
             {displayAvatar ? (
-              <AvatarImage
-                src={displayAvatar}
-                alt={displayName}
-              />
+              <AvatarImage src={displayAvatar} alt={displayName} />
             ) : null}
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
               {displayInitials}

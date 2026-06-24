@@ -34,18 +34,21 @@ export function EditExpiryDialog({
   onOpenChange,
   currentExpiry,
   onSave,
-}: EditExpiryDialogProps) {
+}: EditExpiryDialogProps): React.JSX.Element {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("23:59");
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (open && currentExpiry) {
-      const parsedDate = new Date(currentExpiry);
-      setDate(parsedDate);
-      const hours = String(parsedDate.getHours()).padStart(2, "0");
-      const minutes = String(parsedDate.getMinutes()).padStart(2, "0");
-      setTime(`${hours}:${minutes}`);
+      const timer = setTimeout(() => {
+        const parsedDate = new Date(currentExpiry);
+        setDate(parsedDate);
+        const hours = String(parsedDate.getHours()).padStart(2, "0");
+        const minutes = String(parsedDate.getMinutes()).padStart(2, "0");
+        setTime(`${hours}:${minutes}`);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open, currentExpiry]);
 

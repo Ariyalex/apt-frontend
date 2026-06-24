@@ -10,7 +10,7 @@ interface LembagaTableProps {
   onDelete: (lembagaId: string) => void;
 }
 
-export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProps) {
+export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProps): React.JSX.Element {
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
@@ -20,29 +20,18 @@ export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProp
               <th className="px-5 py-3 w-16 text-center">No</th>
               <th className="px-5 py-3">Nama Lembaga</th>
               <th className="px-5 py-3">Deskripsi</th>
-              <th className="px-5 py-3">Jenis Lembaga</th>
               <th className="px-5 py-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60 text-xs">
             {lembagaList.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-muted-foreground">
-                  Tidak ada data lembaga.
+                <td colSpan={4} className="px-5 py-8 text-center text-muted-foreground">
+                   Tidak ada data lembaga.
                 </td>
               </tr>
             ) : (
               lembagaList.map((lemb, index) => {
-                // Determine jenis lembaga badge color
-                let typeBadgeColor = "bg-muted text-muted-foreground";
-                if (userMatchesType(lemb.jenisLembaga, "fakultas")) {
-                  typeBadgeColor = "bg-blue-500/10 text-blue-600 dark:text-blue-400";
-                } else if (userMatchesType(lemb.jenisLembaga, "lembaga")) {
-                  typeBadgeColor = "bg-purple-500/10 text-purple-600 dark:text-purple-400";
-                } else if (userMatchesType(lemb.jenisLembaga, "assessor")) {
-                  typeBadgeColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
-                }
-
                 return (
                   <tr key={lemb.id} className="hover:bg-muted/5 transition-colors">
                     <td className="px-5 py-3.5 text-center font-medium text-muted-foreground">
@@ -53,11 +42,6 @@ export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProp
                     </td>
                     <td className="px-5 py-3.5 text-muted-foreground/85 leading-normal max-w-sm">
                       {lemb.deskripsi}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-bold uppercase tracking-wide text-[10px] ${typeBadgeColor}`}>
-                        {lemb.jenisLembaga}
-                      </span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex justify-end gap-1.5">
@@ -88,6 +72,4 @@ export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProp
   );
 }
 
-function userMatchesType(val: string, target: string) {
-  return val.trim().toLowerCase() === target.trim().toLowerCase();
-}
+
