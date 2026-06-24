@@ -24,6 +24,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { clearSession } from "@/store/slices/userSlice";
+import { useLogoutMutation } from "@/store/services/authApi";
+import { toast } from "sonner";
 
 interface SidebarItemType {
   title: string;
@@ -305,6 +309,10 @@ function SidebarItem({
 
 export function Sidebar(): React.JSX.Element {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { refreshToken } = useAppSelector((state) => state.user);
+  const [logout] = useLogoutMutation();
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState("");
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -327,9 +335,17 @@ export function Sidebar(): React.JSX.Element {
     return () => clearTimeout(timer);
   }, []);
 
-  const confirmLogout = () => {
-    localStorage.removeItem("userSession");
-    router.push("/");
+  const confirmLogout = async (): Promise<void> => {
+    try {
+      const tokenToUse = refreshToken || (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null) || "";
+      await logout({ refresh_token: tokenToUse }).unwrap();
+      toast.success("Anda berhasil keluar dari sistem.");
+    } catch {
+      toast.error("Gagal memproses keluar di server, sesi lokal dibersihkan.");
+    } finally {
+      dispatch(clearSession());
+      router.push("/");
+    }
   };
 
   let activeMenuItems = isAdmin ? adminMenuItems : menuItems;

@@ -17,7 +17,27 @@ import { useResetPasswordMutation } from "@/store/services/authApi";
 import { useAppDispatch } from "@/store/hooks";
 import { clearSession } from "@/store/slices/userSlice";
 import { toast } from "sonner";
-import type { CustomApiError } from "@/store/services/apiSlice";
+
+interface CustomErrorObject {
+  data?: {
+    message?: string;
+    error?: string;
+  } | string;
+}
+
+const extractErrorMessage = (err: unknown): string => {
+  if (err && typeof err === "object" && "data" in err) {
+    const errObj = err as CustomErrorObject;
+    const apiError = errObj.data;
+    if (apiError && typeof apiError === "object") {
+      return apiError.message || apiError.error || JSON.stringify(apiError);
+    }
+    if (typeof apiError === "string") {
+      return apiError;
+    }
+  }
+  return "Gagal mereset password. Silakan coba kembali.";
+};
 
 interface CurrentUser {
   name: string;
@@ -94,8 +114,7 @@ export default function ResetPasswordPage(): React.JSX.Element {
       dispatch(clearSession());
       router.push("/");
     } catch (err: unknown) {
-      const apiError = err as CustomApiError;
-      const errorMessage = apiError?.data || "Gagal mereset password. Silakan coba kembali.";
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       toast.error(errorMessage);
     }

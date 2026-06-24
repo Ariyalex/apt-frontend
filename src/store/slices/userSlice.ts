@@ -17,6 +17,15 @@ const initialState: UserState = {
   isLoggedIn: false,
 };
 
+const mapRole = (role: string): string => {
+  const r = role.toLowerCase();
+  if (r === "admin") return "Administrator";
+  if (r === "fakultas" || r === "auditee") return "Auditee";
+  if (r === "auditor") return "Auditor";
+  if (r === "assessor") return "Assessor";
+  return role;
+};
+
 export const userSlice = createSlice({
   name: "user",
   initialState,
@@ -35,15 +44,22 @@ export const userSlice = createSlice({
         const u = action.payload.user;
         const initials = u.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "US";
         const avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop";
+        const role = mapRole(u.role);
 
         localStorage.setItem(
           "userSession",
           JSON.stringify({
+            id: u.id,
             name: u.name,
-            role: u.role === "admin" ? "Administrator" : u.role,
+            role,
             username: u.username,
             initials,
             avatarUrl,
+            must_change_password: u.must_change_password,
+            email: u.email,
+            institute_id: u.institute_id,
+            is_banned: u.is_banned,
+            created_at: u.created_at,
           })
         );
         localStorage.setItem("accessToken", action.payload.accessToken);

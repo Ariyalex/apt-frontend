@@ -17,7 +17,27 @@ import { useLoginMutation } from "@/store/services/authApi";
 import { useAppDispatch } from "@/store/hooks";
 import { setLoginSession } from "@/store/slices/userSlice";
 import { toast } from "sonner";
-import type { CustomApiError } from "@/store/services/apiSlice";
+
+interface CustomErrorObject {
+  data?: {
+    message?: string;
+    error?: string;
+  } | string;
+}
+
+const extractErrorMessage = (err: unknown): string => {
+  if (err && typeof err === "object" && "data" in err) {
+    const errObj = err as CustomErrorObject;
+    const apiError = errObj.data;
+    if (apiError && typeof apiError === "object") {
+      return apiError.message || apiError.error || JSON.stringify(apiError);
+    }
+    if (typeof apiError === "string") {
+      return apiError;
+    }
+  }
+  return "Username atau password salah. Silakan coba kembali.";
+};
 
 export default function RootLoginPage(): React.JSX.Element {
   const router = useRouter();
@@ -59,8 +79,7 @@ export default function RootLoginPage(): React.JSX.Element {
         router.push("/dashboard");
       }
     } catch (err: unknown) {
-      const apiError = err as CustomApiError;
-      const errorMessage = apiError?.data || "Username atau password salah. Silakan coba kembali.";
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       toast.error(errorMessage);
     }
@@ -172,59 +191,6 @@ export default function RootLoginPage(): React.JSX.Element {
                 "Masuk ke Sistem"
               )}
             </Button>
-          </div>
-
-          {/* Helper Credentials Card */}
-          <div className="pt-4 border-t border-border/40 mt-4 space-y-2 animate-fadeIn">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-              Akun Uji Coba (Demo Accounts)
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 rounded-lg bg-muted/20 border border-border/50 text-[11px] space-y-0.5">
-                <span className="font-bold text-foreground block leading-tight">
-                  Auditee (Fakultas):
-                </span>
-                <span className="text-muted-foreground block">
-                  U: <span className="font-mono font-semibold text-foreground">fakultas</span>
-                </span>
-                <span className="text-muted-foreground block">
-                  P: <span className="font-mono font-semibold text-foreground">password</span>
-                </span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-muted/20 border border-border/50 text-[11px] space-y-0.5">
-                <span className="font-bold text-foreground block leading-tight">
-                  Admin:
-                </span>
-                <span className="text-muted-foreground block">
-                  U: <span className="font-mono font-semibold text-foreground">admin</span>
-                </span>
-                <span className="text-muted-foreground block">
-                  P: <span className="font-mono font-semibold text-foreground">password</span>
-                </span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-muted/20 border border-border/50 text-[11px] space-y-0.5">
-                <span className="font-bold text-foreground block leading-tight">
-                  Auditor (LPM):
-                </span>
-                <span className="text-muted-foreground block">
-                  U: <span className="font-mono font-semibold text-foreground">auditor</span>
-                </span>
-                <span className="text-muted-foreground block">
-                  P: <span className="font-mono font-semibold text-foreground">password</span>
-                </span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-muted/20 border border-border/50 text-[11px] space-y-0.5">
-                <span className="font-bold text-foreground block leading-tight">
-                  Assessor:
-                </span>
-                <span className="text-muted-foreground block">
-                  U: <span className="font-mono font-semibold text-foreground">assessor</span>
-                </span>
-                <span className="text-muted-foreground block">
-                  P: <span className="font-mono font-semibold text-foreground">password</span>
-                </span>
-              </div>
-            </div>
           </div>
         </form>
       </div>
