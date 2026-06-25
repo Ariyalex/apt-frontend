@@ -53,7 +53,7 @@ export function BagikanFormDialog({
     }
   }, [open]);
 
-  const baseUrl = `http://localhost:3000/rekognisi-`;
+  const baseUrl = `http://localhost:3000/`;
 
   const handleSave = () => {
     if (!name || !date) return;
@@ -84,7 +84,7 @@ export function BagikanFormDialog({
             </FieldLabel>
             <Input
               type="text"
-              placeholder="contoh: rekognisi-dosen-2026-ganjil"
+              placeholder="contoh: dosen-2026-ganjil"
               value={name}
               onChange={(e) =>
                 setName(e.target.value.toLowerCase().replace(/\s+/g, "-"))

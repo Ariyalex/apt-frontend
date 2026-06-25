@@ -33,7 +33,7 @@ export function BagikanFormCard({
 }: BagikanFormCardProps): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   const baseUrl = `http://localhost:3000/`;
-  const fullUrl = `${baseUrl}rekognisi-${link.name}`;
+  const fullUrl = `${baseUrl}${link.name}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(fullUrl);
@@ -45,7 +45,7 @@ export function BagikanFormCard({
   const displayStatus = isExpired ? "expired" : link.status;
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+    <div className="rounded-xl border border-border bg-card shadow-md overflow-hidden flex flex-col">
       {/* Header section */}
       <div className="p-4 flex items-center justify-between gap-4 bg-muted/10 border-b border-border/30">
         <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4 flex-1 min-w-0">
@@ -56,7 +56,7 @@ export function BagikanFormCard({
             title="Klik untuk menyalin link"
           >
             <div className="flex items-center gap-1">
-              <span className="text-xs font-mono text-muted-foreground">{baseUrl}rekognisi-</span>
+              <span className="text-xs font-mono text-muted-foreground">{baseUrl}</span>
               <span className="text-xs font-mono font-bold text-primary underline decoration-primary/40 group-hover:decoration-primary transition-all">
                 {link.name}
               </span>

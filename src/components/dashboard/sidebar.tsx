@@ -13,6 +13,8 @@ import {
   Building2,
   Activity,
   Settings,
+  BookOpen,
+  Loader2,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -157,6 +159,7 @@ const menuItems: SidebarItemType[] = [
     icon: Settings,
     children: [
       { title: "Dosen", href: "/dashboard/kelola-dosen" },
+      { title: "Kategori Rekognisi", href: "/dashboard/kelola-rekognisi/kategori" },
     ],
   },
 ];
@@ -178,6 +181,11 @@ const adminMenuItems: SidebarItemType[] = [
     href: "/dashboard/kelola-lembaga",
   },
   {
+    title: "Kelola Prodi",
+    icon: BookOpen,
+    href: "/dashboard/kelola-prodi",
+  },
+  {
     title: "Aktivitas User",
     icon: Activity,
     href: "/dashboard/aktivitas-user",
@@ -186,6 +194,13 @@ const adminMenuItems: SidebarItemType[] = [
     title: "Kelola Dosen",
     icon: GraduationCap,
     href: "/dashboard/kelola-dosen",
+  },
+  {
+    title: "Kelola Rekognisi",
+    icon: ShieldCheck,
+    children: [
+      { title: "Kategori Rekognisi", href: "/dashboard/kelola-rekognisi/kategori" },
+    ],
   },
 ];
 
@@ -311,7 +326,7 @@ export function Sidebar(): React.JSX.Element {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { refreshToken } = useAppSelector((state) => state.user);
-  const [logout] = useLogoutMutation();
+  const [logout, { isLoading: isLogoutLoading }] = useLogoutMutation();
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState("");
@@ -397,7 +412,13 @@ export function Sidebar(): React.JSX.Element {
       </aside>
 
       {/* Logout Confirmation Dialog */}
-      <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+      <AlertDialog 
+        open={logoutOpen} 
+        onOpenChange={(open) => {
+          if (isLogoutLoading) return;
+          setLogoutOpen(open);
+        }}
+      >
         <AlertDialogContent className="bg-card border border-border p-6 rounded-xl sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
@@ -408,14 +429,28 @@ export function Sidebar(): React.JSX.Element {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2 pt-2">
-            <AlertDialogCancel className="h-10 text-xs font-bold px-4 rounded-lg cursor-pointer">
+            <AlertDialogCancel
+              disabled={isLogoutLoading}
+              className="h-10 text-xs font-bold px-4 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmLogout}
-              className="bg-primary text-primary-foreground font-semibold text-xs h-10 px-4 rounded-lg hover:bg-primary/95 cursor-pointer"
+              onClick={async (e) => {
+                e.preventDefault();
+                await confirmLogout();
+              }}
+              disabled={isLogoutLoading}
+              className="bg-primary text-primary-foreground font-semibold text-xs h-10 px-4 rounded-lg hover:bg-primary/95 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Keluar
+              {isLogoutLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Keluar...</span>
+                </>
+              ) : (
+                <span>Keluar</span>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -14,6 +14,10 @@ export interface CustomApiError {
 const baseQuery = fetchBaseQuery({
   baseUrl: process.env.NEXT_PUBLIC_BASE_API || "https://apt-uinsk.teknohole.id/api",
   prepareHeaders: (headers, { getState }) => {
+    if (headers.has("No-Auth")) {
+      headers.delete("No-Auth");
+      return headers;
+    }
     const token = (getState() as RootState).user?.accessToken || (typeof window !== "undefined" ? localStorage.getItem("accessToken") : null);
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
@@ -69,7 +73,7 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Dosen", "User", "Submission"],
+  tagTypes: ["Dosen", "User", "Submission", "Institute", "StudyProgram", "RecognitionCategory"],
   endpoints: () => ({}),
 });
 

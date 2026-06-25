@@ -18,10 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { initialDosenList, initialDosenPengajuanList } from "@/dummy-data/dosen";
-import { Dosen } from "@/types/dosen";
+import type { Dosen } from "@/types/dosen";
 import { toast } from "sonner";
-import { Search, UserPlus, FileSignature, Check } from "lucide-react";
+import { Search, UserPlus, FileSignature, Check, Loader2 } from "lucide-react";
+import {
+  useCreateLecturerMutation,
+  useCreatePublicLecturerMutation,
+  useLazyGetLecturerByNipQuery,
+} from "@/store/services/dosenApi";
+import { useGetStudyProgramsQuery } from "@/store/services/studyProgramApi";
+import { useGetInstitutesQuery } from "@/store/services/instituteApi";
 
 interface DosenSearchDialogProps {
   open: boolean;
@@ -86,6 +92,27 @@ const facultyProdiMap: Record<string, string[]> = {
   ],
 };
 
+interface CustomErrorObject {
+  data?: {
+    message?: string;
+    error?: string;
+  } | string;
+}
+
+const extractErrorMessage = (err: unknown): string => {
+  if (err && typeof err === "object" && "data" in err) {
+    const errObj = err as CustomErrorObject;
+    const apiError = errObj.data;
+    if (apiError && typeof apiError === "object") {
+      return apiError.message || apiError.error || JSON.stringify(apiError);
+    }
+    if (typeof apiError === "string") {
+      return apiError;
+    }
+  }
+  return "Terjadi kesalahan pada server. Silakan coba kembali.";
+};
+
 export function DosenSearchDialog({
   open,
   onOpenChange,
@@ -105,6 +132,23 @@ export function DosenSearchDialog({
   const [newProdi, setNewProdi] = useState("");
   const [newEmail, setNewEmail] = useState("");
 
+  // RTK Query endpoints
+  const [triggerSearch, { isFetching: isSearching }] = useLazyGetLecturerByNipQuery();
+  const [createLecturer, { isLoading: isCreatingNormal }] = useCreateLecturerMutation();
+  const [createPublicLecturer, { isLoading: isCreatingPublic }] = useCreatePublicLecturerMutation();
+  const isCreating = isCreatingNormal || isCreatingPublic;
+  const { data: studyProgramsResponse } = useGetStudyProgramsQuery();
+  const { data: institutesResponse } = useGetInstitutesQuery();
+
+  const studyProgramList = React.useMemo(() => studyProgramsResponse?.data || [], [studyProgramsResponse]);
+  const instituteList = React.useMemo(() => institutesResponse?.data || [], [institutesResponse]);
+
+  const realFaculties = React.useMemo(() => instituteList.length > 0 ? instituteList.map((inst) => inst.name) : faculties, [instituteList]);
+
+  const addProdiList = studyProgramList.length > 0
+    ? studyProgramList.filter((p) => !newFaculty || p.institute?.name === newFaculty)
+    : (newFaculty ? (facultyProdiMap[newFaculty] || prodis) : prodis).map((p) => ({ name: p }));
+
   // Reset dialog state when opened
   useEffect(() => {
     if (open) {
@@ -118,38 +162,55 @@ export function DosenSearchDialog({
         setNewNip("");
         setNewName("");
         setNewEmail("");
-        const initialFaculty = (userRole === "Fakultas" || userRole === "Guest") ? defaultFaculty : faculties[0];
+        const initialFaculty = (userRole === "Fakultas" || userRole === "Guest") ? defaultFaculty : (realFaculties[0] || "");
         setNewFaculty(initialFaculty);
         
-        const allowedProdis = facultyProdiMap[initialFaculty] || prodis;
-        setNewProdi(allowedProdis[0]);
+        const allowed = studyProgramList.filter((p) => p.institute?.name === initialFaculty);
+        setNewProdi(allowed[0]?.name || (studyProgramList[0]?.name || ""));
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [open, userRole, defaultFaculty]);
+  }, [open, userRole, defaultFaculty, realFaculties, studyProgramList]);
 
-  const handleFacultyChange = (val: string) => {
+  const handleFacultyChange = (val: string): void => {
     setNewFaculty(val);
-    const allowedProdis = facultyProdiMap[val] || prodis;
-    setNewProdi(allowedProdis[0]);
+    const allowed = studyProgramList.filter((p) => p.institute?.name === val);
+    setNewProdi(allowed[0]?.name || "");
   };
 
-  const handleSearch = () => {
+  const handleSearch = async (): Promise<void> => {
     if (!searchNip.trim()) {
       toast.error("Silakan masukkan NIP untuk mencari.");
       return;
     }
-    const matches = initialDosenList.filter((d) => d.nip.includes(searchNip.trim()));
-    setSearchResults(matches);
-    setHasSearched(true);
+    try {
+      const response = await triggerSearch(searchNip.trim()).unwrap();
+      if (response && response.data) {
+        setSearchResults([
+          {
+            nip: response.data.nip,
+            nama: response.data.name,
+            fakultas: response.data.institute?.name || "",
+            prodi: response.data.study_program?.name || "",
+            email: response.data.email,
+          },
+        ]);
+      } else {
+        setSearchResults([]);
+      }
+      setHasSearched(true);
+    } catch {
+      setSearchResults([]);
+      setHasSearched(true);
+    }
   };
 
-  const handleSelectDosen = (dosen: Dosen) => {
+  const handleSelectDosen = (dosen: Dosen): void => {
     onSelect(dosen.nip, dosen.nama);
     onOpenChange(false);
   };
 
-  const handlePrepareForm = () => {
+  const handlePrepareForm = (): void => {
     setNewNip(searchNip);
     setShowForm(true);
   };
@@ -161,7 +222,7 @@ export function DosenSearchDialog({
     return domain === "uin-suka.ac.id" || domain.endsWith(".uin-suka.ac.id");
   };
 
-  const handleSubmitNewDosen = (e: React.FormEvent) => {
+  const handleSubmitNewDosen = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!newNip.trim() || !newName.trim() || !newEmail.trim()) {
       toast.error("NIP, Nama, dan Email wajib diisi.");
@@ -173,43 +234,37 @@ export function DosenSearchDialog({
       return;
     }
 
-    // Check if duplicate in main list
-    const isDuplicate = initialDosenList.some((d) => d.nip === newNip.trim());
-    if (isDuplicate) {
-      toast.error("NIP dosen ini sudah terdaftar di sistem.");
+    const matchedProdi = studyProgramList.find((p) => p.name === newProdi);
+    if (!matchedProdi) {
+      toast.error("Program studi tidak valid atau belum terdaftar di sistem.");
       return;
     }
 
-    const lecturerData: Dosen = {
-      nip: newNip.trim(),
-      nama: newName.trim(),
-      fakultas: newFaculty,
-      prodi: newProdi,
-      email: newEmail.trim(),
-    };
-
-    if (userRole === "Guest") {
-      // Add as submission
-      const newSubmission = {
-        ...lecturerData,
-        id: `pengajuan-${Date.now()}`,
-        status: "pending" as const,
-        submittedAt: new Date().toISOString(),
+    try {
+      const payload = {
+        name: newName.trim(),
+        nip: newNip.trim(),
+        email: newEmail.trim(),
+        study_program_id: matchedProdi.id,
       };
-      initialDosenPengajuanList.push(newSubmission);
-      toast.success("Pengajuan data dosen baru berhasil dikirim!");
-    } else {
-      // Add directly
-      initialDosenList.push(lecturerData);
-      toast.success("Data dosen baru berhasil ditambahkan!");
-      onSelect(newNip.trim(), newName.trim());
-    }
+      const response = await (userRole === "Guest"
+        ? createPublicLecturer(payload)
+        : createLecturer(payload)
+      ).unwrap();
 
-    onOpenChange(false);
+      toast.success(response.message || "Data dosen baru berhasil ditambahkan!");
+      onSelect(response.data.nip, response.data.name);
+      onOpenChange(false);
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => {
+      if (isSearching || isCreating) return;
+      onOpenChange(val);
+    }}>
       <DialogContent className="sm:max-w-lg bg-card border border-border p-6 rounded-xl">
         <DialogHeader>
           <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
@@ -231,16 +286,28 @@ export function DosenSearchDialog({
                   onChange={(e) => {
                     setSearchNip(e.target.value);
                   }}
-                  className="flex-1 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono"
+                  disabled={isSearching}
+                  className="flex-1 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono disabled:opacity-50 disabled:cursor-not-allowed"
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSearch();
+                    if (e.key === "Enter" && !isSearching) handleSearch();
                   }}
                 />
                 <Button
                   onClick={handleSearch}
-                  className="bg-primary text-primary-foreground text-xs font-semibold h-10 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                  disabled={isSearching}
+                  className="bg-primary text-primary-foreground text-xs font-semibold h-10 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Search className="h-4 w-4" /> Cari
+                  {isSearching ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Mencari...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4" />
+                      <span>Cari</span>
+                    </>
+                  )}
                 </Button>
               </div>
             </Field>
@@ -309,7 +376,8 @@ export function DosenSearchDialog({
                 required
                 value={newNip}
                 onChange={(e) => setNewNip(e.target.value)}
-                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono"
+                disabled={isCreating}
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </Field>
 
@@ -324,7 +392,8 @@ export function DosenSearchDialog({
                 placeholder="Masukkan nama lengkap beserta gelar..."
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                disabled={isCreating}
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </Field>
 
@@ -333,12 +402,12 @@ export function DosenSearchDialog({
               <FieldLabel>
                 <FieldTitle>Fakultas <span className="text-error">*</span></FieldTitle>
               </FieldLabel>
-              <Select value={newFaculty} onValueChange={handleFacultyChange}>
-                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+              <Select value={newFaculty} onValueChange={handleFacultyChange} disabled={isCreating}>
+                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                   <SelectValue placeholder="Pilih Fakultas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {faculties.map((f) => (
+                  {realFaculties.map((f) => (
                     <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
                       {f}
                     </SelectItem>
@@ -352,14 +421,14 @@ export function DosenSearchDialog({
               <FieldLabel>
                 <FieldTitle>Program Studi <span className="text-error">*</span></FieldTitle>
               </FieldLabel>
-              <Select value={newProdi} onValueChange={setNewProdi}>
-                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+              <Select value={newProdi} onValueChange={setNewProdi} disabled={isCreating}>
+                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                   <SelectValue placeholder="Pilih Program Studi" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(facultyProdiMap[newFaculty] || prodis).map((p) => (
-                    <SelectItem key={p} value={p} className="text-xs font-semibold cursor-pointer">
-                      {p}
+                  {addProdiList.map((p) => (
+                    <SelectItem key={p.name} value={p.name} className="text-xs font-semibold cursor-pointer">
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -377,7 +446,8 @@ export function DosenSearchDialog({
                 placeholder="dosen@uin-suka.ac.id"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                disabled={isCreating}
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </Field>
 
@@ -386,15 +456,24 @@ export function DosenSearchDialog({
                 type="button"
                 variant="outline"
                 onClick={() => setShowForm(false)}
-                className="text-xs font-semibold h-9 rounded-lg"
+                disabled={isCreating}
+                className="text-xs font-semibold h-9 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Kembali
               </Button>
               <Button
                 type="submit"
-                className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+                disabled={isCreating}
+                className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {userRole === "Guest" ? "Kirim Pengajuan" : "Simpan Dosen"}
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <span>{userRole === "Guest" ? "Kirim Pengajuan" : "Simpan Dosen"}</span>
+                )}
               </Button>
             </DialogFooter>
           </form>

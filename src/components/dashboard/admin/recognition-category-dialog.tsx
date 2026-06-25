@@ -10,24 +10,24 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
-import type { InstituteModel, SaveInstituteRequest } from "@/types/institute";
+import type { RecognitionCategoryModel, SaveRecognitionCategoryRequest } from "@/types/recognition-category";
 import { AlertCircle, Loader2 } from "lucide-react";
 
-interface LembagaDialogProps {
+interface RecognitionCategoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  lembaga: InstituteModel | null; // null means Add mode
-  onSave: (savedLembaga: SaveInstituteRequest) => void;
+  category: RecognitionCategoryModel | null; // null means Add mode
+  onSave: (savedCategory: SaveRecognitionCategoryRequest) => void;
   isLoading?: boolean;
 }
 
-export function LembagaDialog({
+export function RecognitionCategoryDialog({
   open,
   onOpenChange,
-  lembaga,
+  category,
   onSave,
   isLoading = false,
-}: LembagaDialogProps): React.JSX.Element {
+}: RecognitionCategoryDialogProps): React.JSX.Element {
   const [nama, setNama] = useState("");
   const [deskripsi, setDeskripsi] = useState("");
   const [error, setError] = useState("");
@@ -35,9 +35,9 @@ export function LembagaDialog({
   useEffect(() => {
     if (open) {
       const timer = setTimeout(() => {
-        if (lembaga) {
-          setNama(lembaga.name);
-          setDeskripsi(lembaga.description);
+        if (category) {
+          setNama(category.name);
+          setDeskripsi(category.description);
         } else {
           setNama("");
           setDeskripsi("");
@@ -46,7 +46,7 @@ export function LembagaDialog({
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [open, lembaga]);
+  }, [open, category]);
 
   const handleSave = (): void => {
     if (!nama.trim() || !deskripsi.trim()) {
@@ -60,7 +60,7 @@ export function LembagaDialog({
     });
   };
 
-  const isEdit = !!lembaga;
+  const isEdit = !!category;
 
   return (
     <Dialog open={open} onOpenChange={(val) => {
@@ -70,7 +70,7 @@ export function LembagaDialog({
       <DialogContent className="sm:max-w-lg bg-card border border-border p-6 rounded-xl">
         <DialogHeader>
           <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
-            {isEdit ? "Edit Lembaga" : "Tambah Lembaga"}
+            {isEdit ? "Edit Kategori Rekognisi" : "Tambah Kategori Rekognisi"}
           </DialogTitle>
         </DialogHeader>
 
@@ -82,22 +82,20 @@ export function LembagaDialog({
         )}
 
         <div className="space-y-4 py-4">
-          {/* Nama (text field) */}
           <Field>
             <FieldLabel>
-              <FieldTitle>Nama</FieldTitle>
+              <FieldTitle>Nama Kategori</FieldTitle>
             </FieldLabel>
             <input
               type="text"
               value={nama}
               onChange={(e) => setNama(e.target.value)}
               disabled={isLoading}
-              placeholder="Masukkan nama lembaga..."
+              placeholder="Contoh: narasumber, tenaga ahli..."
               className="w-full h-10 rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </Field>
 
-          {/* Deskripsi (text area) */}
           <Field>
             <FieldLabel>
               <FieldTitle>Deskripsi</FieldTitle>
@@ -106,7 +104,7 @@ export function LembagaDialog({
               value={deskripsi}
               onChange={(e) => setDeskripsi(e.target.value)}
               disabled={isLoading}
-              placeholder="Masukkan deskripsi..."
+              placeholder="Masukkan deskripsi kategori..."
               rows={4}
               className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px] disabled:opacity-50 disabled:cursor-not-allowed"
             />
@@ -143,4 +141,3 @@ export function LembagaDialog({
     </Dialog>
   );
 }
-

@@ -9,58 +9,77 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
-import type { InstituteModel, SaveInstituteRequest } from "@/types/institute";
+import type { StudyProgramModel, SaveStudyProgramRequest } from "@/types/study-program";
+import { useGetInstitutesQuery } from "@/store/services/instituteApi";
 import { AlertCircle, Loader2 } from "lucide-react";
 
-interface LembagaDialogProps {
+interface ProdiDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  lembaga: InstituteModel | null; // null means Add mode
-  onSave: (savedLembaga: SaveInstituteRequest) => void;
+  prodi: StudyProgramModel | null; // null means Add mode
+  onSave: (savedProdi: SaveStudyProgramRequest) => void;
   isLoading?: boolean;
 }
 
-export function LembagaDialog({
+export function ProdiDialog({
   open,
   onOpenChange,
-  lembaga,
+  prodi,
   onSave,
   isLoading = false,
-}: LembagaDialogProps): React.JSX.Element {
+}: ProdiDialogProps): React.JSX.Element {
   const [nama, setNama] = useState("");
   const [deskripsi, setDeskripsi] = useState("");
+  const [instituteId, setInstituteId] = useState<string>("");
   const [error, setError] = useState("");
+
+  const { data: responseInstitutes } = useGetInstitutesQuery();
+  const lembagaList = responseInstitutes?.data || [];
 
   useEffect(() => {
     if (open) {
       const timer = setTimeout(() => {
-        if (lembaga) {
-          setNama(lembaga.name);
-          setDeskripsi(lembaga.description);
+        if (prodi) {
+          setNama(prodi.name);
+          setDeskripsi(prodi.description);
+          setInstituteId(prodi.institute?.id ? prodi.institute.id.toString() : "");
         } else {
           setNama("");
           setDeskripsi("");
+          setInstituteId("");
         }
         setError("");
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [open, lembaga]);
+  }, [open, prodi]);
 
   const handleSave = (): void => {
     if (!nama.trim() || !deskripsi.trim()) {
-      setError("Nama dan Deskripsi wajib diisi!");
+      setError("Nama Program Studi dan Deskripsi wajib diisi!");
+      return;
+    }
+    if (!instituteId) {
+      setError("Pilih Lembaga / Fakultas terlebih dahulu!");
       return;
     }
 
     onSave({
       name: nama.trim(),
       description: deskripsi.trim(),
+      institute_id: parseInt(instituteId, 10),
     });
   };
 
-  const isEdit = !!lembaga;
+  const isEdit = !!prodi;
 
   return (
     <Dialog open={open} onOpenChange={(val) => {
@@ -70,7 +89,7 @@ export function LembagaDialog({
       <DialogContent className="sm:max-w-lg bg-card border border-border p-6 rounded-xl">
         <DialogHeader>
           <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
-            {isEdit ? "Edit Lembaga" : "Tambah Lembaga"}
+            {isEdit ? "Edit Program Studi" : "Tambah Program Studi"}
           </DialogTitle>
         </DialogHeader>
 
@@ -82,17 +101,17 @@ export function LembagaDialog({
         )}
 
         <div className="space-y-4 py-4">
-          {/* Nama (text field) */}
+          {/* Nama Prodi (text field) */}
           <Field>
             <FieldLabel>
-              <FieldTitle>Nama</FieldTitle>
+              <FieldTitle>Nama Program Studi</FieldTitle>
             </FieldLabel>
             <input
               type="text"
               value={nama}
               onChange={(e) => setNama(e.target.value)}
               disabled={isLoading}
-              placeholder="Masukkan nama lembaga..."
+              placeholder="Masukkan nama program studi..."
               className="w-full h-10 rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </Field>
@@ -110,6 +129,29 @@ export function LembagaDialog({
               rows={4}
               className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px] disabled:opacity-50 disabled:cursor-not-allowed"
             />
+          </Field>
+
+          {/* Lembaga / Fakultas (Select Component) */}
+          <Field>
+            <FieldLabel>
+              <FieldTitle>Lembaga / Fakultas</FieldTitle>
+            </FieldLabel>
+            <Select
+              value={instituteId}
+              onValueChange={(val) => setInstituteId(val)}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
+                <SelectValue placeholder="Pilih Lembaga / Fakultas" />
+              </SelectTrigger>
+              <SelectContent>
+                {lembagaList.map((lemb) => (
+                  <SelectItem key={lemb.id} value={lemb.id.toString()} className="text-xs font-semibold cursor-pointer">
+                    {lemb.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
 
@@ -143,4 +185,3 @@ export function LembagaDialog({
     </Dialog>
   );
 }
-

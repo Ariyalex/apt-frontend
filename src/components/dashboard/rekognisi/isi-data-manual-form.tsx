@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Save, CheckCircle, Plus, Trash2 } from "lucide-react";
-import { initialData } from "@/dummy-data/rekognisi";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,8 +17,8 @@ import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { DosenSearchDialog } from "./dosen-search-dialog";
-import { initialDosenList } from "@/dummy-data/dosen";
-import { toast } from "sonner";
+import { useGetLecturerByNipQuery } from "@/store/services/dosenApi";
+import { useGetRecognitionCategoriesQuery } from "@/store/services/recognitionCategoryApi";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +32,7 @@ export function IsiDataManualForm(): React.JSX.Element {
   
   // Form states
   const [selectedNip, setSelectedNip] = useState("");
-  const [jenisRekognisi, setJenisRekognisi] = useState("Narasumber");
+  const [jenisRekognisi, setJenisRekognisi] = useState("narasumber");
   const [tahun, setTahun] = useState(new Date().getFullYear().toString());
   const [deskripsi, setDeskripsi] = useState("");
   
@@ -43,11 +43,15 @@ export function IsiDataManualForm(): React.JSX.Element {
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
 
-  // Find dynamic lecturer name based on chosen NIP from initialDosenList
-  const selectedLecturerName = initialDosenList.find((l) => l.nip === selectedNip)?.nama || "";
+  // Find dynamic lecturer name based on chosen NIP from backend API
+  const { data: lecturerResponse } = useGetLecturerByNipQuery(selectedNip, { skip: !selectedNip });
+  const selectedLecturerName = lecturerResponse?.data?.name || "";
 
-  // Extract unique kinds of recognition
-  const jenisList = Array.from(new Set(initialData.map((item) => item.jenisRekognisi)));
+  // Fetch categories dynamically from API
+  const { data: categoriesResponse, isLoading: isCategoriesLoading } = useGetRecognitionCategoriesQuery();
+  const categoryList = categoriesResponse?.data || [];
+
+
 
   const handleAddLink = () => {
     if (!newLinkUrl.trim()) return;
@@ -145,16 +149,23 @@ export function IsiDataManualForm(): React.JSX.Element {
               <Select
                 value={jenisRekognisi}
                 onValueChange={setJenisRekognisi}
+                disabled={isCategoriesLoading}
               >
-                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
+                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                   <SelectValue placeholder="Pilih Jenis Rekognisi" />
                 </SelectTrigger>
                 <SelectContent>
-                  {jenisList.map((jenis) => (
-                    <SelectItem key={jenis} value={jenis} className="text-xs font-semibold cursor-pointer">
-                      {jenis}
+                  {categoryList.length > 0 ? (
+                    categoryList.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.name} className="text-xs font-semibold cursor-pointer capitalize">
+                        {cat.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="narasumber" disabled className="text-xs font-semibold">
+                      Loading kategori...
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </Field>
