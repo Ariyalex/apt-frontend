@@ -69,3 +69,9 @@ This document outlines the architectural standards, code style, UI constraints, 
   * Always use `import type` syntax for type-only imports to clarify compile-time dependencies.
   * Resolve all ESLint errors and warnings. Ensure no unused variables, correctly escaped JSX quotes, and full compliance with React Hook rules (e.g., avoid impure renders and synchronous state updates inside `useEffect`).
 
+## 12. API Call Loading States
+* **Jangan Confidence dengan Aksi API (Selalu Tampilkan Loading)**: Jangan berasumsi/optimis bahwa aksi yang berkaitan dengan API akan langsung berhasil tanpa loading. Selalu tampilkan state loading terlebih dahulu ketika melakukan `await response API`. Selama proses loading, semua field input, dropdown select, tombol aksi (Submit/Save/Reset/Hapus), dan tombol batal harus dinonaktifkan (`disabled`), serta tampilkan spinner indikator loading pada tombol aksi utama.
+* **No Optimistic/Confident Actions Without Loading State**: Never perform actions interacting with APIs without showing a loading state. Always display a loading state (e.g., disable input fields and action buttons, show spinners or loading indicators) while awaiting API responses. This prevents double submissions, accidental clicks, and provides positive user feedback.
+
+
+

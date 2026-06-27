@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Edit2 } from "lucide-react";
 import { DosenData } from "@/types/rekognisi";
+import { Button } from "@/components/ui/button";
+import { SubmissionEditDialog } from "./submission-edit-dialog";
+import { Submission } from "@/dummy-data/bagikan-form";
+import { useUpdateRecognitionMutation } from "@/store/services/recognitionApi";
+import { useGetRecognitionCategoriesQuery } from "@/store/services/recognitionCategoryApi";
+import { toast } from "sonner";
 
 interface RekognisiTableProps {
   data: DosenData[];
@@ -9,21 +15,63 @@ interface RekognisiTableProps {
 
 export function RekognisiTable({ data }: RekognisiTableProps) {
   const router = useRouter();
-  const [isExpanded, setIsExpanded] = useState(false);
   const [sortField, setSortField] = useState<keyof DosenData | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const handleCopy = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
+  // Edit states
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
+
+  // Mutations and queries
+  const [updateRecognition, { isLoading: isUpdating }] = useUpdateRecognitionMutation();
+  const { data: categoriesResponse } = useGetRecognitionCategoriesQuery();
+  const categoryList = categoriesResponse?.data || [];
 
   const handleSort = (field: keyof DosenData) => {
     const isAsc = sortField === field && sortDirection === "asc";
     setSortField(field);
     setSortDirection(isAsc ? "desc" : "asc");
+  };
+
+  const handleOpenEdit = (e: React.MouseEvent, dosen: DosenData) => {
+    e.stopPropagation(); // prevent navigation to detail page
+    setSelectedSub({
+      id: dosen.id || "",
+      nip: dosen.nip,
+      nama: dosen.nama,
+      prodi: dosen.prodi,
+      jenisRekognisi: dosen.jenisRekognisi,
+      tahun: dosen.tahun,
+      deskripsi: dosen.deskripsi,
+      linkBukti: dosen.buktiUrl || "",
+      status: "approved",
+    });
+    setEditOpen(true);
+  };
+
+  const handleSaveSubmission = async (updated: Submission, lecturerId: string) => {
+    const matchedCategory = categoryList.find(
+      (c) => c.name.toLowerCase() === updated.jenisRekognisi.toLowerCase()
+    );
+    const category_id = matchedCategory ? matchedCategory.id : 1;
+
+    try {
+      await updateRecognition({
+        id: updated.id,
+        body: {
+          lecturer_id: lecturerId,
+          category_id,
+          obtained_at: `${updated.tahun}-01-01T00:00:00Z`,
+          description: updated.deskripsi,
+          proof_links: updated.linkBukti ? updated.linkBukti.split(",").filter(Boolean) : [],
+        },
+      }).unwrap();
+      toast.success("Data rekognisi berhasil diperbarui!");
+      setEditOpen(false);
+    } catch (err: unknown) {
+      const customErr = err as { data?: { message?: string } };
+      toast.error(customErr?.data?.message || "Gagal memperbarui data rekognisi");
+    }
   };
 
   const sortedData = [...data].sort((a, b) => {
@@ -46,23 +94,18 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
     );
   };
 
-  const scrollClass = isExpanded 
-    ? "overflow-x-auto rounded-lg border border-border pr-1" 
-    : "overflow-x-auto rounded-lg border border-border max-h-[300px] overflow-y-auto pr-1 scrollbar-thin";
-
   return (
     <div className="space-y-3">
-      {/* Set max height with vertical scroll or full height based on isExpanded */}
-      <div className={scrollClass}>
+      {/* Scrollable horizontal wrapper without height restrictions */}
+      <div className="overflow-x-auto rounded-lg border border-border w-full">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase">
-              <th className="px-4 py-3 font-semibold sticky top-0 bg-card z-10 border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">NIP</th>
+              <th className="px-4 py-3 font-semibold border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">NIP</th>
               
-              {/* Column sort indicators styled in default theme icons */}
               <th 
                 onClick={() => handleSort("nama")} 
-                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group sticky top-0 bg-card z-10 border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
+                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
               >
                 <div className="flex items-center gap-1.5">
                   Nama Dosen
@@ -72,7 +115,7 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
               
               <th 
                 onClick={() => handleSort("prodi")} 
-                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group sticky top-0 bg-card z-10 border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
+                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
               >
                 <div className="flex items-center gap-1.5">
                   Prodi
@@ -82,7 +125,7 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
               
               <th 
                 onClick={() => handleSort("jenisRekognisi")} 
-                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group sticky top-0 bg-card z-10 border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
+                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
               >
                 <div className="flex items-center gap-1.5">
                   Jenis Rekognisi
@@ -92,7 +135,7 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
               
               <th 
                 onClick={() => handleSort("tahun")} 
-                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group sticky top-0 bg-card z-10 border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
+                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
               >
                 <div className="flex items-center gap-1.5">
                   Tahun
@@ -100,8 +143,8 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
                 </div>
               </th>
               
-              <th className="px-4 py-3 font-semibold sticky top-0 bg-card z-10 border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Deskripsi</th>
-              <th className="px-4 py-3 font-semibold text-center sticky top-0 bg-card z-10 border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Bukti</th>
+              <th className="px-4 py-3 font-semibold border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Deskripsi</th>
+              <th className="px-4 py-3 font-semibold text-right border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -116,57 +159,24 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
                   <td className="px-4 py-3.5 font-semibold">{dosen.nama}</td>
                   <td className="px-4 py-3.5">{dosen.prodi}</td>
                   <td className="px-4 py-3.5">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      dosen.jenisRekognisi === "Narasumber" ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" :
-                      dosen.jenisRekognisi === "Tenaga Ahli" ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" :
-                      dosen.jenisRekognisi === "Reviewer Jurnal" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400" :
-                      dosen.jenisRekognisi === "Asesor Akreditasi" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
-                      "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                    }`}>
+                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary capitalize">
                       {dosen.jenisRekognisi}
                     </span>
                   </td>
                   <td className="px-4 py-3.5 font-semibold text-muted-foreground">{dosen.tahun}</td>
-                  <td className="px-4 py-3.5 text-muted-foreground line-clamp-1 max-w-[200px]" title={dosen.deskripsi}>
+                  <td className="px-4 py-3.5 text-muted-foreground leading-relaxed font-semibold" title={dosen.deskripsi}>
                     {dosen.deskripsi}
                   </td>
-                  <td className="px-4 py-3.5 text-center">
-                    <div className="flex flex-col items-center gap-1.5">
-                      {dosen.buktiUrl.split(",").filter(Boolean).map((url, idx) => {
-                        const uniqueKey = `${dosen.id || i}-${idx}`;
-                        return (
-                          <div key={idx} className="flex items-center gap-1">
-                            {dosen.buktiUrl.split(",").filter(Boolean).length > 1 && (
-                              <span className="text-[10px] text-muted-foreground mr-0.5 font-bold">#{idx + 1}</span>
-                            )}
-                            <a 
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors"
-                              title={`Kunjungi Link Bukti ${idx + 1}`}
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopy(uniqueKey, url);
-                              }}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
-                              title={`Salin Link Bukti ${idx + 1}`}
-                            >
-                              {copiedId === uniqueKey ? (
-                                <Check className="h-3.5 w-3.5 text-success" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <td className="px-4 py-3.5 text-right">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => handleOpenEdit(e, dosen)}
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Edit Data"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
                   </td>
                 </tr>
               ))
@@ -184,21 +194,16 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
       {/* Table Footer Actions */}
       <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider pt-2">
         <span>Menampilkan {sortedData.length} baris data</span>
-
-        {/* Toggle Expand / Collapse Button */}
-        {sortedData.length > 5 && (
-          <button 
-            onClick={() => setIsExpanded(!isExpanded)} 
-            className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 outline-none"
-          >
-            {isExpanded ? (
-              <>Sembunyikan <ChevronUp className="h-3.5 w-3.5" /></>
-            ) : (
-              <>Lihat Semua <ChevronDown className="h-3.5 w-3.5" /></>
-            )}
-          </button>
-        )}
       </div>
+
+      {/* Submission Edit Dialog */}
+      <SubmissionEditDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        submission={selectedSub}
+        onSave={handleSaveSubmission}
+        isSaving={isUpdating}
+      />
     </div>
   );
 }

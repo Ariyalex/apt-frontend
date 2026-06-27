@@ -2,15 +2,19 @@
 
 import React from "react";
 import { Edit, Trash2 } from "lucide-react";
-import type { InstituteModel } from "@/types/institute";
+import type { RecognitionCategoryModel } from "@/types/recognition-category";
 
-interface LembagaTableProps {
-  lembagaList: InstituteModel[];
-  onEdit: (lembaga: InstituteModel) => void;
-  onDelete: (lembagaId: number) => void;
+interface RecognitionCategoryTableProps {
+  categoryList: RecognitionCategoryModel[];
+  onEdit: (category: RecognitionCategoryModel) => void;
+  onDelete: (categoryId: number) => void;
 }
 
-export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProps): React.JSX.Element {
+export function RecognitionCategoryTable({
+  categoryList,
+  onEdit,
+  onDelete,
+}: RecognitionCategoryTableProps): React.JSX.Element {
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
@@ -18,43 +22,43 @@ export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProp
           <thead>
             <tr className="border-b border-border bg-muted/20 text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">
               <th className="px-5 py-3 w-16 text-center">No</th>
-              <th className="px-5 py-3">Nama Lembaga</th>
+              <th className="px-5 py-3">Nama Kategori</th>
               <th className="px-5 py-3">Deskripsi</th>
               <th className="px-5 py-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60 text-xs">
-            {lembagaList.length === 0 ? (
+            {categoryList.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-5 py-8 text-center text-muted-foreground">
-                   Tidak ada data lembaga.
+                  Tidak ada data kategori rekognisi.
                 </td>
               </tr>
             ) : (
-              lembagaList.map((lemb, index) => {
+              categoryList.map((cat, index) => {
                 return (
-                  <tr key={lemb.id} className="hover:bg-muted/5 transition-colors">
+                  <tr key={cat.id} className="hover:bg-muted/5 transition-colors">
                     <td className="px-5 py-3.5 text-center font-medium text-muted-foreground">
                       {index + 1}
                     </td>
-                    <td className="px-5 py-3.5 font-bold text-foreground">
-                      {lemb.name}
+                    <td className="px-5 py-3.5 font-bold text-foreground capitalize">
+                      {cat.name}
                     </td>
                     <td className="px-5 py-3.5 text-muted-foreground/85 leading-normal max-w-sm">
-                      {lemb.description}
+                      {cat.description}
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex justify-end gap-1.5">
                         <button
-                          onClick={() => onEdit(lemb)}
-                          title="Edit Lembaga"
+                          onClick={() => onEdit(cat)}
+                          title="Edit Kategori"
                           className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => onDelete(lemb.id)}
-                          title="Hapus Lembaga (Semua user di lembaga ini juga akan terhapus)"
+                          onClick={() => onDelete(cat.id)}
+                          title="Hapus Kategori"
                           className="p-1.5 hover:bg-rose-500/10 rounded text-muted-foreground hover:text-rose-600 transition-colors cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -71,5 +75,3 @@ export function LembagaTable({ lembagaList, onEdit, onDelete }: LembagaTableProp
     </div>
   );
 }
-
-

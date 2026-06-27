@@ -1,11 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { UserPlus } from "lucide-react";
+import React, { useState } from "react";
+import { UserPlus, Loader2, Search } from "lucide-react";
 import { UserTable } from "@/components/dashboard/admin/user-table";
 import { UserDialog } from "@/components/dashboard/admin/user-dialog";
-import { AdminUser, AdminLembaga, initialAdminUsers, initialAdminLembaga } from "@/dummy-data/admin";
+import { UserAdminModel } from "@/types/user";
+import { useGetInstitutesQuery } from "@/store/services/instituteApi";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useGetUsersQuery,
+  useCreateUserMutation,
+  useUpdateUserMutation,
+  useDeleteUserMutation,
+  useResetUserPasswordMutation,
+} from "@/store/services/userApi";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,168 +26,162 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+interface CustomErrorObject {
+  data?:
+    | {
+        message?: string;
+        error?: string;
+      }
+    | string;
+}
+
+const extractErrorMessage = (err: unknown): string => {
+  if (err && typeof err === "object" && "data" in err) {
+    const errObj = err as CustomErrorObject;
+    const apiError = errObj.data;
+    if (apiError && typeof apiError === "object") {
+      return apiError.message || apiError.error || JSON.stringify(apiError);
+    }
+    if (typeof apiError === "string") {
+      return apiError;
+    }
+  }
+  return "Terjadi kesalahan pada server. Silakan coba kembali.";
+};
+
 export default function KelolaUserPage(): React.JSX.Element {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [lembagaList, setLembagaList] = useState<AdminLembaga[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  // RTK Query endpoints
+  const { data: usersResponse, isLoading: isUsersLoading } = useGetUsersQuery();
+  const { data: institutesResponse } = useGetInstitutesQuery();
+  const [createUser, { isLoading: isCreateLoading }] = useCreateUserMutation();
+  const [updateUser, { isLoading: isUpdateLoading }] = useUpdateUserMutation();
+  const [deleteUser, { isLoading: isDeleteLoading }] = useDeleteUserMutation();
+  const [resetUserPassword, { isLoading: isResetLoading }] =
+    useResetUserPasswordMutation();
+
+  const [searchKeyword, setSearchKeyword] = useState<string>("");
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+  const [selectedUser, setSelectedUser] = useState<UserAdminModel | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
 
   // Reset password states
-  const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [resetUser, setResetUser] = useState<AdminUser | null>(null);
+  const [resetDialogOpen, setResetDialogOpen] = useState<boolean>(false);
+  const [resetUser, setResetUser] = useState<UserAdminModel | null>(null);
 
   // Success Added User Alert Dialog
-  const [addedUserAlertOpen, setAddedUserAlertOpen] = useState(false);
-  const [newAddedUser, setNewAddedUser] = useState<AdminUser | null>(null);
+  const [addedUserAlertOpen, setAddedUserAlertOpen] = useState<boolean>(false);
+  const [newAddedUser, setNewAddedUser] = useState<UserAdminModel | null>(null);
 
-  // Load from localStorage or initialize with dummy data
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Load Lembaga first
-      const storedLemb = localStorage.getItem("adminLembaga");
-      let currentLemb: AdminLembaga[] = [];
-      if (storedLemb) {
-        try {
-          currentLemb = JSON.parse(storedLemb);
-        } catch {
-          currentLemb = initialAdminLembaga;
-        }
-      } else {
-        currentLemb = initialAdminLembaga;
-        localStorage.setItem("adminLembaga", JSON.stringify(initialAdminLembaga));
-      }
-      setLembagaList(currentLemb);
+  const lembagaList = institutesResponse?.data || [];
 
-      // Load Users
-      const storedUsers = localStorage.getItem("adminUsers");
-      let loadedUsers: AdminUser[] = [];
-      let needsMigration = false;
-      
-      if (storedUsers) {
-        try {
-          loadedUsers = JSON.parse(storedUsers);
-        } catch {
-          loadedUsers = initialAdminUsers;
-          needsMigration = true;
-        }
-      } else {
-        loadedUsers = initialAdminUsers;
-        needsMigration = true;
-      }
+  const users = usersResponse?.data || [];
 
-      // Map old role keys to new ones if found
-      const migratedUsers = loadedUsers.map((u) => {
-        let newRole = u.jenisAkun;
-        if ((u.jenisAkun as string) === "prodi") {
-          newRole = "Auditee";
-          needsMigration = true;
-        } else if ((u.jenisAkun as string) === "LPM") {
-          newRole = "Auditor";
-          needsMigration = true;
-        } else if ((u.jenisAkun as string) === "admin") {
-          newRole = "Admin";
-          needsMigration = true;
-        } else if ((u.jenisAkun as string) === "asessor") {
-          newRole = "Assessor";
-          needsMigration = true;
-        }
-        
-        let newLembaga = u.lembaga;
-        if (newRole === "Admin" && u.lembaga === "Lembaga Penjaminan Mutu") {
-          newLembaga = "Tidak Ada";
-          needsMigration = true;
-        } else if (newRole === "Assessor" && u.lembaga === "Fakultas Tarbiyah dan Keguruan") {
-          newLembaga = "Tidak Ada";
-          needsMigration = true;
-        }
+  const filteredUsers = users.filter((user) => {
+    const query = searchKeyword.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      (user.name && user.name.toLowerCase().includes(query)) ||
+      user.username.toLowerCase().includes(query) ||
+      (user.email && user.email.toLowerCase().includes(query)) ||
+      user.role.toLowerCase().includes(query)
+    );
+  });
 
-        return {
-          ...u,
-          jenisAkun: newRole,
-          lembaga: newLembaga,
-          name: u.name || u.username.charAt(0).toUpperCase() + u.username.slice(1),
-        };
-      });
-
-      setUsers(migratedUsers);
-      if (needsMigration) {
-        localStorage.setItem("adminUsers", JSON.stringify(migratedUsers));
-      }
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleAddUser = () => {
+  const handleAddUser = (): void => {
     setSelectedUser(null);
     setDialogOpen(true);
   };
 
-  const handleEditUser = (user: AdminUser) => {
+  const handleEditUser = (user: UserAdminModel): void => {
     setSelectedUser(user);
     setDialogOpen(true);
   };
 
-  const handleResetPasswordClick = (user: AdminUser) => {
+  const handleResetPasswordClick = (user: UserAdminModel): void => {
     setResetUser(user);
     setResetDialogOpen(true);
   };
 
-  const confirmResetPassword = () => {
+  const confirmResetPassword = async (): Promise<void> => {
     if (!resetUser) return;
-    const updated = users.map((u) => {
-      if (u.id === resetUser.id) {
-        return { ...u, password: resetUser.username };
-      }
-      return u;
-    });
-    setUsers(updated);
-    localStorage.setItem("adminUsers", JSON.stringify(updated));
-
-    logActivity("admin", `mereset password user: ${resetUser.username}`);
-    toast.success(`Password untuk user "${resetUser.username}" berhasil direset menjadi "${resetUser.username}"!`);
-    setResetDialogOpen(false);
-    setResetUser(null);
+    try {
+      const response = await resetUserPassword(resetUser.id).unwrap();
+      logActivity("admin", `mereset password user: ${resetUser.username}`);
+      toast.success(
+        response.message ||
+          `Password untuk user "${resetUser.username}" berhasil direset!`,
+      );
+      setResetDialogOpen(false);
+      setResetUser(null);
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = (userId: string): void => {
     setDeleteUserId(userId);
   };
 
-  const confirmDeleteUser = () => {
+  const confirmDeleteUser = async (): Promise<void> => {
     if (!deleteUserId) return;
     const targetUser = users.find((u) => u.id === deleteUserId);
-    const updated = users.filter((u) => u.id !== deleteUserId);
-    setUsers(updated);
-    localStorage.setItem("adminUsers", JSON.stringify(updated));
-
-    // Append to activity log
-    logActivity("admin", `menghapus user: ${targetUser?.username || deleteUserId}`);
-    toast.success(`User "${targetUser?.username || deleteUserId}" berhasil dihapus.`);
-    setDeleteUserId(null);
-  };
-
-  const handleSaveUser = (savedUser: AdminUser) => {
-    let updated: AdminUser[];
-    const exists = users.some((u) => u.id === savedUser.id);
-    
-    if (exists) {
-      updated = users.map((u) => (u.id === savedUser.id ? savedUser : u));
-      logActivity("admin", `memperbarui data user: ${savedUser.username}`);
-      toast.success(`Data user "${savedUser.username}" berhasil diperbarui.`);
-    } else {
-      updated = [...users, savedUser];
-      logActivity("admin", `menambah user baru: ${savedUser.username}`);
-      setNewAddedUser(savedUser);
-      setAddedUserAlertOpen(true);
+    try {
+      const response = await deleteUser(deleteUserId).unwrap();
+      logActivity(
+        "admin",
+        `menghapus user: ${targetUser?.username || deleteUserId}`,
+      );
+      toast.success(
+        response.message ||
+          `User "${targetUser?.username || deleteUserId}" berhasil dihapus.`,
+      );
+      setDeleteUserId(null);
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
     }
-
-    setUsers(updated);
-    localStorage.setItem("adminUsers", JSON.stringify(updated));
   };
 
-  const logActivity = (username: string, action: string) => {
+  const handleSaveUser = async (savedUser: UserAdminModel): Promise<void> => {
+    try {
+      if (savedUser.id) {
+        // Edit Mode
+        const response = await updateUser({
+          id: savedUser.id,
+          body: {
+            username: savedUser.username,
+            email: savedUser.email,
+            name: savedUser.name,
+            institute_id: savedUser.institute_id,
+            role: savedUser.role,
+            is_banned: savedUser.is_banned,
+          },
+        }).unwrap();
+        logActivity("admin", `memperbarui data user: ${savedUser.username}`);
+        toast.success(
+          response.message ||
+            `Data user "${savedUser.username}" berhasil diperbarui.`,
+        );
+        setDialogOpen(false);
+      } else {
+        // Create Mode
+        const response = await createUser({
+          username: savedUser.username,
+          email: savedUser.email,
+          name: savedUser.name,
+          institute_id: savedUser.institute_id,
+          role: savedUser.role,
+        }).unwrap();
+        logActivity("admin", `menambah user baru: ${savedUser.username}`);
+        setNewAddedUser(response.data);
+        setAddedUserAlertOpen(true);
+        setDialogOpen(false);
+      }
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
+    }
+  };
+
+  const logActivity = (username: string, action: string): void => {
     const storedLogs = localStorage.getItem("adminAktivitas");
     let currentLogs = [];
     if (storedLogs) {
@@ -206,16 +209,62 @@ export default function KelolaUserPage(): React.JSX.Element {
     localStorage.setItem("adminAktivitas", JSON.stringify(updatedLogs));
   };
 
+  if (isUsersLoading) {
+    return (
+      <div className="space-y-6 animate-fadeIn">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Skeleton className="h-6 w-48 rounded" />
+            <Skeleton className="h-4 w-[28rem] rounded mt-2" />
+          </div>
+          <Skeleton className="h-10 w-32 rounded-lg" />
+        </div>
+        <div className="relative max-w-sm">
+          <Skeleton className="h-10 w-full rounded-lg" />
+        </div>
+        <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm p-5 space-y-4">
+          <div className="flex justify-between items-center pb-4 border-b border-border/60">
+            <Skeleton className="h-5 w-20 rounded" />
+            <Skeleton className="h-5 w-40 rounded" />
+          </div>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex justify-between items-center py-2.5">
+              <Skeleton className="h-4 w-12 rounded" />
+              <Skeleton className="h-5 w-48 rounded" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <Skeleton className="h-5 w-32 rounded" />
+              <Skeleton className="h-4 w-28 rounded" />
+              <Skeleton className="h-5 w-16 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
+          Kelola User
+        </h1>
+        <p className="text-xs text-muted-foreground mt-1">
+          Atur hak akses pengguna, tambah akun baru, dan audit data akses sistem
+          penjaminan mutu.
+        </p>
+      </div>
+
+      {/* Search Input */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
-            Kelola User
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Atur hak akses pengguna, tambah akun baru, dan audit data akses sistem penjaminan mutu.
-          </p>
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+          <input
+            type="text"
+            placeholder="Cari user (nama, username, email, role)..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            className="w-full h-10 rounded-lg border border-border bg-card pl-9 pr-4 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
         </div>
         <button
           onClick={handleAddUser}
@@ -227,7 +276,8 @@ export default function KelolaUserPage(): React.JSX.Element {
       </div>
 
       <UserTable
-        users={users}
+        users={filteredUsers}
+        lembagaList={lembagaList}
         onEdit={handleEditUser}
         onDelete={handleDeleteUser}
         onResetPassword={handleResetPasswordClick}
@@ -239,19 +289,28 @@ export default function KelolaUserPage(): React.JSX.Element {
         user={selectedUser}
         lembagaList={lembagaList}
         onSave={handleSaveUser}
+        isLoading={isCreateLoading || isUpdateLoading}
       />
 
       {/* Reset Password Confirmation Dialog */}
-      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+      <AlertDialog
+        open={resetDialogOpen}
+        onOpenChange={(open) => {
+          if (isResetLoading) return;
+          setResetDialogOpen(open);
+        }}
+      >
         <AlertDialogContent className="bg-card border border-border p-6 rounded-xl sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
               Konfirmasi Reset Password
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground">
-              Apakah Anda yakin ingin mereset password pengguna &quot;{resetUser?.username}&quot;?
+              Apakah Anda yakin ingin mereset password pengguna &quot;
+              {resetUser?.username}&quot;?
               <span className="block mt-2 font-semibold text-amber-600 dark:text-amber-400">
-                Password akan direset menjadi sama dengan username mereka: &quot;{resetUser?.username}&quot;.
+                Password akan direset oleh server menjadi sama dengan username
+                mereka: &quot;{resetUser?.username}&quot;.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -261,56 +320,100 @@ export default function KelolaUserPage(): React.JSX.Element {
                 setResetDialogOpen(false);
                 setResetUser(null);
               }}
-              className="h-10 text-xs font-bold px-4 rounded-lg cursor-pointer"
+              disabled={isResetLoading}
+              className="h-10 text-xs font-bold px-4 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmResetPassword}
-              className="bg-primary text-primary-foreground font-semibold text-xs h-10 px-4 rounded-lg hover:bg-primary/95 cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                confirmResetPassword();
+              }}
+              disabled={isResetLoading}
+              className="bg-primary text-primary-foreground font-semibold text-xs h-10 px-4 rounded-lg hover:bg-primary/95 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Reset Password
+              {isResetLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Mereset...</span>
+                </>
+              ) : (
+                <span>Reset Password</span>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Delete User Confirmation Dialog */}
-      <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
+      <AlertDialog
+        open={!!deleteUserId}
+        onOpenChange={(open) => {
+          if (isDeleteLoading) return;
+          if (!open) setDeleteUserId(null);
+        }}
+      >
         <AlertDialogContent className="bg-card border border-border p-6 rounded-xl sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
               Konfirmasi Hapus
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground">
-              Apakah Anda yakin ingin menghapus pengguna ini? Tindakan ini bersifat permanen dan tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus pengguna ini? Tindakan ini
+              bersifat permanen dan tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2 pt-2">
-            <AlertDialogCancel className="h-10 text-xs font-bold px-4 rounded-lg cursor-pointer">
+            <AlertDialogCancel
+              disabled={isDeleteLoading}
+              className="h-10 text-xs font-bold px-4 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeleteUser}
-              className="bg-rose-600 text-white hover:bg-rose-700 font-semibold text-xs h-10 px-4 rounded-lg cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDeleteUser();
+              }}
+              disabled={isDeleteLoading}
+              className="bg-rose-600 text-white hover:bg-rose-700 font-semibold text-xs h-10 px-4 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Hapus
+              {isDeleteLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Menghapus...</span>
+                </>
+              ) : (
+                <span>Hapus</span>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Success Added User Alert Dialog */}
-      <AlertDialog open={addedUserAlertOpen} onOpenChange={setAddedUserAlertOpen}>
+      <AlertDialog
+        open={addedUserAlertOpen}
+        onOpenChange={setAddedUserAlertOpen}
+      >
         <AlertDialogContent className="bg-card border border-border p-6 rounded-xl sm:max-w-md animate-fadeIn">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
               User Berhasil Ditambahkan
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground mt-2">
-              User baru <span className="font-bold text-foreground">&quot;{newAddedUser?.name}&quot;</span> (@{newAddedUser?.username}) telah sukses ditambahkan ke sistem.
+              User baru{" "}
+              <span className="font-bold text-foreground">
+                &quot;{newAddedUser?.name}&quot;
+              </span>{" "}
+              (@{newAddedUser?.username}) telah sukses ditambahkan ke sistem.
               <span className="block mt-3.5 font-semibold text-success bg-success/10 border border-success/20 p-3 rounded-lg">
-                Password default untuk user ini diatur sama dengan username: <span className="font-mono underline font-bold">{newAddedUser?.username}</span>
+                Password default untuk user ini diatur oleh server sama dengan
+                username:{" "}
+                <span className="font-mono underline font-bold">
+                  {newAddedUser?.username}
+                </span>
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>

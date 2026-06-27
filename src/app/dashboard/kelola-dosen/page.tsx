@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Edit2, Search } from "lucide-react";
+import { Plus, Trash2, Edit2, Search, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -32,14 +32,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { 
-  initialDosenList, 
-  initialDosenPengajuanList,
-  syncDosenDatabase as dbSyncDosen,
-  syncPengajuanDatabase as dbSyncPengajuan
-} from "@/dummy-data/dosen";
-import { Dosen, DosenPengajuan } from "@/types/dosen";
+import { DosenPengajuan } from "@/types/dosen";
 import { toast } from "sonner";
+import {
+  useGetLecturerListQuery,
+  useCreateLecturerMutation,
+  useUpdateLecturerMutation,
+  useDeleteLecturerMutation,
+  useApproveLecturerMutation,
+  useRejectLecturerMutation,
+} from "@/store/services/dosenApi";
+import { useGetStudyProgramsQuery } from "@/store/services/studyProgramApi";
+import { useGetInstitutesQuery } from "@/store/services/instituteApi";
 
 const faculties = [
   "Fakultas Sains dan Teknologi",
@@ -96,6 +100,27 @@ const facultyProdiMap: Record<string, string[]> = {
   ],
 };
 
+interface CustomErrorObject {
+  data?: {
+    message?: string;
+    error?: string;
+  } | string;
+}
+
+const extractErrorMessage = (err: unknown): string => {
+  if (err && typeof err === "object" && "data" in err) {
+    const errObj = err as CustomErrorObject;
+    const apiError = errObj.data;
+    if (apiError && typeof apiError === "object") {
+      return apiError.message || apiError.error || JSON.stringify(apiError);
+    }
+    if (typeof apiError === "string") {
+      return apiError;
+    }
+  }
+  return "Terjadi kesalahan pada server. Silakan coba kembali.";
+};
+
 export default function DosenManagementPage(): React.JSX.Element {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAllowed, setIsAllowed] = useState(true);
@@ -108,18 +133,64 @@ export default function DosenManagementPage(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchQuery, setActiveSearchQuery] = useState("");
 
-  const handleSearch = () => {
+  const handleSearch = (): void => {
     setActiveSearchQuery(searchQuery);
   };
 
-  const handleResetSearch = () => {
+  const handleResetSearch = (): void => {
     setSearchQuery("");
     setActiveSearchQuery("");
   };
 
-  // Local state initialized from shared mock database
-  const [dosenList, setDosenList] = useState<Dosen[]>([]);
-  const [pengajuanList, setPengajuanList] = useState<DosenPengajuan[]>([]);
+  // RTK Queries
+  const { 
+    data: approvedResponse, 
+    isFetching: isApprovedFetching, 
+    isLoading: isApprovedLoading 
+  } = useGetLecturerListQuery({
+    status: "approved",
+    name: activeSearchQuery.trim() || undefined,
+    study_program: filterProdi !== "Semua" ? filterProdi : undefined,
+    institute: filterFaculty !== "Semua" ? filterFaculty : undefined,
+  });
+
+  const { 
+    data: pendingResponse, 
+    isFetching: isPendingFetching, 
+    isLoading: isPendingLoading 
+  } = useGetLecturerListQuery({
+    status: "pending",
+    name: activeSearchQuery.trim() || undefined,
+    study_program: filterProdi !== "Semua" ? filterProdi : undefined,
+    institute: filterFaculty !== "Semua" ? filterFaculty : undefined,
+  });
+
+  const { data: studyProgramsResponse } = useGetStudyProgramsQuery();
+  const studyProgramList = studyProgramsResponse?.data || [];
+
+  const { data: institutesResponse } = useGetInstitutesQuery();
+  const instituteList = institutesResponse?.data || [];
+
+  // Mutations
+  const [createLecturer, { isLoading: isAddLoading }] = useCreateLecturerMutation();
+  const [updateLecturer, { isLoading: isUpdateLoading }] = useUpdateLecturerMutation();
+  const [deleteLecturer, { isLoading: isDeleteLoading }] = useDeleteLecturerMutation();
+  const [approveLecturer, { isLoading: isApproveLoading }] = useApproveLecturerMutation();
+  const [rejectLecturer, { isLoading: isRejectLoading }] = useRejectLecturerMutation();
+
+  const isMutationLoading = isAddLoading || isUpdateLoading || isDeleteLoading || isApproveLoading || isRejectLoading;
+  const isPageLoading = isLoading || isApprovedLoading || isPendingLoading || isApprovedFetching || isPendingFetching;
+
+  // Derive Dynamic Fakultas and Prodi list
+  const realFaculties = instituteList.length > 0 ? instituteList.map((inst) => inst.name) : faculties;
+  
+  const filteredProdis = filterFaculty === "Semua"
+    ? studyProgramList.map((p) => p.name)
+    : studyProgramList.filter((p) => p.institute?.name === filterFaculty).map((p) => p.name);
+
+  const displayFilteredProdis = studyProgramList.length > 0
+    ? (filteredProdis.length > 0 ? filteredProdis : ["Semua"])
+    : (filterFaculty === "Semua" ? prodis : (facultyProdiMap[filterFaculty] || prodis));
 
   // Add Dosen Dialog States
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -131,11 +202,11 @@ export default function DosenManagementPage(): React.JSX.Element {
 
   // Delete Dosen Dialog States
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [dosenToDelete, setDosenToDelete] = useState<Dosen | null>(null);
+  const [dosenToDelete, setDosenToDelete] = useState<DosenPengajuan | null>(null);
 
   // Edit Dosen Dialog States
   const [isEditDosenOpen, setIsEditDosenOpen] = useState(false);
-  const [editingDosen, setEditingDosen] = useState<Dosen | null>(null);
+  const [editingDosen, setEditingDosen] = useState<DosenPengajuan | null>(null);
   const [editDosenNip, setEditDosenNip] = useState("");
   const [editDosenNama, setEditDosenNama] = useState("");
   const [editDosenFaculty, setEditDosenFaculty] = useState("");
@@ -151,7 +222,7 @@ export default function DosenManagementPage(): React.JSX.Element {
   const [editProdi, setEditProdi] = useState("");
   const [editEmail, setEditEmail] = useState("");
 
-  // Load Session and lists
+  // Load Session
   useEffect(() => {
     const sessionTimer = setTimeout(() => {
       const raw = localStorage.getItem("userSession");
@@ -169,9 +240,6 @@ export default function DosenManagementPage(): React.JSX.Element {
           // empty
         }
       }
-      // Bind lists inside timeout
-      setDosenList([...initialDosenList]);
-      setPengajuanList([...initialDosenPengajuanList]);
     }, 0);
 
     const timer = setTimeout(() => {
@@ -183,39 +251,28 @@ export default function DosenManagementPage(): React.JSX.Element {
     };
   }, []);
 
-  // Filter based on role, prodi, faculty, and search query
-  const filteredDosen = dosenList.filter((d) => {
-    const matchFaculty = isAdmin
-      ? (filterFaculty === "Semua" || d.fakultas === filterFaculty)
-      : (d.fakultas === userFaculty);
-    const matchProdi = filterProdi === "Semua" || d.prodi === filterProdi;
-    const matchSearch = !activeSearchQuery.trim() || 
-      d.nama.toLowerCase().includes(activeSearchQuery.toLowerCase()) || 
-      d.nip.includes(activeSearchQuery.trim());
-    return matchFaculty && matchProdi && matchSearch;
-  });
+  // Map API LecturerModel to legacy structure
+  const filteredDosen: DosenPengajuan[] = (approvedResponse?.data || []).map((l) => ({
+    id: l.id,
+    nip: l.nip,
+    nama: l.name,
+    fakultas: l.institute?.name || "",
+    prodi: l.study_program?.name || "",
+    email: l.email,
+    status: "approved",
+    submittedAt: new Date().toISOString(),
+  }));
 
-  const filteredPengajuan = pengajuanList.filter((p) => {
-    const matchFaculty = isAdmin
-      ? (filterFaculty === "Semua" || p.fakultas === filterFaculty)
-      : (p.fakultas === userFaculty);
-    const matchProdi = filterProdi === "Semua" || p.prodi === filterProdi;
-    const matchSearch = !activeSearchQuery.trim() || 
-      p.nama.toLowerCase().includes(activeSearchQuery.toLowerCase()) || 
-      p.nip.includes(activeSearchQuery.trim());
-    return matchFaculty && matchProdi && matchSearch;
-  });
-
-  // Sync back to shared mock database
-  const syncDosenList = (newList: Dosen[]): void => {
-    dbSyncDosen(newList);
-    setDosenList(newList);
-  };
-
-  const syncPengajuanList = (newList: DosenPengajuan[]): void => {
-    dbSyncPengajuan(newList);
-    setPengajuanList(newList);
-  };
+  const filteredPengajuan: DosenPengajuan[] = (pendingResponse?.data || []).map((l) => ({
+    id: l.id,
+    nip: l.nip,
+    nama: l.name,
+    fakultas: l.institute?.name || "",
+    prodi: l.study_program?.name || "",
+    email: l.email,
+    status: "pending",
+    submittedAt: new Date().toISOString(),
+  }));
 
   const validateUinEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -225,16 +282,37 @@ export default function DosenManagementPage(): React.JSX.Element {
   };
 
   // Add Dosen
-  const handleOpenAdd = () => {
+  const handleOpenAdd = (): void => {
     setAddNip("");
     setAddNama("");
-    setAddFaculty(isAdmin ? faculties[0] : userFaculty);
-    setAddProdi(prodis[0]);
+    const defaultFac = filterFaculty !== "Semua" ? filterFaculty : (realFaculties[0] || "");
+    setAddFaculty(defaultFac);
+    
+    const allowed = studyProgramList.filter((p) => p.institute?.name === defaultFac);
+    setAddProdi(allowed[0]?.name || (studyProgramList[0]?.name || ""));
     setAddEmail("");
     setIsAddOpen(true);
   };
 
-  const handleAddDosen = (e: React.FormEvent) => {
+  const handleAddFacultyChange = (val: string): void => {
+    setAddFaculty(val);
+    const allowed = studyProgramList.filter((p) => p.institute?.name === val);
+    setAddProdi(allowed[0]?.name || "");
+  };
+
+  const handleEditDosenFacultyChange = (val: string): void => {
+    setEditDosenFaculty(val);
+    const allowed = studyProgramList.filter((p) => p.institute?.name === val);
+    setEditDosenProdi(allowed[0]?.name || "");
+  };
+
+  const handleEditFacultyChange = (val: string): void => {
+    setEditFaculty(val);
+    const allowed = studyProgramList.filter((p) => p.institute?.name === val);
+    setEditProdi(allowed[0]?.name || "");
+  };
+
+  const handleAddDosen = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!addNip.trim() || !addNama.trim() || !addEmail.trim()) {
       toast.error("NIP, Nama, dan Email wajib diisi.");
@@ -246,95 +324,91 @@ export default function DosenManagementPage(): React.JSX.Element {
       return;
     }
 
-    const isDuplicate = dosenList.some((d) => d.nip === addNip.trim());
-    if (isDuplicate) {
-      toast.error("Dosen dengan NIP ini sudah terdaftar.");
+    const matchedProdi = studyProgramList.find((p) => p.name === addProdi);
+    if (!matchedProdi) {
+      toast.error("Program studi tidak valid atau belum terdaftar di sistem.");
       return;
     }
 
-    const newDosen: Dosen = {
-      nip: addNip.trim(),
-      nama: addNama.trim(),
-      fakultas: addFaculty,
-      prodi: addProdi,
-      email: addEmail.trim(),
-    };
-
-    const updated = [...dosenList, newDosen];
-    syncDosenList(updated);
-    toast.success(`Dosen "${addNama}" berhasil ditambahkan!`);
-    setIsAddOpen(false);
+    try {
+      await createLecturer({
+        name: addNama.trim(),
+        nip: addNip.trim(),
+        email: addEmail.trim(),
+        study_program_id: matchedProdi.id,
+      }).unwrap();
+      toast.success(`Dosen "${addNama}" berhasil ditambahkan!`);
+      setIsAddOpen(false);
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
+    }
   };
 
   // Delete Dosen
-  const handleDeleteDosen = (nip: string, name: string): void => {
-    const updated = dosenList.filter((d) => d.nip !== nip);
-    syncDosenList(updated);
-    toast.success(`Data dosen "${name}" telah dihapus.`);
-    setIsDeleteOpen(false);
+  const handleDeleteDosen = async (id: string, name: string): Promise<void> => {
+    try {
+      await deleteLecturer(id).unwrap();
+      toast.success(`Data dosen "${name}" telah dihapus.`);
+      setIsDeleteOpen(false);
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
+    }
   };
 
-  const handleConfirmDelete = (dosen: Dosen) => {
+  const handleConfirmDelete = (dosen: DosenPengajuan): void => {
     setDosenToDelete(dosen);
     setIsDeleteOpen(true);
   };
 
   // Accept Submission
-  const handleAcceptPengajuan = (pengajuan: DosenPengajuan): void => {
-    // 1. Remove from pengajuan
-    const updatedPengajuan = pengajuanList.filter((p) => p.id !== pengajuan.id);
-    syncPengajuanList(updatedPengajuan);
-
-    // 2. Add to main dosen list
-    const newDosen: Dosen = {
-      nip: pengajuan.nip,
-      nama: pengajuan.nama,
-      fakultas: pengajuan.fakultas,
-      prodi: pengajuan.prodi,
-      email: pengajuan.email,
-    };
-
-    const updatedDosen = [...dosenList, newDosen];
-    syncDosenList(updatedDosen);
-    toast.success(`Pengajuan dosen "${pengajuan.nama}" telah disetujui.`);
+  const handleAcceptPengajuan = async (pengajuan: DosenPengajuan): Promise<void> => {
+    try {
+      await approveLecturer(pengajuan.id).unwrap();
+      toast.success(`Pengajuan dosen "${pengajuan.nama}" telah disetujui.`);
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
+    }
   };
 
   // Decline Submission
-  const handleDeclinePengajuan = (pengajuan: DosenPengajuan): void => {
-    const updated = pengajuanList.filter((p) => p.id !== pengajuan.id);
-    syncPengajuanList(updated);
-    toast.info(`Pengajuan dosen "${pengajuan.nama}" telah ditolak.`);
+  const handleDeclinePengajuan = async (pengajuan: DosenPengajuan): Promise<void> => {
+    try {
+      await rejectLecturer(pengajuan.id).unwrap();
+      toast.info(`Pengajuan dosen "${pengajuan.nama}" telah ditolak.`);
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
+    }
   };
 
   // Prepare Edit dialog
-  const handleOpenEdit = (pengajuan: DosenPengajuan) => {
+  const handleOpenEdit = (pengajuan: DosenPengajuan): void => {
     setEditingPengajuan(pengajuan);
     setEditNip(pengajuan.nip);
     setEditNama(pengajuan.nama);
-    setEditFaculty(pengajuan.fakultas);
-    setEditProdi(pengajuan.prodi);
+    setEditFaculty(pengajuan.fakultas || realFaculties[0]);
+    setEditProdi(pengajuan.prodi || prodis[0]);
     setEditEmail(pengajuan.email || "");
     setIsEditOpen(true);
   };
 
   // Prepare Edit Dosen dialog
-  const handleOpenEditDosen = (dosen: Dosen) => {
+  const handleOpenEditDosen = (dosen: DosenPengajuan): void => {
     setEditingDosen(dosen);
     setEditDosenNip(dosen.nip);
     setEditDosenNama(dosen.nama);
-    setEditDosenFaculty(dosen.fakultas);
-    setEditDosenProdi(dosen.prodi);
+    setEditDosenFaculty(dosen.fakultas || realFaculties[0]);
+    setEditDosenProdi(dosen.prodi || prodis[0]);
     setEditDosenEmail(dosen.email || "");
     setIsEditDosenOpen(true);
   };
 
   // Save Edit Dosen
-  const handleSaveEditDosen = (e: React.FormEvent) => {
+  const handleSaveEditDosen = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!editingDosen) return;
 
     if (!editDosenNip.trim() || !editDosenNama.trim() || !editDosenEmail.trim()) {
-      toast.error("NIP, Nama, and Email wajib diisi.");
+      toast.error("NIP, Nama, dan Email wajib diisi.");
       return;
     }
 
@@ -343,34 +417,31 @@ export default function DosenManagementPage(): React.JSX.Element {
       return;
     }
 
-    const isDuplicate = dosenList.some(
-      (d) => d.nip === editDosenNip.trim() && d.nip !== editingDosen.nip
-    );
-    if (isDuplicate) {
-      toast.error("Dosen dengan NIP ini sudah terdaftar.");
+    const matchedProdi = studyProgramList.find((p) => p.name === editDosenProdi);
+    if (!matchedProdi) {
+      toast.error("Program studi tidak valid atau belum terdaftar di sistem.");
       return;
     }
 
-    const updated = dosenList.map((d) => {
-      if (d.nip === editingDosen.nip) {
-        return {
+    try {
+      await updateLecturer({
+        id: editingDosen.id,
+        body: {
+          name: editDosenNama.trim(),
           nip: editDosenNip.trim(),
-          nama: editDosenNama.trim(),
-          fakultas: editDosenFaculty,
-          prodi: editDosenProdi,
           email: editDosenEmail.trim(),
-        };
-      }
-      return d;
-    });
-
-    syncDosenList(updated);
-    toast.success("Data dosen berhasil diperbarui!");
-    setIsEditDosenOpen(false);
+          study_program_id: matchedProdi.id,
+        },
+      }).unwrap();
+      toast.success("Data dosen berhasil diperbarui!");
+      setIsEditDosenOpen(false);
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
+    }
   };
 
   // Save Edit
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!editingPengajuan) return;
 
@@ -384,24 +455,41 @@ export default function DosenManagementPage(): React.JSX.Element {
       return;
     }
 
-    const updated = pengajuanList.map((p) => {
-      if (p.id === editingPengajuan.id) {
-        return {
-          ...p,
-          nip: editNip.trim(),
-          nama: editNama.trim(),
-          fakultas: editFaculty,
-          prodi: editProdi,
-          email: editEmail.trim(),
-        };
-      }
-      return p;
-    });
+    const matchedProdi = studyProgramList.find((p) => p.name === editProdi);
+    if (!matchedProdi) {
+      toast.error("Program studi tidak valid atau belum terdaftar di sistem.");
+      return;
+    }
 
-    syncPengajuanList(updated);
-    toast.success("Pengajuan dosen berhasil diperbarui!");
-    setIsEditOpen(false);
+    try {
+      await updateLecturer({
+        id: editingPengajuan.id,
+        body: {
+          name: editNama.trim(),
+          nip: editNip.trim(),
+          email: editEmail.trim(),
+          study_program_id: matchedProdi.id,
+        },
+      }).unwrap();
+      toast.success("Pengajuan dosen berhasil diperbarui!");
+      setIsEditOpen(false);
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err));
+    }
   };
+
+  // Filter prodi list for dialog selects
+  const addProdiList = studyProgramList.length > 0
+    ? studyProgramList.filter((p) => !addFaculty || p.institute?.name === addFaculty)
+    : (addFaculty ? (facultyProdiMap[addFaculty] || prodis) : prodis).map((p) => ({ name: p }));
+
+  const editDosenProdiList = studyProgramList.length > 0
+    ? studyProgramList.filter((p) => !editDosenFaculty || p.institute?.name === editDosenFaculty)
+    : (editDosenFaculty ? (facultyProdiMap[editDosenFaculty] || prodis) : prodis).map((p) => ({ name: p }));
+
+  const editProdiList = studyProgramList.length > 0
+    ? studyProgramList.filter((p) => !editFaculty || p.institute?.name === editFaculty)
+    : (editFaculty ? (facultyProdiMap[editFaculty] || prodis) : prodis).map((p) => ({ name: p }));
 
   if (!isAllowed) {
     return (
@@ -446,6 +534,7 @@ export default function DosenManagementPage(): React.JSX.Element {
           <TabsContent value="data-dosen" className="mt-0 focus-visible:outline-none">
             <Button
               onClick={handleOpenAdd}
+              disabled={isMutationLoading}
               className="bg-primary text-primary-foreground text-xs font-semibold h-10 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer w-full sm:w-auto"
             >
               <Plus className="h-4 w-4" /> Tambah Dosen Baru
@@ -493,7 +582,7 @@ export default function DosenManagementPage(): React.JSX.Element {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Semua" className="text-xs font-semibold cursor-pointer">Semua Prodi</SelectItem>
-                  {((isAdmin ? facultyProdiMap[filterFaculty] : facultyProdiMap[userFaculty]) || prodis).map((p) => (
+                  {displayFilteredProdis.map((p) => (
                     <SelectItem key={p} value={p} className="text-xs font-semibold cursor-pointer">
                       {p}
                     </SelectItem>
@@ -502,30 +591,28 @@ export default function DosenManagementPage(): React.JSX.Element {
               </Select>
             </div>
 
-            {/* Filter Fakultas (Admin only) */}
-            {isAdmin && (
-              <div className="w-full sm:w-[240px]">
-                <Select
-                  value={filterFaculty}
-                  onValueChange={(val) => {
-                    setFilterFaculty(val);
-                    setFilterProdi("Semua");
-                  }}
-                >
-                  <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
-                    <SelectValue placeholder="Filter Fakultas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Semua" className="text-xs font-semibold cursor-pointer">Semua Fakultas</SelectItem>
-                    {faculties.map((f) => (
-                      <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
-                        {f}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {/* Filter Fakultas */}
+            <div className="w-full sm:w-[240px]">
+              <Select
+                value={filterFaculty}
+                onValueChange={(val) => {
+                  setFilterFaculty(val);
+                  setFilterProdi("Semua");
+                }}
+              >
+                <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                  <SelectValue placeholder="Filter Fakultas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Semua" className="text-xs font-semibold cursor-pointer">Semua Fakultas</SelectItem>
+                  {realFaculties.map((f) => (
+                    <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
+                      {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -538,13 +625,13 @@ export default function DosenManagementPage(): React.JSX.Element {
                   <tr className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase border-b border-border">
                     <th className="px-4 py-3 font-semibold">NIP</th>
                     <th className="px-4 py-3 font-semibold">Nama Lengkap</th>
-                    {isAdmin && <th className="px-4 py-3 font-semibold">Fakultas</th>}
+                    <th className="px-4 py-3 font-semibold">Fakultas</th>
                     <th className="px-4 py-3 font-semibold">Prodi</th>
                     <th className="px-4 py-3 font-semibold text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading ? (
+                  {isPageLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <tr key={i} className="border-b border-border/50 text-xs">
                         <td className="px-4 py-3">
@@ -553,11 +640,9 @@ export default function DosenManagementPage(): React.JSX.Element {
                         <td className="px-4 py-3">
                           <Skeleton className="h-4 w-40 rounded" />
                         </td>
-                        {isAdmin && (
-                          <td className="px-4 py-3">
-                            <Skeleton className="h-4 w-36 rounded" />
-                          </td>
-                        )}
+                        <td className="px-4 py-3">
+                          <Skeleton className="h-4 w-36 rounded" />
+                        </td>
                         <td className="px-4 py-3">
                           <Skeleton className="h-4 w-32 rounded" />
                         </td>
@@ -572,11 +657,12 @@ export default function DosenManagementPage(): React.JSX.Element {
                       <tr key={d.nip} className="border-b border-border/50 text-xs hover:bg-muted/10 transition-colors">
                         <td className="px-4 py-3 font-mono font-semibold text-muted-foreground">{d.nip}</td>
                         <td className="px-4 py-3 font-bold text-foreground">{d.nama}</td>
-                        {isAdmin && <td className="px-4 py-3 text-foreground">{d.fakultas}</td>}
+                        <td className="px-4 py-3 text-foreground">{d.fakultas}</td>
                         <td className="px-4 py-3 text-muted-foreground font-semibold">{d.prodi}</td>
                         <td className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
                           <Button
                             onClick={() => handleOpenEditDosen(d)}
+                            disabled={isMutationLoading}
                             size="sm"
                             variant="ghost"
                             className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -586,6 +672,7 @@ export default function DosenManagementPage(): React.JSX.Element {
                           <Button
                             variant="ghost"
                             onClick={() => handleConfirmDelete(d)}
+                            disabled={isMutationLoading}
                             className="h-8 w-8 p-0 text-error hover:text-error/90 hover:bg-error/10 cursor-pointer"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -595,7 +682,7 @@ export default function DosenManagementPage(): React.JSX.Element {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={isAdmin ? 5 : 4} className="py-8 text-center text-xs text-muted-foreground font-semibold">
+                      <td colSpan={5} className="py-8 text-center text-xs text-muted-foreground font-semibold">
                         Tidak ada data dosen yang terdaftar.
                       </td>
                     </tr>
@@ -615,14 +702,14 @@ export default function DosenManagementPage(): React.JSX.Element {
                   <tr className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase border-b border-border">
                     <th className="px-4 py-3 font-semibold">NIP</th>
                     <th className="px-4 py-3 font-semibold">Nama Lengkap</th>
-                    {isAdmin && <th className="px-4 py-3 font-semibold">Fakultas</th>}
+                    <th className="px-4 py-3 font-semibold">Fakultas</th>
                     <th className="px-4 py-3 font-semibold">Prodi</th>
                     <th className="px-4 py-3 font-semibold">Tanggal Diajukan</th>
                     <th className="px-4 py-3 font-semibold text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading ? (
+                  {isPageLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
                       <tr key={i} className="border-b border-border/50 text-xs">
                         <td className="px-4 py-3">
@@ -631,11 +718,9 @@ export default function DosenManagementPage(): React.JSX.Element {
                         <td className="px-4 py-3">
                           <Skeleton className="h-4 w-40 rounded" />
                         </td>
-                        {isAdmin && (
-                          <td className="px-4 py-3">
-                            <Skeleton className="h-4 w-36 rounded" />
-                          </td>
-                        )}
+                        <td className="px-4 py-3">
+                          <Skeleton className="h-4 w-36 rounded" />
+                        </td>
                         <td className="px-4 py-3">
                           <Skeleton className="h-4 w-32 rounded" />
                         </td>
@@ -654,7 +739,7 @@ export default function DosenManagementPage(): React.JSX.Element {
                       <tr key={p.id} className="border-b border-border/50 text-xs hover:bg-muted/10 transition-colors">
                         <td className="px-4 py-3 font-mono font-semibold text-muted-foreground">{p.nip}</td>
                         <td className="px-4 py-3 font-bold text-foreground">{p.nama}</td>
-                        {isAdmin && <td className="px-4 py-3 text-foreground">{p.fakultas}</td>}
+                        <td className="px-4 py-3 text-foreground">{p.fakultas}</td>
                         <td className="px-4 py-3 text-muted-foreground font-semibold">{p.prodi}</td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {new Date(p.submittedAt).toLocaleDateString("id-ID", {
@@ -664,18 +749,21 @@ export default function DosenManagementPage(): React.JSX.Element {
                         <td className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleAcceptPengajuan(p)}
-                            className="h-7 rounded bg-success/10 px-2.5 text-xs font-bold text-success hover:bg-success/20 transition-all cursor-pointer"
+                            disabled={isMutationLoading}
+                            className="h-7 rounded bg-success/10 px-2.5 text-xs font-bold text-success hover:bg-success/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Accept
                           </button>
                           <button
                             onClick={() => handleDeclinePengajuan(p)}
-                            className="h-7 rounded bg-error/10 px-2.5 text-xs font-bold text-error hover:bg-error/20 transition-all cursor-pointer"
+                            disabled={isMutationLoading}
+                            className="h-7 rounded bg-error/10 px-2.5 text-xs font-bold text-error hover:bg-error/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Decline
                           </button>
                           <Button
                             onClick={() => handleOpenEdit(p)}
+                            disabled={isMutationLoading}
                             size="sm"
                             variant="ghost"
                             className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -687,7 +775,7 @@ export default function DosenManagementPage(): React.JSX.Element {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={isAdmin ? 6 : 5} className="py-8 text-center text-xs text-muted-foreground font-semibold">
+                      <td colSpan={6} className="py-8 text-center text-xs text-muted-foreground font-semibold">
                         Tidak ada pengajuan data dosen baru saat ini.
                       </td>
                     </tr>
@@ -700,7 +788,10 @@ export default function DosenManagementPage(): React.JSX.Element {
       </Tabs>
 
       {/* Dialog: Tambah Dosen Baru */}
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+      <Dialog open={isAddOpen} onOpenChange={(val) => {
+        if (isAddLoading) return;
+        setIsAddOpen(val);
+      }}>
         <DialogContent className="sm:max-w-lg bg-card border border-border p-6 rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
@@ -716,10 +807,11 @@ export default function DosenManagementPage(): React.JSX.Element {
               <Input
                 type="text"
                 required
+                disabled={isAddLoading}
                 placeholder="Masukkan NIP dosen..."
                 value={addNip}
                 onChange={(e) => setAddNip(e.target.value)}
-                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono"
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </Field>
 
@@ -730,10 +822,11 @@ export default function DosenManagementPage(): React.JSX.Element {
               <Input
                 type="text"
                 required
+                disabled={isAddLoading}
                 placeholder="Masukkan nama lengkap beserta gelar..."
                 value={addNama}
                 onChange={(e) => setAddNama(e.target.value)}
-                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </Field>
 
@@ -743,17 +836,14 @@ export default function DosenManagementPage(): React.JSX.Element {
               </FieldLabel>
               <Select
                 value={addFaculty}
-                onValueChange={(val) => {
-                  setAddFaculty(val);
-                  const allowed = facultyProdiMap[val] || [];
-                  setAddProdi(allowed[0] || "");
-                }}
+                disabled={isAddLoading}
+                onValueChange={handleAddFacultyChange}
               >
-                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                   <SelectValue placeholder="Pilih Fakultas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {faculties.map((f) => (
+                  {realFaculties.map((f) => (
                     <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
                       {f}
                     </SelectItem>
@@ -766,14 +856,14 @@ export default function DosenManagementPage(): React.JSX.Element {
               <FieldLabel>
                 <FieldTitle>Program Studi <span className="text-error">*</span></FieldTitle>
               </FieldLabel>
-              <Select value={addProdi} onValueChange={setAddProdi}>
-                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+              <Select value={addProdi} onValueChange={setAddProdi} disabled={isAddLoading}>
+                <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                   <SelectValue placeholder="Pilih Program Studi" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(facultyProdiMap[addFaculty] || prodis).map((p) => (
-                    <SelectItem key={p} value={p} className="text-xs font-semibold cursor-pointer">
-                      {p}
+                  {addProdiList.map((p) => (
+                    <SelectItem key={p.name} value={p.name} className="text-xs font-semibold cursor-pointer">
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -788,28 +878,37 @@ export default function DosenManagementPage(): React.JSX.Element {
               <Input
                 type="email"
                 required
+                disabled={isAddLoading}
                 placeholder="dosen@uin-suka.ac.id"
                 value={addEmail}
                 onChange={(e) => setAddEmail(e.target.value)}
-                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </Field>
-
 
             <DialogFooter className="flex justify-end gap-2 pt-2">
               <Button
                 type="button"
                 variant="outline"
+                disabled={isAddLoading}
                 onClick={() => setIsAddOpen(false)}
-                className="text-xs font-semibold h-9 rounded-lg"
+                className="text-xs font-semibold h-9 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Batal
               </Button>
               <Button
                 type="submit"
-                className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+                disabled={isAddLoading}
+                className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Tambah Dosen
+                {isAddLoading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <span>Tambah Dosen</span>
+                )}
               </Button>
             </DialogFooter>
           </form>
@@ -817,7 +916,10 @@ export default function DosenManagementPage(): React.JSX.Element {
       </Dialog>
       
       {/* Dialog: Edit Pengajuan */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+      <Dialog open={isEditOpen} onOpenChange={(val) => {
+        if (isUpdateLoading) return;
+        setIsEditOpen(val);
+      }}>
         <DialogContent className="sm:max-w-lg bg-card border border-border p-6 rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
@@ -834,9 +936,10 @@ export default function DosenManagementPage(): React.JSX.Element {
                 <Input
                   type="text"
                   required
+                  disabled={isUpdateLoading}
                   value={editNip}
                   onChange={(e) => setEditNip(e.target.value)}
-                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono font-semibold"
+                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </Field>
 
@@ -847,9 +950,10 @@ export default function DosenManagementPage(): React.JSX.Element {
                 <Input
                   type="text"
                   required
+                  disabled={isUpdateLoading}
                   value={editNama}
                   onChange={(e) => setEditNama(e.target.value)}
-                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </Field>
 
@@ -859,17 +963,14 @@ export default function DosenManagementPage(): React.JSX.Element {
                 </FieldLabel>
                 <Select
                   value={editFaculty}
-                  onValueChange={(val) => {
-                    setEditFaculty(val);
-                    const allowed = facultyProdiMap[val] || [];
-                    setEditProdi(allowed[0] || "");
-                  }}
+                  disabled={isUpdateLoading}
+                  onValueChange={handleEditFacultyChange}
                 >
-                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                     <SelectValue placeholder="Pilih Fakultas" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties.map((f) => (
+                    {realFaculties.map((f) => (
                       <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
                         {f}
                       </SelectItem>
@@ -882,14 +983,14 @@ export default function DosenManagementPage(): React.JSX.Element {
                 <FieldLabel>
                   <FieldTitle>Program Studi <span className="text-error">*</span></FieldTitle>
                 </FieldLabel>
-                <Select value={editProdi} onValueChange={setEditProdi}>
-                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                <Select value={editProdi} onValueChange={setEditProdi} disabled={isUpdateLoading}>
+                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                     <SelectValue placeholder="Pilih Program Studi" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(facultyProdiMap[editFaculty] || prodis).map((p) => (
-                      <SelectItem key={p} value={p} className="text-xs font-semibold cursor-pointer">
-                        {p}
+                    {editProdiList.map((p) => (
+                      <SelectItem key={p.name} value={p.name} className="text-xs font-semibold cursor-pointer">
+                        {p.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -904,28 +1005,37 @@ export default function DosenManagementPage(): React.JSX.Element {
                 <Input
                   type="email"
                   required
+                  disabled={isUpdateLoading}
                   placeholder="dosen@uin-suka.ac.id"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </Field>
-
 
               <DialogFooter className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={isUpdateLoading}
                   onClick={() => setIsEditOpen(false)}
-                  className="text-xs font-semibold h-9 rounded-lg"
+                  className="text-xs font-semibold h-9 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Batal
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+                  disabled={isUpdateLoading}
+                  className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Simpan Perubahan
+                  {isUpdateLoading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <span>Simpan Perubahan</span>
+                  )}
                 </Button>
               </DialogFooter>
             </form>
@@ -934,7 +1044,10 @@ export default function DosenManagementPage(): React.JSX.Element {
       </Dialog>
 
       {/* Dialog: Edit Data Dosen */}
-      <Dialog open={isEditDosenOpen} onOpenChange={setIsEditDosenOpen}>
+      <Dialog open={isEditDosenOpen} onOpenChange={(val) => {
+        if (isUpdateLoading) return;
+        setIsEditDosenOpen(val);
+      }}>
         <DialogContent className="sm:max-w-lg bg-card border border-border p-6 rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
@@ -951,9 +1064,10 @@ export default function DosenManagementPage(): React.JSX.Element {
                 <Input
                   type="text"
                   required
+                  disabled={isUpdateLoading}
                   value={editDosenNip}
                   onChange={(e) => setEditDosenNip(e.target.value)}
-                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono font-semibold"
+                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </Field>
 
@@ -964,9 +1078,10 @@ export default function DosenManagementPage(): React.JSX.Element {
                 <Input
                   type="text"
                   required
+                  disabled={isUpdateLoading}
                   value={editDosenNama}
                   onChange={(e) => setEditDosenNama(e.target.value)}
-                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </Field>
 
@@ -976,17 +1091,14 @@ export default function DosenManagementPage(): React.JSX.Element {
                 </FieldLabel>
                 <Select
                   value={editDosenFaculty}
-                  onValueChange={(val) => {
-                    setEditDosenFaculty(val);
-                    const allowed = facultyProdiMap[val] || [];
-                    setEditDosenProdi(allowed[0] || "");
-                  }}
+                  disabled={isUpdateLoading}
+                  onValueChange={handleEditDosenFacultyChange}
                 >
-                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                     <SelectValue placeholder="Pilih Fakultas" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties.map((f) => (
+                    {realFaculties.map((f) => (
                       <SelectItem key={f} value={f} className="text-xs font-semibold cursor-pointer">
                         {f}
                       </SelectItem>
@@ -999,14 +1111,14 @@ export default function DosenManagementPage(): React.JSX.Element {
                 <FieldLabel>
                   <FieldTitle>Program Studi <span className="text-error">*</span></FieldTitle>
                 </FieldLabel>
-                <Select value={editDosenProdi} onValueChange={setEditDosenProdi}>
-                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                <Select value={editDosenProdi} onValueChange={setEditDosenProdi} disabled={isUpdateLoading}>
+                  <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                     <SelectValue placeholder="Pilih Program Studi" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(facultyProdiMap[editDosenFaculty] || prodis).map((p) => (
-                      <SelectItem key={p} value={p} className="text-xs font-semibold cursor-pointer">
-                        {p}
+                    {editDosenProdiList.map((p) => (
+                      <SelectItem key={p.name} value={p.name} className="text-xs font-semibold cursor-pointer">
+                        {p.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1021,28 +1133,37 @@ export default function DosenManagementPage(): React.JSX.Element {
                 <Input
                   type="email"
                   required
+                  disabled={isUpdateLoading}
                   placeholder="dosen@uin-suka.ac.id"
                   value={editDosenEmail}
                   onChange={(e) => setEditDosenEmail(e.target.value)}
-                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
+                  className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </Field>
-
 
               <DialogFooter className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={isUpdateLoading}
                   onClick={() => setIsEditDosenOpen(false)}
-                  className="text-xs font-semibold h-9 rounded-lg"
+                  className="text-xs font-semibold h-9 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Batal
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+                  disabled={isUpdateLoading}
+                  className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Simpan Perubahan
+                  {isUpdateLoading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <span>Simpan Perubahan</span>
+                  )}
                 </Button>
               </DialogFooter>
             </form>
@@ -1051,7 +1172,10 @@ export default function DosenManagementPage(): React.JSX.Element {
       </Dialog>
 
       {/* Alert Dialog: Konfirmasi Hapus Dosen */}
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+      <AlertDialog open={isDeleteOpen} onOpenChange={(val) => {
+        if (isDeleteLoading) return;
+        setIsDeleteOpen(val);
+      }}>
         <AlertDialogContent className="bg-card border border-border p-6 rounded-xl sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xs font-bold text-foreground tracking-wider uppercase">
@@ -1062,18 +1186,30 @@ export default function DosenManagementPage(): React.JSX.Element {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2 pt-2">
-            <AlertDialogCancel className="text-xs font-semibold h-9 rounded-lg border border-border bg-card text-foreground hover:bg-muted cursor-pointer">
+            <AlertDialogCancel 
+              disabled={isDeleteLoading}
+              className="text-xs font-semibold h-9 rounded-lg border border-border bg-card text-foreground hover:bg-muted cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (dosenToDelete) {
-                  handleDeleteDosen(dosenToDelete.nip, dosenToDelete.nama);
+              disabled={isDeleteLoading}
+              onClick={(e) => {
+                e.preventDefault();
+                if (dosenToDelete && dosenToDelete.id) {
+                  handleDeleteDosen(dosenToDelete.id, dosenToDelete.nama);
                 }
               }}
-              className="bg-error text-error-foreground hover:bg-error/90 text-xs font-semibold h-9 rounded-lg cursor-pointer"
+              className="bg-error text-error-foreground hover:bg-error/90 text-xs font-semibold h-9 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Hapus Dosen
+              {isDeleteLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Menghapus...</span>
+                </>
+              ) : (
+                <span>Hapus Dosen</span>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

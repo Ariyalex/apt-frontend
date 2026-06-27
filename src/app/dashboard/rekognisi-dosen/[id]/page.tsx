@@ -15,9 +15,9 @@ import {
   Award,
   AlertCircle
 } from "lucide-react";
-import { initialData } from "@/dummy-data/rekognisi";
-import { initialSharingLinks } from "@/dummy-data/bagikan-form";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useGetRecognitionByIdQuery } from "@/store/services/recognitionApi";
 
 interface DetailPageProps {
   params: Promise<{ id: string }>;
@@ -27,34 +27,39 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
   const { id } = use(params);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  // Search in standard initialData
-  let record = initialData.find((item) => item.id === id);
-  let isSubmission = false;
-  let submissionStatus = "";
+  // Fetch detail from API
+  const { data: detailResponse, isLoading, isError } = useGetRecognitionByIdQuery(id);
+  const record = detailResponse?.data;
 
-  if (!record) {
-    // Search in sharing link submissions
-    for (const link of initialSharingLinks) {
-      const sub = link.submissions.find((s) => s.id === id);
-      if (sub) {
-        record = {
-          id: sub.id,
-          nip: sub.nip,
-          nama: sub.nama,
-          prodi: sub.prodi,
-          jenisRekognisi: sub.jenisRekognisi,
-          tahun: sub.tahun,
-          deskripsi: sub.deskripsi,
-          buktiUrl: sub.linkBukti,
-        };
-        isSubmission = true;
-        submissionStatus = sub.status;
-        break;
-      }
-    }
+  // Loading state skeleton
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 py-6">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-8 w-8 rounded-lg" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-6 w-48 rounded" />
+            <Skeleton className="h-4 w-64 rounded" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-1 rounded-xl border border-border bg-card p-6 space-y-4 shadow-sm animate-pulse">
+            <Skeleton className="h-20 w-20 rounded-full mx-auto" />
+            <Skeleton className="h-5 w-32 rounded mx-auto" />
+            <Skeleton className="h-4 w-24 rounded mx-auto" />
+          </div>
+          <div className="md:col-span-2 rounded-xl border border-border bg-card p-6 space-y-4 shadow-sm animate-pulse">
+            <Skeleton className="h-5 w-40 rounded" />
+            <Skeleton className="h-10 w-full rounded" />
+            <Skeleton className="h-10 w-full rounded" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  if (!record) {
+  // Error/Not Found screen
+  if (isError || !record) {
     return (
       <div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-6">
         <div className="mx-auto h-12 w-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
@@ -63,7 +68,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
         <div className="space-y-2">
           <h1 className="text-xl font-bold text-foreground">Data Tidak Ditemukan</h1>
           <p className="text-xs text-muted-foreground">
-            Rekognisi dengan ID kustom <span className="font-mono text-foreground font-semibold">&quot;{id}&quot;</span> tidak tersedia atau telah dihapus dari sistem.
+            Rekognisi dengan ID <span className="font-mono text-foreground font-semibold">&quot;{id}&quot;</span> tidak tersedia atau telah dihapus dari sistem.
           </p>
         </div>
         <Link 
@@ -75,6 +80,14 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
       </div>
     );
   }
+
+  const lecturerName = record.lecturer?.name || "";
+  const lecturerNip = record.lecturer?.nip || "";
+  const prodiName = record.lecturer?.study_program?.name || "";
+  const jenisRekognisi = record.category?.name || "";
+  const isSubmission = !!record.link_id;
+  const submissionStatus = record.status || "pending";
+  const year = record.obtained_at ? new Date(record.obtained_at).getFullYear().toString() : "";
 
   // Get initials for profile placeholder
   const getInitials = (name: string): string => {
@@ -141,8 +154,6 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
     return "Fakultas Ushuluddin dan Filsafat (FUF)";
   };
 
-  // No single copy handler needed as it is handled inline per link
-
   return (
     <div className="max-w-4xl mx-auto space-y-6 py-6">
       {/* Header & Back Action */}
@@ -167,11 +178,11 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
         {/* Left Card: Profile Overview */}
         <div className="md:col-span-1 rounded-xl border border-border bg-card p-6 text-center space-y-4 shadow-sm h-fit">
           <div className="mx-auto h-20 w-20 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-primary font-bold text-xl select-none">
-            {getInitials(record.nama)}
+            {getInitials(lecturerName)}
           </div>
           <div className="space-y-1">
-            <h2 className="text-sm font-bold text-foreground leading-snug">{record.nama}</h2>
-            <p className="text-xs font-mono text-muted-foreground font-semibold">{record.nip}</p>
+            <h2 className="text-sm font-bold text-foreground leading-snug">{lecturerName}</h2>
+            <p className="text-xs font-mono text-muted-foreground font-semibold">{lecturerNip}</p>
           </div>
           <div className="border-t border-border/50 pt-4 space-y-3.5 text-left text-xs">
             {/* Program Studi */}
@@ -180,7 +191,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
                 Program Studi
               </span>
               <span className="font-bold text-foreground block leading-snug">
-                {record.prodi}
+                {prodiName}
               </span>
             </div>
 
@@ -190,7 +201,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
                 Fakultas
               </span>
               <span className="font-bold text-foreground block leading-snug">
-                {getFakultas(record.prodi)}
+                {getFakultas(prodiName)}
               </span>
             </div>
           </div>
@@ -213,7 +224,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
                     <CheckCircle2 className="h-3.5 w-3.5" /> Disetujui (Admin)
                   </span>
                 )}
-                {submissionStatus === "declined" && (
+                {submissionStatus === "rejected" && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-600 dark:text-rose-400">
                     <XCircle className="h-3.5 w-3.5" /> Ditolak (Admin)
                   </span>
@@ -240,14 +251,8 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
                 <Award className="h-3.5 w-3.5 text-muted-foreground/60" /> Jenis Rekognisi
               </span>
               <span className="sm:col-span-2">
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                  record.jenisRekognisi === "Narasumber" ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" :
-                  record.jenisRekognisi === "Tenaga Ahli" ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" :
-                  record.jenisRekognisi === "Reviewer Jurnal" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400" :
-                  record.jenisRekognisi === "Asesor Akreditasi" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
-                  "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                }`}>
-                  {record.jenisRekognisi}
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold bg-primary/10 text-primary capitalize`}>
+                  {jenisRekognisi}
                 </span>
               </span>
             </div>
@@ -257,7 +262,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
               <span className="font-bold text-muted-foreground uppercase tracking-wider text-xs flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground/60" /> Tahun
               </span>
-              <span className="sm:col-span-2 font-bold text-foreground">{record.tahun}</span>
+              <span className="sm:col-span-2 font-bold text-foreground">{year}</span>
             </div>
 
             {/* Field: Deskripsi */}
@@ -266,7 +271,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
                 <FileText className="h-3.5 w-3.5 text-muted-foreground/60" /> Deskripsi Kegiatan
               </span>
               <span className="sm:col-span-2 text-foreground font-semibold leading-relaxed">
-                {record.deskripsi}
+                {record.description}
               </span>
             </div>
 
@@ -277,7 +282,7 @@ export default function DetailRekognisiPage({ params }: DetailPageProps): React.
               </span>
               
               <div className="sm:col-span-2 space-y-4">
-                {record.buktiUrl.split(",").filter(Boolean).map((url, idx) => (
+                {(record.proof_links || []).map((url, idx) => (
                   <div key={idx} className="space-y-2 border-b border-border/10 pb-3 last:border-0 last:pb-0">
                     <div className="text-muted-foreground font-mono text-xs truncate bg-muted/20 border border-border/40 p-2 rounded-lg select-all" title={url}>
                       {url}

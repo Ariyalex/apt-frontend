@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import logoUin from "../../../public/logo_uin.png";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useGetInstitutesQuery } from "@/store/services/instituteApi";
 
 interface UserSession {
   name: string;
@@ -11,10 +12,12 @@ interface UserSession {
   username: string;
   initials: string;
   avatarUrl?: string;
+  institute_id?: string | null;
 }
 
 export function Header(): React.JSX.Element {
   const [session, setSession] = useState<UserSession | null>(null);
+  const { data: institutesResponse } = useGetInstitutesQuery();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -32,8 +35,22 @@ export function Header(): React.JSX.Element {
 
   const displayName = session?.name || "Ahmad Fauzi";
   const displayRole = session?.role || "Auditee";
-  const displayInitials = session?.initials || "AF";
-  const displayAvatar = session?.avatarUrl || "";
+  const displayInstitute = useMemo(() => {
+    if (!session) return "FST";
+    if (!session.institute_id) return "";
+    const matched = institutesResponse?.data?.find(
+      (l) => l.id.toString() === session.institute_id?.toString()
+    );
+    return matched ? matched.name : `ID: ${session.institute_id}`;
+  }, [session, institutesResponse]);
+
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "AF";
 
   return (
     <header className="flex h-16 w-full items-center justify-between border-b border-border bg-card px-6 z-20">
@@ -63,14 +80,12 @@ export function Header(): React.JSX.Element {
             </span>
             <span className="text-xs font-medium text-muted-foreground">
               {displayRole}
+              {displayInstitute ? ` (${displayInstitute})` : ""}
             </span>
           </div>
           <Avatar className="h-9 w-9 border border-border shadow-sm">
-            {displayAvatar ? (
-              <AvatarImage src={displayAvatar} alt={displayName} />
-            ) : null}
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-              {displayInitials}
+              {initials}
             </AvatarFallback>
           </Avatar>
         </div>

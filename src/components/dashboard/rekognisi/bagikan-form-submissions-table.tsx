@@ -2,27 +2,56 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Copy, Check, Edit2, CheckCircle2, XCircle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ExternalLink, Copy, Check, Edit2, CheckCircle2, XCircle, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Submission } from "@/dummy-data/bagikan-form";
 
 interface BagikanFormSubmissionsTableProps {
   submissions: Submission[];
+  isLoading?: boolean;
   onAccept: (subId: string) => void;
   onDecline: (subId: string) => void;
   onEdit: (sub: Submission) => void;
+  isAuditing?: boolean;
 }
 
 export function BagikanFormSubmissionsTable({
   submissions,
+  isLoading = false,
   onAccept,
   onDecline,
   onEdit,
+  isAuditing = false,
 }: BagikanFormSubmissionsTableProps) {
   const router = useRouter();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<keyof Submission | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const [loadingRowId, setLoadingRowId] = useState<string | null>(null);
+  const [loadingAction, setLoadingAction] = useState<"accept" | "decline" | null>(null);
+
+  React.useEffect(() => {
+    if (!isAuditing) {
+      setLoadingRowId(null);
+      setLoadingAction(null);
+    }
+  }, [isAuditing]);
+
+  const handleAcceptClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setLoadingRowId(id);
+    setLoadingAction("accept");
+    onAccept(id);
+  };
+
+  const handleDeclineClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setLoadingRowId(id);
+    setLoadingAction("decline");
+    onDecline(id);
+  };
 
   const handleCopy = (e: React.MouseEvent, id: string, text: string) => {
     e.stopPropagation();
@@ -56,6 +85,43 @@ export function BagikanFormSubmissionsTable({
       <ArrowDown className="h-3 w-3 text-primary transition-colors" />
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="overflow-x-auto w-full border-t border-border/40">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-border/40 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <th className="px-4 py-3">NIP</th>
+              <th className="px-4 py-3">Nama Dosen</th>
+              <th className="px-4 py-3">Prodi</th>
+              <th className="px-4 py-3">Jenis Rekognisi</th>
+              <th className="px-4 py-3">Tahun</th>
+              <th className="px-4 py-3 max-w-[180px]">Deskripsi</th>
+              <th className="px-4 py-3">Bukti</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/20">
+            {[1, 2].map((i) => (
+              <tr key={i} className="animate-pulse">
+                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-24 rounded" /></td>
+                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-32 rounded" /></td>
+                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-24 rounded" /></td>
+                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-28 rounded" /></td>
+                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-10 rounded" /></td>
+                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-[90%] rounded" /></td>
+                <td className="px-4 py-3.5"><Skeleton className="h-7 w-20 rounded" /></td>
+                <td className="px-4 py-3.5"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                <td className="px-4 py-3.5"><Skeleton className="h-7 w-20 rounded ml-auto" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
   if (submissions.length === 0) {
     return (
@@ -122,11 +188,11 @@ export function BagikanFormSubmissionsTable({
               </td>
               <td className="px-4 py-3">
                 <div className="flex flex-col items-start gap-1.5">
-                  {sub.linkBukti.split(",").filter(Boolean).map((url, idx) => {
+                  {(sub.linkBukti || "").split(",").filter(Boolean).map((url, idx) => {
                     const uniqueKey = `${sub.id}-${idx}`;
                     return (
                       <div key={idx} className="flex items-center gap-1.5">
-                        {sub.linkBukti.split(",").filter(Boolean).length > 1 && (
+                        {(sub.linkBukti || "").split(",").filter(Boolean).length > 1 && (
                           <span className="text-[10px] text-muted-foreground font-bold">#{idx + 1}</span>
                         )}
                         <a
@@ -187,6 +253,7 @@ export function BagikanFormSubmissionsTable({
                       <Button
                         size="icon"
                         variant="ghost"
+                        disabled={isAuditing}
                         onClick={(e) => {
                           e.stopPropagation();
                           onEdit(sub);
@@ -197,21 +264,23 @@ export function BagikanFormSubmissionsTable({
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAccept(sub.id);
-                        }}
-                        className="h-7 rounded bg-success/10 px-2.5 text-xs font-bold text-success hover:bg-success/20 transition-all cursor-pointer"
+                        disabled={isAuditing}
+                        onClick={(e) => handleAcceptClick(e, sub.id)}
+                        className="inline-flex items-center gap-1 h-7 rounded bg-success/10 px-2.5 text-xs font-bold text-success hover:bg-success/20 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                       >
+                        {isAuditing && loadingRowId === sub.id && loadingAction === "accept" && (
+                          <Loader2 className="h-3 w-3 animate-spin mr-0.5" />
+                        )}
                         Accept
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDecline(sub.id);
-                        }}
-                        className="h-7 rounded bg-error/10 px-2.5 text-xs font-bold text-error hover:bg-error/20 transition-all cursor-pointer"
+                        disabled={isAuditing}
+                        onClick={(e) => handleDeclineClick(e, sub.id)}
+                        className="inline-flex items-center gap-1 h-7 rounded bg-error/10 px-2.5 text-xs font-bold text-error hover:bg-error/20 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                       >
+                        {isAuditing && loadingRowId === sub.id && loadingAction === "decline" && (
+                          <Loader2 className="h-3 w-3 animate-spin mr-0.5" />
+                        )}
                         Decline
                       </button>
                     </>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Save, Plus, Trash2, X } from "lucide-react";
+import { Save, Plus, Trash2, X, Loader2, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,14 +22,16 @@ import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { DosenSearchDialog } from "./dosen-search-dialog";
-import { initialDosenList } from "@/dummy-data/dosen";
+import { useGetLecturerByNipQuery } from "@/store/services/dosenApi";
+import { useGetRecognitionCategoriesQuery } from "@/store/services/recognitionCategoryApi";
 import { Submission } from "@/dummy-data/bagikan-form";
 
 interface SubmissionEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   submission: Submission | null;
-  onSave: (updated: Submission) => void;
+  onSave: (updated: Submission, lecturerId: string) => Promise<void> | void;
+  isSaving?: boolean;
 }
 
 export function SubmissionEditDialog({
@@ -37,10 +39,11 @@ export function SubmissionEditDialog({
   onOpenChange,
   submission,
   onSave,
+  isSaving = false,
 }: SubmissionEditDialogProps): React.JSX.Element {
   // Form states
   const [selectedNip, setSelectedNip] = useState("");
-  const [jenisRekognisi, setJenisRekognisi] = useState("Narasumber");
+  const [jenisRekognisi, setJenisRekognisi] = useState("narasumber");
   const [tahun, setTahun] = useState("2026");
   const [deskripsi, setDeskripsi] = useState("");
   
@@ -69,8 +72,13 @@ export function SubmissionEditDialog({
     return () => clearTimeout(timer);
   }, []);
 
-  const selectedLecturerName = initialDosenList.find((l) => l.nip === selectedNip)?.nama || "";
-  const jenisList = ["Narasumber", "Tenaga Ahli", "Fasilitator", "Reviewer Jurnal", "Asesor Akreditasi", "Editor Jurnal", "Dosen Tamu", "Juri Kompetensi"];
+  // Fetch lecturer details from backend
+  const { data: lecturerResponse } = useGetLecturerByNipQuery(selectedNip, { skip: !selectedNip });
+  const selectedLecturerName = lecturerResponse?.data?.name || "";
+
+  // Fetch categories from backend
+  const { data: categoriesResponse, isLoading: isCategoriesLoading } = useGetRecognitionCategoriesQuery();
+  const categoryList = categoriesResponse?.data || [];
 
   useEffect(() => {
     if (open && submission) {
@@ -87,6 +95,27 @@ export function SubmissionEditDialog({
     }
   }, [open, submission]);
 
+  // Edit Link states
+  const [editLinkOpen, setEditLinkOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingUrl, setEditingUrl] = useState("");
+
+  const handleOpenEditLink = (index: number) => {
+    setEditingIndex(index);
+    setEditingUrl(linkBuktiList[index]);
+    setEditLinkOpen(true);
+  };
+
+  const handleSaveEditLink = () => {
+    if (editingIndex === null || !editingUrl.trim()) return;
+    const newList = [...linkBuktiList];
+    newList[editingIndex] = editingUrl.trim();
+    setLinkBuktiList(newList);
+    setEditLinkOpen(false);
+    setEditingIndex(null);
+    setEditingUrl("");
+  };
+
   const handleAddLink = () => {
     if (!newLinkUrl.trim()) return;
     let url = newLinkUrl.trim();
@@ -102,18 +131,22 @@ export function SubmissionEditDialog({
     setLinkBuktiList(linkBuktiList.filter((_, i) => i !== indexToRemove));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!submission) return;
-    onSave({
-      ...submission,
-      nip: selectedNip,
-      nama: selectedLecturerName || submission.nama,
-      jenisRekognisi,
-      tahun,
-      deskripsi,
-      linkBukti: linkBuktiList.join(","),
-    });
-    onOpenChange(false);
+    try {
+      await onSave({
+        ...submission,
+        nip: selectedNip,
+        nama: selectedLecturerName || submission.nama,
+        jenisRekognisi,
+        tahun,
+        deskripsi,
+        linkBukti: linkBuktiList.join(","),
+      }, lecturerResponse?.data?.id || "");
+      onOpenChange(false);
+    } catch {
+      // Keep dialog open on error
+    }
   };
 
   return (
@@ -135,10 +168,11 @@ export function SubmissionEditDialog({
             </FieldLabel>
             <Input
               readOnly
+              disabled={isSaving}
               placeholder="Klik untuk mencari NIP Dosen..."
               value={selectedNip}
-              onClick={() => setSearchDialogOpen(true)}
-              className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono cursor-pointer"
+              onClick={() => !isSaving && setSearchDialogOpen(true)}
+              className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono cursor-pointer disabled:opacity-50"
             />
             <DosenSearchDialog
               open={searchDialogOpen}
@@ -169,16 +203,23 @@ export function SubmissionEditDialog({
             <Select
               value={jenisRekognisi}
               onValueChange={setJenisRekognisi}
+              disabled={isSaving || isCategoriesLoading}
             >
-              <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between">
+              <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between disabled:opacity-50">
                 <SelectValue placeholder="Pilih Jenis Rekognisi" />
               </SelectTrigger>
               <SelectContent>
-                {jenisList.map((jenis) => (
-                  <SelectItem key={jenis} value={jenis} className="text-xs font-semibold cursor-pointer">
-                    {jenis}
+                {categoryList.length > 0 ? (
+                  categoryList.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name} className="text-xs font-semibold cursor-pointer capitalize">
+                      {cat.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="narasumber" disabled className="text-xs font-semibold">
+                    Loading kategori...
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </Field>
@@ -200,7 +241,7 @@ export function SubmissionEditDialog({
               showYearPicker
               dateFormat="yyyy"
               customInput={
-                <input className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer text-foreground text-left" />
+                <input disabled={isSaving} className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer text-foreground text-left disabled:opacity-50 disabled:cursor-not-allowed" />
               }
             />
           </Field>
@@ -215,10 +256,11 @@ export function SubmissionEditDialog({
             <textarea 
               required
               rows={3}
+              disabled={isSaving}
               placeholder="Contoh: Pembicara dalam Seminar Nasional..."
               value={deskripsi}
               onChange={(e) => setDeskripsi(e.target.value)}
-              className="w-full bg-card border border-border rounded-lg px-3.5 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none text-foreground"
+              className="w-full bg-card border border-border rounded-lg px-3.5 py-2 text-xs focus:outline-none focus:border-primary transition-colors resize-none text-foreground disabled:opacity-50"
             />
           </Field>
 
@@ -235,8 +277,9 @@ export function SubmissionEditDialog({
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={isSaving}
                   onClick={() => setShowAddInput(true)}
-                  className="h-8 px-2.5 border border-border hover:bg-muted/80 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer"
+                  className="h-8 px-2.5 border border-border hover:bg-muted/80 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 >
                   <Plus className="h-3.5 w-3.5" /> Tambah Link
                 </Button>
@@ -247,6 +290,7 @@ export function SubmissionEditDialog({
               <div className="flex items-center gap-2 mb-2 animate-fadeIn">
                 <Input
                   type="text"
+                  disabled={isSaving}
                   placeholder="Contoh: drive.google.com/..."
                   value={newLinkUrl}
                   onChange={(e) => setNewLinkUrl(e.target.value)}
@@ -262,8 +306,8 @@ export function SubmissionEditDialog({
                   type="button"
                   size="sm"
                   onClick={handleAddLink}
-                  disabled={!newLinkUrl.trim()}
-                  className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg px-3 hover:bg-primary/90 cursor-pointer"
+                  disabled={isSaving || !newLinkUrl.trim()}
+                  className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg px-3 hover:bg-primary/90 cursor-pointer disabled:opacity-50"
                 >
                   Tambah
                 </Button>
@@ -271,11 +315,12 @@ export function SubmissionEditDialog({
                   type="button"
                   variant="ghost"
                   size="sm"
+                  disabled={isSaving}
                   onClick={() => {
                     setNewLinkUrl("");
                     setShowAddInput(false);
                   }}
-                  className="h-9 w-9 p-0 rounded-lg hover:bg-muted flex items-center justify-center cursor-pointer"
+                  className="h-9 w-9 p-0 rounded-lg hover:bg-muted flex items-center justify-center cursor-pointer disabled:opacity-50"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -293,13 +338,26 @@ export function SubmissionEditDialog({
                     <span className="font-mono text-muted-foreground truncate select-all flex-1" title={link}>
                       {link}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLink(idx)}
-                      className="p-1 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 rounded transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => handleOpenEditLink(idx)}
+                        className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-primary rounded transition-colors cursor-pointer disabled:opacity-50"
+                        title="Edit Link"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => handleRemoveLink(idx)}
+                        className="p-1 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 rounded transition-colors cursor-pointer disabled:opacity-50"
+                        title="Hapus Link"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -310,6 +368,7 @@ export function SubmissionEditDialog({
         <DialogFooter className="flex justify-end gap-2 pt-2">
           <Button
             variant="outline"
+            disabled={isSaving}
             onClick={() => onOpenChange(false)}
             className="text-xs font-semibold h-9 rounded-lg"
           >
@@ -317,13 +376,70 @@ export function SubmissionEditDialog({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!selectedNip || !deskripsi || linkBuktiList.length === 0}
-            className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+            disabled={isSaving || !selectedNip || !deskripsi || linkBuktiList.length === 0}
+            className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer disabled:opacity-50"
           >
-            <Save className="h-3.5 w-3.5" /> Simpan Perubahan
+            {isSaving ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                Menyimpan...
+              </>
+            ) : (
+              <>
+                <Save className="h-3.5 w-3.5" /> Simpan Perubahan
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Dialog Edit Link */}
+      <Dialog open={editLinkOpen} onOpenChange={setEditLinkOpen}>
+        <DialogContent className="sm:max-w-md bg-card border border-border p-6 rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
+              Edit Link Bukti Dokumen
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3">
+            <Field>
+              <FieldLabel>
+                <FieldTitle>URL / Tautan Dokumen</FieldTitle>
+              </FieldLabel>
+              <Input
+                type="text"
+                disabled={isSaving}
+                placeholder="Contoh: drive.google.com/file/d/..."
+                value={editingUrl}
+                onChange={(e) => setEditingUrl(e.target.value)}
+                className="w-full text-xs h-10 border border-border bg-card rounded-lg focus-visible:ring-1 focus-visible:ring-primary"
+              />
+            </Field>
+          </div>
+          <DialogFooter className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditingUrl("");
+                setEditLinkOpen(false);
+                setEditingIndex(null);
+              }}
+              className="text-xs font-semibold h-9 rounded-lg"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveEditLink}
+              disabled={!editingUrl.trim()}
+              className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+            >
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

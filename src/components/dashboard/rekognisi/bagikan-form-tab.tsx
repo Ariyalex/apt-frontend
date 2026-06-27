@@ -1,148 +1,104 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BagikanFormCard } from "./bagikan-form-card";
 import { BagikanFormDialog } from "./bagikan-form-dialog";
-import { EditExpiryDialog } from "./edit-expiry-dialog";
-import { SubmissionEditDialog } from "./submission-edit-dialog";
-import { initialSharingLinks, SharingLink, Submission } from "@/dummy-data/bagikan-form";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useGetLinksQuery, useCreateLinkMutation } from "@/store/services/linkApi";
+import { toast } from "sonner";
 
 export function BagikanFormTab(): React.JSX.Element {
-  const [links, setLinks] = useState<SharingLink[]>(initialSharingLinks);
-  const [userFacultySlug, setUserFacultySlug] = useState("sains-dan-teknologi");
-  const [isLoading, setIsLoading] = useState(true);
+  const [instituteId, setInstituteId] = useState<number | null>(null);
+  const [hasCheckedInstitute, setHasCheckedInstitute] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
+  // Retrieve user session from localStorage to check institute
   useEffect(() => {
-    const sessionTimer = setTimeout(() => {
-      const raw = localStorage.getItem("userSession");
-      if (raw) {
-        try {
-          const session = JSON.parse(raw);
-          if (session.role === "Administrator" || session.username === "admin") {
-            setUserFacultySlug("administrator");
-          } else {
-            setUserFacultySlug("sains-dan-teknologi");
-          }
-        } catch {
-          // empty
+    const raw = localStorage.getItem("userSession");
+    let instId: number | null = null;
+    if (raw) {
+      try {
+        const session = JSON.parse(raw);
+        if (session.institute_id) {
+          instId = Number(session.institute_id);
         }
+      } catch {
+        // ignore
       }
-    }, 0);
-
+    }
     const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 700);
-
-    return () => {
-      clearTimeout(sessionTimer);
-      clearTimeout(timer);
-    };
+      if (instId) {
+        setInstituteId(instId);
+      }
+      setHasCheckedInstitute(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Dialog control states
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  
-  const [expiryDialogOpen, setExpiryDialogOpen] = useState(false);
-  const [selectedExpiryLinkId, setSelectedExpiryLinkId] = useState<string | null>(null);
-  
-  const [subDialogOpen, setSubDialogOpen] = useState(false);
-  const [selectedSubLinkId, setSelectedSubLinkId] = useState<string | null>(null);
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  // Fetch links list for this institute
+  const {
+    data: linksResponse,
+    isLoading: isLinksLoading,
+    isError: isLinksError,
+    refetch: refetchLinks,
+  } = useGetLinksQuery(undefined, { skip: !instituteId });
 
-  // Expose current expiry value for selected link
-  const currentExpiryValue = 
-    links.find((l) => l.id === selectedExpiryLinkId)?.expiredAt || new Date().toISOString();
+  const links = linksResponse?.data || [];
 
-  // Aksi Link
-  const handleCreateLink = (name: string, expiredAt: string) => {
-    const newLink: SharingLink = {
-      id: `link-${Date.now()}`,
-      name,
-      status: "active",
-      expiredAt,
-      createdAt: new Date().toISOString(),
-      submissions: [],
-      facultySlug: userFacultySlug,
-    };
-    setLinks([newLink, ...links]);
+  // Create link mutation
+  const [createLink, { isLoading: isCreating }] = useCreateLinkMutation();
+
+  const handleCreateLink = async (
+    name: string,
+    slug: string,
+    description: string,
+    startedAt: string,
+    endedAt: string
+  ) => {
+    try {
+      await createLink({
+        name,
+        slug,
+        description,
+        is_active: true,
+        started_at: startedAt,
+        ended_at: endedAt,
+      }).unwrap();
+      toast.success("Link shared form berhasil dibuat!");
+      setAddDialogOpen(false);
+    } catch (err: unknown) {
+      const customErr = err as { data?: { message?: string } };
+      toast.error(customErr?.data?.message || "Gagal membuat link shared form");
+    }
   };
 
-  const handleToggleStatus = (linkId: string) => {
-    setLinks(
-      links.map((link) =>
-        link.id === linkId
-          ? { ...link, status: link.status === "active" ? "closed" : "active" }
-          : link
-      )
+  if (!hasCheckedInstitute) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
     );
-  };
+  }
 
-  const handleSaveExpiry = (newExpiry: string) => {
-    if (!selectedExpiryLinkId) return;
-    setLinks(
-      links.map((link) =>
-        link.id === selectedExpiryLinkId ? { ...link, expiredAt: newExpiry } : link
-      )
+  // Warning if user has no institute_id
+  if (!instituteId) {
+    return (
+      <div className="rounded-xl border border-error/25 bg-error/5 p-6 text-center space-y-4 max-w-xl mx-auto my-8 animate-fadeIn">
+        <div className="mx-auto h-12 w-12 rounded-full bg-error/10 flex items-center justify-center text-error">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <div className="space-y-1.5">
+          <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Akses Terbatas</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Akun Anda tidak terhubung dengan lembaga/institut terdaftar. Anda tidak diizinkan untuk membuat atau mengelola link shared form pengisian data rekognisi.
+          </p>
+        </div>
+      </div>
     );
-  };
-
-  // Aksi Submissions
-  const handleAcceptSubmission = (linkId: string, subId: string) => {
-    setLinks(
-      links.map((link) => {
-        if (link.id !== linkId) return link;
-        return {
-          ...link,
-          submissions: link.submissions.map((sub) =>
-            sub.id === subId ? { ...sub, status: "approved" as const } : sub
-          ),
-        };
-      })
-    );
-  };
-
-  const handleDeclineSubmission = (linkId: string, subId: string) => {
-    setLinks(
-      links.map((link) => {
-        if (link.id !== linkId) return link;
-        return {
-          ...link,
-          submissions: link.submissions.map((sub) =>
-            sub.id === subId ? { ...sub, status: "declined" as const } : sub
-          ),
-        };
-      })
-    );
-  };
-
-  const handleOpenEditSubmission = (linkId: string, sub: Submission) => {
-    setSelectedSubLinkId(linkId);
-    setSelectedSubmission(sub);
-    setSubDialogOpen(true);
-  };
-
-  const handleSaveSubmission = (updatedSub: Submission) => {
-    if (!selectedSubLinkId) return;
-    setLinks(
-      links.map((link) => {
-        if (link.id !== selectedSubLinkId) return link;
-        return {
-          ...link,
-          submissions: link.submissions.map((sub) =>
-            sub.id === updatedSub.id ? updatedSub : sub
-          ),
-        };
-      })
-    );
-  };
-
-  const handleOpenEditExpiry = (linkId: string) => {
-    setSelectedExpiryLinkId(linkId);
-    setExpiryDialogOpen(true);
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -162,7 +118,7 @@ export function BagikanFormTab(): React.JSX.Element {
 
       {/* Cards Stack */}
       <div className="space-y-6">
-        {isLoading ? (
+        {isLinksLoading ? (
           [1, 2].map((i) => (
             <div key={i} className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-5 animate-pulse">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-border/40">
@@ -181,6 +137,13 @@ export function BagikanFormTab(): React.JSX.Element {
               </div>
             </div>
           ))
+        ) : isLinksError ? (
+          <div className="rounded-xl border border-error/25 bg-error/5 p-4 text-xs text-error flex justify-between items-center">
+            <span>Gagal memuat daftar link dari server.</span>
+            <Button variant="link" onClick={() => refetchLinks()} className="text-xs font-bold text-error underline p-0 h-auto">
+              Coba Lagi
+            </Button>
+          </div>
         ) : links.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center text-xs text-muted-foreground">
             Belum ada link yang dibuat. Klik tombol &quot;Tambah Link&quot; di atas untuk membuat link pengisian baru.
@@ -190,11 +153,6 @@ export function BagikanFormTab(): React.JSX.Element {
             <BagikanFormCard
               key={link.id}
               link={link}
-              onToggleStatus={handleToggleStatus}
-              onEditExpiry={handleOpenEditExpiry}
-              onAcceptSubmission={handleAcceptSubmission}
-              onDeclineSubmission={handleDeclineSubmission}
-              onEditSubmission={handleOpenEditSubmission}
             />
           ))
         )}
@@ -205,23 +163,7 @@ export function BagikanFormTab(): React.JSX.Element {
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
         onSave={handleCreateLink}
-        facultySlug={userFacultySlug}
-      />
-
-      {/* Dialog: Edit Masa Berlaku */}
-      <EditExpiryDialog
-        open={expiryDialogOpen}
-        onOpenChange={setExpiryDialogOpen}
-        currentExpiry={currentExpiryValue}
-        onSave={handleSaveExpiry}
-      />
-
-      {/* Dialog: Edit Submission */}
-      <SubmissionEditDialog
-        open={subDialogOpen}
-        onOpenChange={setSubDialogOpen}
-        submission={selectedSubmission}
-        onSave={handleSaveSubmission}
+        isSaving={isCreating}
       />
     </div>
   );

@@ -1,18 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Building, Search, Loader2 } from "lucide-react";
-import { LembagaTable } from "@/components/dashboard/admin/lembaga-table";
-import { LembagaDialog } from "@/components/dashboard/admin/lembaga-dialog";
+import { GraduationCap, Search, Loader2 } from "lucide-react";
+import { ProdiTable } from "@/components/dashboard/admin/prodi-table";
+import { ProdiDialog } from "@/components/dashboard/admin/prodi-dialog";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useGetInstitutesQuery,
-  useCreateInstituteMutation,
-  useUpdateInstituteMutation,
-  useDeleteInstituteMutation,
-} from "@/store/services/instituteApi";
-import type { InstituteModel, SaveInstituteRequest } from "@/types/institute";
+  useGetStudyProgramsQuery,
+  useCreateStudyProgramMutation,
+  useUpdateStudyProgramMutation,
+  useDeleteStudyProgramMutation,
+} from "@/store/services/studyProgramApi";
+import type {
+  StudyProgramModel,
+  SaveStudyProgramRequest,
+} from "@/types/study-program";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,16 +50,16 @@ const extractErrorMessage = (err: unknown): string => {
   return "Terjadi kesalahan pada server. Silakan coba kembali.";
 };
 
-export default function KelolaLembagaPage(): React.JSX.Element {
+export default function KelolaProdiPage(): React.JSX.Element {
   const [searchKeyword, setSearchKeyword] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
-  const [selectedLembaga, setSelectedLembaga] = useState<InstituteModel | null>(
+  const [selectedProdi, setSelectedProdi] = useState<StudyProgramModel | null>(
     null,
   );
-  const [deleteLembagaId, setDeleteLembagaId] = useState<number | null>(null);
+  const [deleteProdiId, setDeleteProdiId] = useState<number | null>(null);
 
-  // Debounce search query to reduce API calls
+  // Debounce search input
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchKeyword);
@@ -64,75 +67,75 @@ export default function KelolaLembagaPage(): React.JSX.Element {
     return () => clearTimeout(handler);
   }, [searchKeyword]);
 
-  // RTK Query hooks
-  const { data: responseData, isLoading: isInstitutesLoading } =
-    useGetInstitutesQuery({ name: debouncedSearch });
-  const [createInstitute, { isLoading: isCreateLoading }] =
-    useCreateInstituteMutation();
-  const [updateInstitute, { isLoading: isUpdateLoading }] =
-    useUpdateInstituteMutation();
-  const [deleteInstitute, { isLoading: isDeleteLoading }] =
-    useDeleteInstituteMutation();
+  // RTK Query calls
+  const { data: prodiResponse, isLoading: isProdiLoading } =
+    useGetStudyProgramsQuery({ name: debouncedSearch });
+  const [createProdi, { isLoading: isCreateLoading }] =
+    useCreateStudyProgramMutation();
+  const [updateProdi, { isLoading: isUpdateLoading }] =
+    useUpdateStudyProgramMutation();
+  const [deleteProdi, { isLoading: isDeleteLoading }] =
+    useDeleteStudyProgramMutation();
 
-  const lembagaList = responseData?.data || [];
+  const prodiList = prodiResponse?.data || [];
 
-  const handleAddLembaga = (): void => {
-    setSelectedLembaga(null);
+  const handleAddProdi = (): void => {
+    setSelectedProdi(null);
     setDialogOpen(true);
   };
 
-  const handleEditLembaga = (lembaga: InstituteModel): void => {
-    setSelectedLembaga(lembaga);
+  const handleEditProdi = (prodi: StudyProgramModel): void => {
+    setSelectedProdi(prodi);
     setDialogOpen(true);
   };
 
-  const handleDeleteLembaga = (lembagaId: number): void => {
-    setDeleteLembagaId(lembagaId);
+  const handleDeleteProdi = (prodiId: number): void => {
+    setDeleteProdiId(prodiId);
   };
 
-  const confirmDeleteLembaga = async (): Promise<void> => {
-    if (deleteLembagaId === null) return;
-    const targetLemb = lembagaList.find((l) => l.id === deleteLembagaId);
+  const confirmDeleteProdi = async (): Promise<void> => {
+    if (deleteProdiId === null) return;
+    const targetProdi = prodiList.find((p) => p.id === deleteProdiId);
 
     try {
-      const response = await deleteInstitute(deleteLembagaId).unwrap();
+      const response = await deleteProdi(deleteProdiId).unwrap();
       logActivity(
         "admin",
-        `menghapus lembaga: ${targetLemb?.name || deleteLembagaId}`,
+        `menghapus program studi: ${targetProdi?.name || deleteProdiId}`,
       );
       toast.success(
         response.message ||
-          `Lembaga "${targetLemb?.name || deleteLembagaId}" berhasil dihapus.`,
+          `Program studi "${targetProdi?.name || deleteProdiId}" berhasil dihapus.`,
       );
-      setDeleteLembagaId(null);
+      setDeleteProdiId(null);
     } catch (err: unknown) {
       toast.error(extractErrorMessage(err));
     }
   };
 
-  const handleSaveLembaga = async (
-    savedLembaga: SaveInstituteRequest,
+  const handleSaveProdi = async (
+    savedProdi: SaveStudyProgramRequest,
   ): Promise<void> => {
     try {
-      if (selectedLembaga) {
+      if (selectedProdi) {
         // Edit Mode
-        const response = await updateInstitute({
-          id: selectedLembaga.id,
-          body: savedLembaga,
+        const response = await updateProdi({
+          id: selectedProdi.id,
+          body: savedProdi,
         }).unwrap();
-        logActivity("admin", `memperbarui lembaga: ${savedLembaga.name}`);
+        logActivity("admin", `memperbarui program studi: ${savedProdi.name}`);
         toast.success(
           response.message ||
-            `Lembaga "${savedLembaga.name}" berhasil diperbarui.`,
+            `Program studi "${savedProdi.name}" berhasil diperbarui.`,
         );
         setDialogOpen(false);
       } else {
         // Create Mode
-        const response = await createInstitute(savedLembaga).unwrap();
-        logActivity("admin", `menambah lembaga baru: ${savedLembaga.name}`);
+        const response = await createProdi(savedProdi).unwrap();
+        logActivity("admin", `menambah program studi baru: ${savedProdi.name}`);
         toast.success(
           response.message ||
-            `Lembaga "${savedLembaga.name}" berhasil ditambahkan.`,
+            `Program studi "${savedProdi.name}" berhasil ditambahkan.`,
         );
         setDialogOpen(false);
       }
@@ -169,11 +172,11 @@ export default function KelolaLembagaPage(): React.JSX.Element {
     localStorage.setItem("adminAktivitas", JSON.stringify(updatedLogs));
   };
 
-  const activeDeleteLembagaName = deleteLembagaId
-    ? lembagaList.find((l) => l.id === deleteLembagaId)?.name
+  const activeDeleteProdiName = deleteProdiId
+    ? prodiList.find((p) => p.id === deleteProdiId)?.name
     : "";
 
-  if (isInstitutesLoading) {
+  if (isProdiLoading) {
     return (
       <div className="space-y-6 animate-fadeIn">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -188,14 +191,15 @@ export default function KelolaLembagaPage(): React.JSX.Element {
         </div>
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm p-5 space-y-4">
           <div className="flex justify-between items-center pb-4 border-b border-border/60">
-            <Skeleton className="h-5 w-20 rounded" />
+            <Skeleton className="h-5 w-25 rounded" />
             <Skeleton className="h-5 w-40 rounded" />
           </div>
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex justify-between items-center py-2.5">
               <Skeleton className="h-4 w-12 rounded" />
               <Skeleton className="h-5 w-48 rounded" />
-              <Skeleton className="h-5 w-[24rem] rounded" />
+              <Skeleton className="h-5 w-[20rem] rounded" />
+              <Skeleton className="h-5 w-24 rounded" />
               <Skeleton className="h-5 w-16 rounded" />
             </div>
           ))}
@@ -208,69 +212,65 @@ export default function KelolaLembagaPage(): React.JSX.Element {
     <div className="space-y-6 animate-fadeIn">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
-          Kelola Lembaga
+          Kelola Prodi
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Atur unit kerja, fakultas, program studi, dan lembaga penjaminan mutu
-          di lingkungan universitas.
+          Atur program studi, rumpun akademik, dan penjaminan mutu fakultas di
+          lingkungan universitas.
         </p>
       </div>
 
-      {/* Search Input */}
+      {/* Search Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
           <input
             type="text"
-            placeholder="Cari nama lembaga..."
+            placeholder="Cari nama prodi..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             className="w-full h-10 rounded-lg border border-border bg-card pl-9 pr-4 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
         <button
-          onClick={handleAddLembaga}
+          onClick={handleAddProdi}
           className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-all shadow-sm cursor-pointer self-start sm:self-auto"
         >
-          <Building className="h-4 w-4" />
-          <span>Tambah Lembaga</span>
+          <GraduationCap className="h-4 w-4" />
+          <span>Tambah Prodi</span>
         </button>
       </div>
 
-      <LembagaTable
-        lembagaList={lembagaList}
-        onEdit={handleEditLembaga}
-        onDelete={handleDeleteLembaga}
+      <ProdiTable
+        prodiList={prodiList}
+        onEdit={handleEditProdi}
+        onDelete={handleDeleteProdi}
       />
 
-      <LembagaDialog
+      <ProdiDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        lembaga={selectedLembaga}
-        onSave={handleSaveLembaga}
+        prodi={selectedProdi}
+        onSave={handleSaveProdi}
         isLoading={isCreateLoading || isUpdateLoading}
       />
 
-      {/* Delete Lembaga Confirmation Dialog */}
+      {/* Delete Prodi Confirmation Dialog */}
       <AlertDialog
-        open={deleteLembagaId !== null}
+        open={deleteProdiId !== null}
         onOpenChange={(open) => {
           if (isDeleteLoading) return;
-          if (!open) setDeleteLembagaId(null);
+          if (!open) setDeleteProdiId(null);
         }}
       >
         <AlertDialogContent className="bg-card border border-border p-6 rounded-xl sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
-              Konfirmasi Hapus Lembaga
+              Konfirmasi Hapus Prodi
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground">
-              Apakah Anda yakin ingin menghapus lembaga &quot;
-              {activeDeleteLembagaName}&quot;?
-              <span className="block mt-2 font-semibold text-rose-600 dark:text-rose-400">
-                Peringatan: Semua akun pengguna yang terdaftar di lembaga ini
-                juga akan terhapus secara otomatis!
-              </span>
+              Apakah Anda yakin ingin menghapus program studi &quot;
+              {activeDeleteProdiName}&quot;? Tindakan ini bersifat permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2 pt-2">
@@ -283,7 +283,7 @@ export default function KelolaLembagaPage(): React.JSX.Element {
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
-                confirmDeleteLembaga();
+                confirmDeleteProdi();
               }}
               disabled={isDeleteLoading}
               className="bg-rose-600 text-white hover:bg-rose-700 font-semibold text-xs h-10 px-4 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
