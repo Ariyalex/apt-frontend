@@ -21,24 +21,28 @@ interface RekognisiPieChartProps {
   data: DosenData[];
 }
 
-export function RekognisiPieChart({ data }: RekognisiPieChartProps): React.JSX.Element {
+export function RekognisiPieChart({
+  data,
+}: RekognisiPieChartProps): React.JSX.Element {
   // Get all unique jenisRekognisi names from the active data
   const jenisList = Array.from(
-    new Set(data.map((item) => item.jenisRekognisi))
+    new Set(data.map((item) => item.jenisRekognisi)),
   );
 
   // Calculate count and map to colors for each jenis
   // Calculate count and map to colors for each jenis
-  const chartData = jenisList.map((jenis) => {
-    const count = data.filter((item) => item.jenisRekognisi === jenis).length;
-    const key = jenis.toLowerCase().replace(/\s+/g, "_");
-    return {
-      jenisKey: key,
-      name: jenis,
-      count: count,
-      fill: `var(--color-${key})`,
-    };
-  }).sort((a, b) => b.count - a.count);
+  const chartData = jenisList
+    .map((jenis) => {
+      const count = data.filter((item) => item.jenisRekognisi === jenis).length;
+      const key = jenis.toLowerCase().replace(/\s+/g, "_");
+      return {
+        jenisKey: key,
+        name: jenis,
+        count: count,
+        fill: `var(--color-${key})`,
+      };
+    })
+    .sort((a, b) => b.count - a.count);
 
   // Dynamic ChartConfig
   const chartConfig: ChartConfig = {
@@ -62,7 +66,7 @@ export function RekognisiPieChart({ data }: RekognisiPieChartProps): React.JSX.E
       <CardHeader className="flex flex-row items-center justify-between pb-4 mb-2 border-b border-border/40">
         <div className="space-y-1">
           <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
-            Jenis Rekognisi Dosen (Pie Chart)
+            Jenis Rekognisi Dosen
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Grafik persentase pembagian jenis rekognisi aktif
@@ -101,13 +105,19 @@ export function RekognisiPieChart({ data }: RekognisiPieChartProps): React.JSX.E
                 {chartData.map((item) => {
                   const config = chartConfig[item.jenisKey];
                   return (
-                    <div key={item.jenisKey} className="flex items-center justify-between text-xs gap-3">
+                    <div
+                      key={item.jenisKey}
+                      className="flex items-center justify-between text-xs gap-3"
+                    >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span 
-                          className="h-3 w-3 shrink-0 rounded-full animate-fadeIn" 
+                        <span
+                          className="h-3 w-3 shrink-0 rounded-full animate-fadeIn"
                           style={{ backgroundColor: config?.color }}
                         />
-                        <span className="font-semibold text-foreground truncate" title={item.name}>
+                        <span
+                          className="font-semibold text-foreground truncate"
+                          title={item.name}
+                        >
                           {item.name}
                         </span>
                       </div>
@@ -129,4 +139,3 @@ export function RekognisiPieChart({ data }: RekognisiPieChartProps): React.JSX.E
     </Card>
   );
 }
-

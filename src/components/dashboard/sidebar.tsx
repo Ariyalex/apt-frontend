@@ -151,6 +151,7 @@ const menuItems: SidebarItemType[] = [
     icon: GraduationCap,
     href: "/dashboard/rekognisi-dosen",
     children: [
+      { title: "Kelola Rekognisi", href: "/dashboard/kelola-rekognisi" },
       { title: "Isi Data", href: "/dashboard/rekognisi-dosen/isi-data" },
     ],
   },
@@ -199,6 +200,7 @@ const adminMenuItems: SidebarItemType[] = [
     title: "Kelola Rekognisi",
     icon: ShieldCheck,
     children: [
+      { title: "Kelola Rekognisi", href: "/dashboard/kelola-rekognisi" },
       { title: "Kategori Rekognisi", href: "/dashboard/kelola-rekognisi/kategori" },
     ],
   },
@@ -215,7 +217,7 @@ function SidebarItem({
   // Default open for the first level parent items if they match or if it's Mutu BANPT
   const [isOpen, setIsOpen] = useState(
     depth === 0 &&
-      (item.title === "Mutu BANPT" || item.title === "Rekognisi Dosen"),
+      (item.title === "Mutu BANPT" || item.title === "Rekognisi Dosen" || item.title === "Kelola Rekognisi"),
   );
 
   const hasChildren = item.children && item.children.length > 0;

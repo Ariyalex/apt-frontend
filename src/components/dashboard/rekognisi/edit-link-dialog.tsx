@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { Calendar as CalendarIcon, Link as LinkIcon } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -19,60 +19,74 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
+import { LinkModel } from "@/types/link";
 
-interface BagikanFormDialogProps {
+interface EditLinkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (name: string, slug: string, description: string, startedAt: string, endedAt: string) => void;
+  link: LinkModel | null;
+  onSave: (id: string, name: string, slug: string, description: string, isActive: boolean, startedAt: string, endedAt: string) => void;
   isSaving?: boolean;
 }
 
-export function BagikanFormDialog({
+export function EditLinkDialog({
   open,
   onOpenChange,
+  link,
   onSave,
   isSaving = false,
-}: BagikanFormDialogProps): React.JSX.Element {
+}: EditLinkDialogProps): React.JSX.Element {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [isActive, setIsActive] = useState(true);
 
-  // Started At Date/Time Picker States
+  // Started At Picker States
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState("08:00");
   const [startPopoverOpen, setStartPopoverOpen] = useState(false);
 
-  // Ended At Date/Time Picker States
+  // Ended At Picker States
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [endTime, setEndTime] = useState("23:59");
   const [endPopoverOpen, setEndPopoverOpen] = useState(false);
 
-  // Reset states on open
   useEffect(() => {
-    if (open) {
+    if (open && link) {
       const timer = setTimeout(() => {
-        setName("");
-        setSlug("");
-        setDescription("");
-        
-        const now = new Date();
-        setStartDate(now);
-        setStartTime("08:00");
-        
-        const future = new Date();
-        future.setDate(future.getDate() + 7);
-        setEndDate(future);
-        setEndTime("23:59");
+        setName(link.name);
+        setSlug(link.slug);
+        setDescription(link.description || "");
+        setIsActive(link.is_active);
+
+        // Parse Started At
+        const start = new Date(link.started_at);
+        setStartDate(start);
+        const startH = String(start.getHours()).padStart(2, "0");
+        const startM = String(start.getMinutes()).padStart(2, "0");
+        setStartTime(`${startH}:${startM}`);
+
+        // Parse Ended At
+        const end = new Date(link.ended_at);
+        setEndDate(end);
+        const endH = String(end.getHours()).padStart(2, "0");
+        const endM = String(end.getMinutes()).padStart(2, "0");
+        setEndTime(`${endH}:${endM}`);
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [open]);
-
-  const baseUrl = `http://localhost:3000/`;
+  }, [open, link]);
 
   const handleSave = () => {
-    if (!name.trim() || !slug.trim() || !startDate || !endDate) return;
+    if (!name.trim() || !slug.trim() || !startDate || !endDate || !link) return;
 
     // Combine Start Date & Time
     const combinedStart = new Date(startDate);
@@ -91,9 +105,11 @@ export function BagikanFormDialog({
     combinedEnd.setMilliseconds(0);
 
     onSave(
+      link.id,
       name.trim(),
       slug.trim(),
       description.trim(),
+      isActive,
       combinedStart.toISOString(),
       combinedEnd.toISOString()
     );
@@ -104,7 +120,7 @@ export function BagikanFormDialog({
       <DialogContent className="sm:max-w-lg bg-card border border-border p-6 rounded-xl overflow-y-auto max-h-[90vh] scrollbar-thin">
         <DialogHeader>
           <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
-            Tambah Link Baru
+            Edit Link Shared Form
           </DialogTitle>
         </DialogHeader>
 
@@ -121,7 +137,7 @@ export function BagikanFormDialog({
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                // Auto-slugify
+                // Auto slugify if changed
                 setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
               }}
               className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
@@ -133,14 +149,17 @@ export function BagikanFormDialog({
             <FieldLabel>
               <FieldTitle>Link Slug (Custom Path)</FieldTitle>
             </FieldLabel>
-            <Input
-              type="text"
-              disabled={isSaving}
-              placeholder="beasiswa-unggulan-2026"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
-              className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono"
-            />
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-mono text-muted-foreground">/</span>
+              <Input
+                type="text"
+                disabled={isSaving}
+                placeholder="beasiswa-unggulan-2026"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono flex-1"
+              />
+            </div>
           </Field>
 
           {/* Field: Description */}
@@ -158,23 +177,27 @@ export function BagikanFormDialog({
             />
           </Field>
 
-          {/* Preview Link */}
-          <div className="space-y-1 p-3.5 bg-muted/20 border border-border/60 rounded-lg">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-              Preview Link
-            </span>
-            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-1">
-              <LinkIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="text-xs font-mono text-muted-foreground select-all">
-                {baseUrl}
-              </span>
-              <span className="text-xs font-mono font-bold text-primary underline select-all">
-                {slug || "[nama-link-kustom]"}
-              </span>
-            </div>
-          </div>
+          {/* Field: Status Active */}
+          <Field>
+            <FieldLabel>
+              <FieldTitle>Status Link</FieldTitle>
+            </FieldLabel>
+            <Select
+              disabled={isSaving}
+              value={isActive ? "true" : "false"}
+              onValueChange={(val) => setIsActive(val === "true")}
+            >
+              <SelectTrigger className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors justify-between cursor-pointer">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true" className="text-xs font-semibold cursor-pointer">Aktif</SelectItem>
+                <SelectItem value="false" className="text-xs font-semibold cursor-pointer">Nonaktif / Ditutup</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
 
-          {/* Date & Time Mulai */}
+          {/* Field: Started At Picker */}
           <div className="flex flex-row gap-4">
             <Field className="flex-1">
               <FieldLabel>
@@ -219,7 +242,7 @@ export function BagikanFormDialog({
             </Field>
           </div>
 
-          {/* Date & Time Berakhir */}
+          {/* Field: Ended At Picker */}
           <div className="flex flex-row gap-4">
             <Field className="flex-1">
               <FieldLabel>
@@ -279,7 +302,7 @@ export function BagikanFormDialog({
             disabled={isSaving || !name.trim() || !slug.trim() || !startDate || !endDate}
             className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer disabled:opacity-50"
           >
-            {isSaving ? "Membuat..." : "Simpan & Buat"}
+            {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
           </Button>
         </DialogFooter>
       </DialogContent>
