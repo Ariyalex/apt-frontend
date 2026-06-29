@@ -9,6 +9,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -620,46 +628,46 @@ export default function DosenManagementPage(): React.JSX.Element {
         <TabsContent value="data-dosen" className="focus-visible:outline-none">
           <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase border-b border-border">
-                    <th className="px-4 py-3 font-semibold">NIP</th>
-                    <th className="px-4 py-3 font-semibold">Nama Lengkap</th>
-                    <th className="px-4 py-3 font-semibold">Fakultas</th>
-                    <th className="px-4 py-3 font-semibold">Prodi</th>
-                    <th className="px-4 py-3 font-semibold text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase border-b border-border">
+                    <TableHead className="px-4 py-3 font-semibold">NIP</TableHead>
+                    <TableHead className="px-4 py-3 font-semibold">Nama Lengkap</TableHead>
+                    <TableHead className="px-4 py-3 font-semibold">Fakultas</TableHead>
+                    <TableHead className="px-4 py-3 font-semibold">Prodi</TableHead>
+                    <TableHead className="px-4 py-3 font-semibold text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {isPageLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i} className="border-b border-border/50 text-xs">
-                        <td className="px-4 py-3">
+                      <TableRow key={i} className="border-b border-border/50 text-xs">
+                        <TableCell className="px-4 py-3">
                           <Skeleton className="h-4 w-28 rounded font-mono" />
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
                           <Skeleton className="h-4 w-40 rounded" />
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
                           <Skeleton className="h-4 w-36 rounded" />
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
                           <Skeleton className="h-4 w-32 rounded" />
-                        </td>
-                        <td className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
                           <Skeleton className="h-8 w-8 rounded" />
                           <Skeleton className="h-8 w-8 rounded" />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))
                   ) : filteredDosen.length > 0 ? (
                     filteredDosen.map((d) => (
-                      <tr key={d.nip} className="border-b border-border/50 text-xs hover:bg-muted/10 transition-colors">
-                        <td className="px-4 py-3 font-mono font-semibold text-muted-foreground">{d.nip}</td>
-                        <td className="px-4 py-3 font-bold text-foreground">{d.nama}</td>
-                        <td className="px-4 py-3 text-foreground">{d.fakultas}</td>
-                        <td className="px-4 py-3 text-muted-foreground font-semibold">{d.prodi}</td>
-                        <td className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
+                      <TableRow key={d.nip} className="border-b border-border/50 text-xs hover:bg-muted/10 transition-colors">
+                        <TableCell className="px-4 py-3 font-mono font-semibold text-muted-foreground">{d.nip}</TableCell>
+                        <TableCell className="px-4 py-3 font-bold text-foreground">{d.nama}</TableCell>
+                        <TableCell className="px-4 py-3 text-foreground">{d.fakultas}</TableCell>
+                        <TableCell className="px-4 py-3 text-muted-foreground font-semibold">{d.prodi}</TableCell>
+                        <TableCell className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
                           <Button
                             onClick={() => handleOpenEditDosen(d)}
                             disabled={isMutationLoading}
@@ -677,18 +685,18 @@ export default function DosenManagementPage(): React.JSX.Element {
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))
                   ) : (
-                    <tr>
-                      <td colSpan={5} className="py-8 text-center text-xs text-muted-foreground font-semibold">
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-xs text-muted-foreground font-semibold">
                         Tidak ada data dosen yang terdaftar.
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </TabsContent>
@@ -697,56 +705,56 @@ export default function DosenManagementPage(): React.JSX.Element {
         <TabsContent value="pengajuan" className="focus-visible:outline-none">
           <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase border-b border-border">
-                    <th className="px-4 py-3 font-semibold">NIP</th>
-                    <th className="px-4 py-3 font-semibold">Nama Lengkap</th>
-                    <th className="px-4 py-3 font-semibold">Fakultas</th>
-                    <th className="px-4 py-3 font-semibold">Prodi</th>
-                    <th className="px-4 py-3 font-semibold">Tanggal Diajukan</th>
-                    <th className="px-4 py-3 font-semibold text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase border-b border-border">
+                    <TableHead className="px-4 py-3 font-semibold">NIP</TableHead>
+                    <TableHead className="px-4 py-3 font-semibold">Nama Lengkap</TableHead>
+                    <TableHead className="px-4 py-3 font-semibold">Fakultas</TableHead>
+                    <TableHead className="px-4 py-3 font-semibold">Prodi</TableHead>
+                    <TableHead className="px-4 py-3 font-semibold">Tanggal Diajukan</TableHead>
+                    <TableHead className="px-4 py-3 font-semibold text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {isPageLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                      <tr key={i} className="border-b border-border/50 text-xs">
-                        <td className="px-4 py-3">
+                      <TableRow key={i} className="border-b border-border/50 text-xs">
+                        <TableCell className="px-4 py-3">
                           <Skeleton className="h-4 w-28 rounded font-mono" />
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
                           <Skeleton className="h-4 w-40 rounded" />
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
                           <Skeleton className="h-4 w-36 rounded" />
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
                           <Skeleton className="h-4 w-32 rounded" />
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
                           <Skeleton className="h-4 w-24 rounded" />
-                        </td>
-                        <td className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
                           <Skeleton className="h-7 w-16 rounded" />
                           <Skeleton className="h-7 w-16 rounded" />
                           <Skeleton className="h-7 w-7 rounded" />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))
                   ) : filteredPengajuan.length > 0 ? (
                     filteredPengajuan.map((p) => (
-                      <tr key={p.id} className="border-b border-border/50 text-xs hover:bg-muted/10 transition-colors">
-                        <td className="px-4 py-3 font-mono font-semibold text-muted-foreground">{p.nip}</td>
-                        <td className="px-4 py-3 font-bold text-foreground">{p.nama}</td>
-                        <td className="px-4 py-3 text-foreground">{p.fakultas}</td>
-                        <td className="px-4 py-3 text-muted-foreground font-semibold">{p.prodi}</td>
-                        <td className="px-4 py-3 text-muted-foreground">
+                      <TableRow key={p.id} className="border-b border-border/50 text-xs hover:bg-muted/10 transition-colors">
+                        <TableCell className="px-4 py-3 font-mono font-semibold text-muted-foreground">{p.nip}</TableCell>
+                        <TableCell className="px-4 py-3 font-bold text-foreground">{p.nama}</TableCell>
+                        <TableCell className="px-4 py-3 text-foreground">{p.fakultas}</TableCell>
+                        <TableCell className="px-4 py-3 text-muted-foreground font-semibold">{p.prodi}</TableCell>
+                        <TableCell className="px-4 py-3 text-muted-foreground">
                           {new Date(p.submittedAt).toLocaleDateString("id-ID", {
                             dateStyle: "medium",
                           })}
-                        </td>
-                        <td className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleAcceptPengajuan(p)}
                             disabled={isMutationLoading}
@@ -770,18 +778,18 @@ export default function DosenManagementPage(): React.JSX.Element {
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))
                   ) : (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-xs text-muted-foreground font-semibold">
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-xs text-muted-foreground font-semibold">
                         Tidak ada pengajuan data dosen baru saat ini.
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </TabsContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { Save, CheckCircle, Plus, Trash2, Loader2, Edit2 } from "lucide-react";
 import { toast } from "sonner";

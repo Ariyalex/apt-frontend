@@ -6,6 +6,14 @@ import { ExternalLink, Copy, Check, Edit2, CheckCircle2, XCircle, ArrowUpDown, A
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Submission } from "@/dummy-data/bagikan-form";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface BagikanFormSubmissionsTableProps {
   submissions: Submission[];
@@ -26,7 +34,7 @@ export function BagikanFormSubmissionsTable({
 }: BagikanFormSubmissionsTableProps) {
   const router = useRouter();
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<keyof Submission | null>(null);
+  const [sortField, setSortField] = useState<"nama" | "tahun" | "status" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const [loadingRowId, setLoadingRowId] = useState<string | null>(null);
@@ -34,6 +42,7 @@ export function BagikanFormSubmissionsTable({
 
   React.useEffect(() => {
     if (!isAuditing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoadingRowId(null);
       setLoadingAction(null);
     }
@@ -60,22 +69,16 @@ export function BagikanFormSubmissionsTable({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleSort = (field: keyof Submission) => {
-    const isAsc = sortField === field && sortDirection === "asc";
-    setSortField(field);
-    setSortDirection(isAsc ? "desc" : "asc");
+  const handleSort = (field: "nama" | "tahun" | "status") => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
   };
 
-  const sortedSubmissions = [...submissions].sort((a, b) => {
-    if (!sortField) return 0;
-    const valA = (a[sortField] || "").toString().toLowerCase();
-    const valB = (b[sortField] || "").toString().toLowerCase();
-    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-    return 0;
-  });
-
-  const renderSortIcon = (field: keyof Submission) => {
+  const renderSortIcon = (field: "nama" | "tahun" | "status") => {
     if (sortField !== field) {
       return <ArrowUpDown className="h-3 w-3 text-muted-foreground/70 group-hover:text-foreground transition-colors" />;
     }
@@ -89,36 +92,36 @@ export function BagikanFormSubmissionsTable({
   if (isLoading) {
     return (
       <div className="overflow-x-auto w-full border-t border-border/40">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-border/40 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              <th className="px-4 py-3">NIP</th>
-              <th className="px-4 py-3">Nama Dosen</th>
-              <th className="px-4 py-3">Prodi</th>
-              <th className="px-4 py-3">Jenis Rekognisi</th>
-              <th className="px-4 py-3">Tahun</th>
-              <th className="px-4 py-3 max-w-[180px]">Deskripsi</th>
-              <th className="px-4 py-3">Bukti</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/20">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-border/40 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <TableHead className="px-4 py-3">NIP</TableHead>
+              <TableHead className="px-4 py-3">Nama Dosen</TableHead>
+              <TableHead className="px-4 py-3">Prodi</TableHead>
+              <TableHead className="px-4 py-3">Jenis Rekognisi</TableHead>
+              <TableHead className="px-4 py-3">Tahun</TableHead>
+              <TableHead className="px-4 py-3 max-w-[180px]">Deskripsi</TableHead>
+              <TableHead className="px-4 py-3">Bukti</TableHead>
+              <TableHead className="px-4 py-3">Status</TableHead>
+              <TableHead className="px-4 py-3 text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {[1, 2].map((i) => (
-              <tr key={i} className="animate-pulse">
-                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-24 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-32 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-24 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-28 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-10 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-3.5 w-[90%] rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-7 w-20 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-5 w-16 rounded-full" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-7 w-20 rounded ml-auto" /></td>
-              </tr>
+              <TableRow key={i} className="animate-pulse">
+                <TableCell className="px-4 py-3.5"><Skeleton className="h-3.5 w-24 rounded" /></TableCell>
+                <TableCell className="px-4 py-3.5"><Skeleton className="h-3.5 w-32 rounded" /></TableCell>
+                <TableCell className="px-4 py-3.5"><Skeleton className="h-3.5 w-24 rounded" /></TableCell>
+                <TableCell className="px-4 py-3.5"><Skeleton className="h-3.5 w-28 rounded" /></TableCell>
+                <TableCell className="px-4 py-3.5"><Skeleton className="h-3.5 w-10 rounded" /></TableCell>
+                <TableCell className="px-4 py-3.5"><Skeleton className="h-3.5 w-[90%] rounded" /></TableCell>
+                <TableCell className="px-4 py-3.5"><Skeleton className="h-7 w-20 rounded" /></TableCell>
+                <TableCell className="px-4 py-3.5"><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                <TableCell className="px-4 py-3.5"><Skeleton className="h-7 w-20 rounded ml-auto" /></TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     );
   }
@@ -131,13 +134,37 @@ export function BagikanFormSubmissionsTable({
     );
   }
 
+  const sortedSubmissions = [...submissions].sort((a, b) => {
+    if (!sortField) return 0;
+    
+    let aVal = "";
+    let bVal = "";
+
+    if (sortField === "nama") {
+      aVal = a.nama;
+      bVal = b.nama;
+    } else if (sortField === "tahun") {
+      aVal = a.tahun.toString();
+      bVal = b.tahun.toString();
+    } else if (sortField === "status") {
+      aVal = a.status;
+      bVal = b.status;
+    }
+
+    if (sortDirection === "asc") {
+      return aVal.localeCompare(bVal);
+    } else {
+      return bVal.localeCompare(aVal);
+    }
+  });
+
   return (
     <div className="overflow-x-auto w-full border-t border-border/40">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="border-b border-border/40 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <th className="px-4 py-3">NIP</th>
-            <th 
+      <Table>
+        <TableHeader>
+          <TableRow className="border-b border-border/40 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            <TableHead className="px-4 py-3">NIP</TableHead>
+            <TableHead 
               onClick={() => handleSort("nama")} 
               className="px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors group"
             >
@@ -145,10 +172,10 @@ export function BagikanFormSubmissionsTable({
                 Nama Dosen
                 {renderSortIcon("nama")}
               </div>
-            </th>
-            <th className="px-4 py-3">Prodi</th>
-            <th className="px-4 py-3">Jenis Rekognisi</th>
-            <th 
+            </TableHead>
+            <TableHead className="px-4 py-3">Prodi</TableHead>
+            <TableHead className="px-4 py-3">Jenis Rekognisi</TableHead>
+            <TableHead 
               onClick={() => handleSort("tahun")} 
               className="px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors group"
             >
@@ -156,10 +183,10 @@ export function BagikanFormSubmissionsTable({
                 Tahun
                 {renderSortIcon("tahun")}
               </div>
-            </th>
-            <th className="px-4 py-3 max-w-[180px]">Deskripsi</th>
-            <th className="px-4 py-3">Bukti</th>
-            <th 
+            </TableHead>
+            <TableHead className="px-4 py-3 max-w-[180px]">Deskripsi</TableHead>
+            <TableHead className="px-4 py-3">Bukti</TableHead>
+            <TableHead 
               onClick={() => handleSort("status")} 
               className="px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors group"
             >
@@ -167,26 +194,26 @@ export function BagikanFormSubmissionsTable({
                 Status
                 {renderSortIcon("status")}
               </div>
-            </th>
-            <th className="px-4 py-3 text-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/20 text-xs">
+            </TableHead>
+            <TableHead className="px-4 py-3 text-right">Aksi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y divide-border/20 text-xs">
           {sortedSubmissions.map((sub) => (
-            <tr 
+            <TableRow 
               key={sub.id} 
               onClick={() => router.push(`/dashboard/rekognisi-dosen/${sub.id}`)}
               className="hover:bg-muted/15 transition-colors cursor-pointer"
             >
-              <td className="px-4 py-3 font-mono font-semibold">{sub.nip}</td>
-              <td className="px-4 py-3 font-semibold text-foreground">{sub.nama}</td>
-              <td className="px-4 py-3 text-muted-foreground">{sub.prodi}</td>
-              <td className="px-4 py-3 font-semibold text-muted-foreground">{sub.jenisRekognisi}</td>
-              <td className="px-4 py-3 text-muted-foreground">{sub.tahun}</td>
-              <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate" title={sub.deskripsi}>
+              <TableCell className="px-4 py-3 font-mono font-semibold">{sub.nip}</TableCell>
+              <TableCell className="px-4 py-3 font-semibold text-foreground">{sub.nama}</TableCell>
+              <TableCell className="px-4 py-3 text-muted-foreground">{sub.prodi}</TableCell>
+              <TableCell className="px-4 py-3 font-semibold text-muted-foreground">{sub.jenisRekognisi}</TableCell>
+              <TableCell className="px-4 py-3 text-muted-foreground">{sub.tahun}</TableCell>
+              <TableCell className="px-4 py-3 text-muted-foreground max-w-[180px] truncate" title={sub.deskripsi}>
                 {sub.deskripsi}
-              </td>
-              <td className="px-4 py-3">
+              </TableCell>
+              <TableCell className="px-4 py-3">
                 <div className="flex flex-col items-start gap-1.5">
                   {(sub.linkBukti || "").split(",").filter(Boolean).map((url, idx) => {
                     const uniqueKey = `${sub.id}-${idx}`;
@@ -228,8 +255,8 @@ export function BagikanFormSubmissionsTable({
                     );
                   })}
                 </div>
-              </td>
-              <td className="px-4 py-3">
+              </TableCell>
+              <TableCell className="px-4 py-3">
                 {sub.status === "approved" && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-bold text-success">
                     <CheckCircle2 className="h-3 w-3" /> Disetujui
@@ -245,8 +272,8 @@ export function BagikanFormSubmissionsTable({
                     Menunggu
                   </span>
                 )}
-              </td>
-              <td className="px-4 py-3 text-right">
+              </TableCell>
+              <TableCell className="px-4 py-3 text-right">
                 <div className="flex justify-end items-center gap-1.5 min-h-[28px]">
                   {sub.status === "pending" ? (
                     <>
@@ -290,11 +317,11 @@ export function BagikanFormSubmissionsTable({
                     </span>
                   )}
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+          </TableBody>
+        </Table>
     </div>
   );
 }

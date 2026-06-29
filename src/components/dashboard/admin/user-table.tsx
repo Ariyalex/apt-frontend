@@ -4,6 +4,14 @@ import React from "react";
 import { Edit, Trash2, CheckCircle2, XCircle, Key } from "lucide-react";
 import type { UserAdminModel } from "@/types/user";
 import type { InstituteModel } from "@/types/institute";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface UserTableProps {
   users: UserAdminModel[];
@@ -23,26 +31,26 @@ export function UserTable({
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-border bg-muted/20 text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">
-              <th className="px-5 py-3 w-16 text-center">No</th>
-              <th className="px-5 py-3">Username / Nama</th>
-              <th className="px-5 py-3">Jenis Akun</th>
-              <th className="px-5 py-3">Institute ID</th>
-              <th className="px-5 py-3">Created At</th>
-              <th className="px-5 py-3">Status Password</th>
-              <th className="px-5 py-3">Status</th>
-              <th className="px-5 py-3 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/60 text-xs">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-border bg-muted/20 text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">
+              <TableHead className="px-5 py-3 w-16 text-center">No</TableHead>
+              <TableHead className="px-5 py-3">Username / Nama</TableHead>
+              <TableHead className="px-5 py-3">Jenis Akun</TableHead>
+              <TableHead className="px-5 py-3">Institute ID</TableHead>
+              <TableHead className="px-5 py-3">Created At</TableHead>
+              <TableHead className="px-5 py-3">Status Password</TableHead>
+              <TableHead className="px-5 py-3">Status</TableHead>
+              <TableHead className="px-5 py-3 text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="text-xs">
             {users.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={8} className="px-5 py-8 text-center text-muted-foreground">
                   Tidak ada data pengguna.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               users.map((user, index) => {
                 // Determine role badge color
@@ -62,28 +70,28 @@ export function UserTable({
                 const displayDate = user.created_at.split("T")[0];
 
                 return (
-                  <tr key={user.id} className="hover:bg-muted/5 transition-colors">
-                    <td className="px-5 py-3.5 text-center font-medium text-muted-foreground">
+                  <TableRow key={user.id} className="hover:bg-muted/5 transition-colors">
+                    <TableCell className="px-5 py-3.5 text-center font-medium text-muted-foreground">
                       {index + 1}
-                    </td>
-                    <td className="px-5 py-3.5 text-foreground">
+                    </TableCell>
+                    <TableCell className="px-5 py-3.5 text-foreground">
                       <div className="font-bold">{user.name || user.username}</div>
                       <div className="text-[10px] text-muted-foreground font-mono">@{user.username}</div>
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </TableCell>
+                    <TableCell className="px-5 py-3.5">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-bold uppercase tracking-wide text-[10px] ${typeBadgeColor}`}>
                         {displayRole}
                       </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-medium text-foreground">
+                    </TableCell>
+                    <TableCell className="px-5 py-3.5 font-medium text-foreground">
                       {user.institute_id !== null
                         ? (lembagaList.find((l) => l.id === user.institute_id)?.name || `ID: ${user.institute_id}`)
                         : "Tidak Ada"}
-                    </td>
-                    <td className="px-5 py-3.5 text-muted-foreground/85">
+                    </TableCell>
+                    <TableCell className="px-5 py-3.5 text-muted-foreground/85">
                       {displayDate}
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </TableCell>
+                    <TableCell className="px-5 py-3.5">
                       {user.must_change_password ? (
                         <span className="inline-flex items-center rounded-full bg-error/10 text-error border border-error/20 px-2 py-0.5 font-bold text-[10px] uppercase tracking-wide">
                           Belum Diubah
@@ -93,8 +101,8 @@ export function UserTable({
                           Sudah Diubah
                         </span>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </TableCell>
+                    <TableCell className="px-5 py-3.5">
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold text-[10px] uppercase tracking-wide border ${
                         !user.is_banned
                           ? "bg-success/10 text-success border-success/20"
@@ -112,8 +120,8 @@ export function UserTable({
                           </>
                         )}
                       </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
+                    </TableCell>
+                    <TableCell className="px-5 py-3.5 text-right">
                       <div className="flex justify-end gap-1.5">
                         <button
                           onClick={() => onResetPassword(user)}
@@ -137,13 +145,13 @@ export function UserTable({
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

@@ -20,6 +20,7 @@ export default function KelolaRekognisiDosenPage(): React.JSX.Element {
       try {
         const session = JSON.parse(raw);
         if (session.username === "admin" || session.role === "Administrator") {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setIsAdmin(true);
         }
       } catch {
@@ -201,7 +202,7 @@ export default function KelolaRekognisiDosenPage(): React.JSX.Element {
               ))}
             </div>
           ) : (
-            <RekognisiTable data={tableFilteredData} />
+            <RekognisiTable data={tableFilteredData} showActions={true} />
           )}
         </div>
       )}

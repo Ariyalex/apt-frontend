@@ -47,9 +47,11 @@ const menuItems: SidebarItemType[] = [
   {
     title: "Mutu BANPT",
     icon: ShieldCheck,
+    href: "/dashboard/mutu-banpt",
     children: [
       {
         title: "Budaya Mutu",
+        href: "/dashboard/mutu-banpt/budaya-mutu",
         children: [
           {
             title: "Masukan",
@@ -62,6 +64,7 @@ const menuItems: SidebarItemType[] = [
       },
       {
         title: "Relevansi Pendidikan",
+        href: "/dashboard/mutu-banpt/relevansi-pendidikan",
         children: [
           {
             title: "Masukan",
@@ -83,6 +86,7 @@ const menuItems: SidebarItemType[] = [
       },
       {
         title: "Relevansi Penelitian",
+        href: "/dashboard/mutu-banpt/relevansi-penelitian",
         children: [
           {
             title: "Masukan",
@@ -104,6 +108,7 @@ const menuItems: SidebarItemType[] = [
       },
       {
         title: "Relevansi PKM",
+        href: "/dashboard/mutu-banpt/relevansi-pkm",
         children: [
           {
             title: "Masukan",
@@ -125,6 +130,7 @@ const menuItems: SidebarItemType[] = [
       },
       {
         title: "Akuntabilitas",
+        href: "/dashboard/mutu-banpt/akuntabilitas",
         children: [
           {
             title: "Masukan",
@@ -204,6 +210,118 @@ const adminMenuItems: SidebarItemType[] = [
       { title: "Kategori Rekognisi", href: "/dashboard/kelola-rekognisi/kategori" },
     ],
   },
+  {
+    title: "Mutu BANPT",
+    icon: ShieldCheck,
+    href: "/dashboard/mutu-banpt",
+    children: [
+      {
+        title: "Kelola Akreditasi",
+        href: "/dashboard/mutu-banpt/akreditasi",
+      },
+      {
+        title: "Budaya Mutu",
+        href: "/dashboard/mutu-banpt/budaya-mutu",
+        children: [
+          {
+            title: "Masukan",
+            href: "/dashboard/mutu-banpt/budaya-mutu/masukan",
+          },
+          { title: "Proses", href: "/dashboard/mutu-banpt/budaya-mutu/proses" },
+          { title: "Luaran", href: "/dashboard/mutu-banpt/budaya-mutu/luaran" },
+          { title: "Dampak", href: "/dashboard/mutu-banpt/budaya-mutu/dampak" },
+        ],
+      },
+      {
+        title: "Relevansi Pendidikan",
+        href: "/dashboard/mutu-banpt/relevansi-pendidikan",
+        children: [
+          {
+            title: "Masukan",
+            href: "/dashboard/mutu-banpt/relevansi-pendidikan/masukan",
+          },
+          {
+            title: "Proses",
+            href: "/dashboard/mutu-banpt/relevansi-pendidikan/proses",
+          },
+          {
+            title: "Luaran",
+            href: "/dashboard/mutu-banpt/relevansi-pendidikan/luaran",
+          },
+          {
+            title: "Dampak",
+            href: "/dashboard/mutu-banpt/relevansi-pendidikan/dampak",
+          },
+        ],
+      },
+      {
+        title: "Relevansi Penelitian",
+        href: "/dashboard/mutu-banpt/relevansi-penelitian",
+        children: [
+          {
+            title: "Masukan",
+            href: "/dashboard/mutu-banpt/relevansi-penelitian/masukan",
+          },
+          {
+            title: "Proses",
+            href: "/dashboard/mutu-banpt/relevansi-penelitian/proses",
+          },
+          {
+            title: "Luaran",
+            href: "/dashboard/mutu-banpt/relevansi-penelitian/luaran",
+          },
+          {
+            title: "Dampak",
+            href: "/dashboard/mutu-banpt/relevansi-penelitian/dampak",
+          },
+        ],
+      },
+      {
+        title: "Relevansi PKM",
+        href: "/dashboard/mutu-banpt/relevansi-pkm",
+        children: [
+          {
+            title: "Masukan",
+            href: "/dashboard/mutu-banpt/relevansi-pkm/masukan",
+          },
+          {
+            title: "Proses",
+            href: "/dashboard/mutu-banpt/relevansi-pkm/proses",
+          },
+          {
+            title: "Luaran",
+            href: "/dashboard/mutu-banpt/relevansi-pkm/luaran",
+          },
+          {
+            title: "Dampak",
+            href: "/dashboard/mutu-banpt/relevansi-pkm/dampak",
+          },
+        ],
+      },
+      {
+        title: "Akuntabilitas",
+        href: "/dashboard/mutu-banpt/akuntabilitas",
+        children: [
+          {
+            title: "Masukan",
+            href: "/dashboard/mutu-banpt/akuntabilitas/masukan",
+          },
+          {
+            title: "Proses",
+            href: "/dashboard/mutu-banpt/akuntabilitas/proses",
+          },
+          {
+            title: "Luaran",
+            href: "/dashboard/mutu-banpt/akuntabilitas/luaran",
+          },
+          {
+            title: "Dampak",
+            href: "/dashboard/mutu-banpt/akuntabilitas/dampak",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 function SidebarItem({
@@ -214,11 +332,31 @@ function SidebarItem({
   depth?: number;
 }): React.JSX.Element {
   const pathname = usePathname();
-  // Default open for the first level parent items if they match or if it's Mutu BANPT
+  
+  // Auto-expand if any child/descendant is active
+  const isDescendantActive = item.children
+    ? item.children.some((child) => {
+        if (child.href && pathname.startsWith(child.href)) return true;
+        if (child.children) {
+          return child.children.some((c) => c.href && pathname.startsWith(c.href));
+        }
+        return false;
+      })
+    : false;
+
+  // Default open for the first level parent items if they match or if it's Mutu BANPT, or if descendant is active
   const [isOpen, setIsOpen] = useState(
-    depth === 0 &&
-      (item.title === "Mutu BANPT" || item.title === "Rekognisi Dosen" || item.title === "Kelola Rekognisi"),
+    (depth === 0 &&
+      (item.title === "Mutu BANPT" || item.title === "Rekognisi Dosen" || item.title === "Kelola Rekognisi")) ||
+    isDescendantActive,
   );
+
+  useEffect(() => {
+    if (isDescendantActive) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsOpen(true);
+    }
+  }, [isDescendantActive]);
 
   const hasChildren = item.children && item.children.length > 0;
   const Icon = item.icon;
@@ -368,18 +506,28 @@ export function Sidebar(): React.JSX.Element {
   let activeMenuItems = isAdmin ? adminMenuItems : menuItems;
 
   if (!isAdmin) {
-    activeMenuItems = menuItems.map(item => {
-      if (item.title === "Rekognisi Dosen" && (userRole === "Auditor" || userRole === "Assessor")) {
-        return {
-          title: item.title,
-          icon: item.icon,
-          href: item.href,
-        };
-      }
-      return item;
-    });
+    const hasMutuAccess = userRole === "Auditor" || userRole === "Assessor";
 
-    if (userRole === "Auditor" || userRole === "Assessor") {
+    activeMenuItems = menuItems
+      .filter(item => {
+        // Filter out Mutu BANPT if user does not have access
+        if (item.title === "Mutu BANPT" && !hasMutuAccess) {
+          return false;
+        }
+        return true;
+      })
+      .map(item => {
+        if (item.title === "Rekognisi Dosen" && hasMutuAccess) {
+          return {
+            title: item.title,
+            icon: item.icon,
+            href: item.href,
+          };
+        }
+        return item;
+      });
+
+    if (hasMutuAccess) {
       activeMenuItems = activeMenuItems.filter(item => item.title !== "Setting");
     }
   }
