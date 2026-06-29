@@ -1,4 +1,9 @@
-import { MutuBanptData, IndicatorTab, Akreditasi, AspectSubmission } from "@/types/mutu-banpt";
+import {
+  MutuBanptData,
+  IndicatorTab,
+  AspectSubmission,
+  Accreditation,
+} from "@/types/mutu-banpt";
 
 export function formatCategoryName(category: string): string {
   switch (category) {
@@ -36,26 +41,30 @@ export function formatStageName(stage: string): string {
 }
 
 // Initial dummy list of accreditations
-export const defaultAkreditasiList: Akreditasi[] = [
+export const defaultAkreditasiList: Accreditation[] = [
   {
     id: "akred-1",
-    nama: "Akreditasi BANPT 2026 - UIN Sunan Kalijaga",
-    deskripsi: "Evaluasi dan penilaian akreditasi institusi tahun ajaran 2026/2027.",
-    tahun: "2026",
-    referensi: "panduan_spmi_2026.pdf",
+    name: "Akreditasi BANPT 2026 - UIN Sunan Kalijaga",
+    description:
+      "Evaluasi dan penilaian akreditasi institusi tahun ajaran 2026/2027.",
+    year: 2026,
+    reference: "panduan_spmi_2026.pdf",
+    created_at: "2026-06-29T16:54:58Z",
   },
   {
     id: "akred-2",
-    nama: "Akreditasi Unggul Program Studi 2025",
-    deskripsi: "Instrumen penilaian akreditasi kriteria 9 untuk program studi sarjana.",
-    tahun: "2025",
-    referensi: "sk_rektor_mutu_2025.xlsx",
+    name: "Akreditasi Unggul Program Studi 2025",
+    description:
+      "Instrumen penilaian akreditasi kriteria 9 untuk program studi sarjana.",
+    year: 2025,
+    reference: "sk_rektor_mutu_2025.xlsx",
+    created_at: "2026-06-29T16:54:58Z",
   },
 ];
 
 const IS_BROWSER = typeof window !== "undefined";
 
-export function getStoredAkreditasi(): Akreditasi[] {
+export function getStoredAkreditasi(): Accreditation[] {
   if (!IS_BROWSER) return defaultAkreditasiList;
   const stored = localStorage.getItem("dummy_akreditasi_list");
   if (stored) {
@@ -65,11 +74,14 @@ export function getStoredAkreditasi(): Akreditasi[] {
       return defaultAkreditasiList;
     }
   }
-  localStorage.setItem("dummy_akreditasi_list", JSON.stringify(defaultAkreditasiList));
+  localStorage.setItem(
+    "dummy_akreditasi_list",
+    JSON.stringify(defaultAkreditasiList),
+  );
   return defaultAkreditasiList;
 }
 
-export function saveStoredAkreditasi(list: Akreditasi[]) {
+export function saveStoredAkreditasi(list: Accreditation[]) {
   if (IS_BROWSER) {
     localStorage.setItem("dummy_akreditasi_list", JSON.stringify(list));
     window.dispatchEvent(new Event("akreditasi_list_change"));
@@ -77,7 +89,10 @@ export function saveStoredAkreditasi(list: Akreditasi[]) {
 }
 
 // Default indicator data generator
-export function getDefaultIndicators(category: string, stage: string): IndicatorTab[] {
+export function getDefaultIndicators(
+  category: string,
+  stage: string,
+): IndicatorTab[] {
   const catLabel = formatCategoryName(category);
   const stageLabel = formatStageName(stage);
 
@@ -138,8 +153,18 @@ Syarat perlu status terakreditasi Unggul`,
             targetVariable: "PDD",
             threshold: 40,
             variables: [
-              { name: "NDS3", label: "Jumlah Dosen S3", type: "input", value: 15 },
-              { name: "NDT", label: "Total Dosen Tetap", type: "input", value: 30 },
+              {
+                name: "NDS3",
+                label: "Jumlah Dosen S3",
+                type: "input",
+                value: 15,
+              },
+              {
+                name: "NDT",
+                label: "Total Dosen Tetap",
+                type: "input",
+                value: 30,
+              },
             ],
           },
         },
@@ -173,7 +198,12 @@ Syarat perlu status terakreditasi Unggul`,
             variables: [
               { name: "Cukup", label: "Cukup", type: "static", value: 0 },
               { name: "Baik", label: "Baik", type: "static", value: 0 },
-              { name: "Sangat_Baik", label: "Sangat Baik", type: "static", value: 0 },
+              {
+                name: "Sangat_Baik",
+                label: "Sangat Baik",
+                type: "static",
+                value: 0,
+              },
             ],
           },
         },
@@ -185,7 +215,7 @@ Syarat perlu status terakreditasi Unggul`,
 export function getMutuBanptData(
   category: string,
   stage: string,
-  akreditasiId: string
+  akreditasiId: string,
 ): MutuBanptData {
   if (!IS_BROWSER) {
     return {
@@ -218,7 +248,7 @@ export function saveMutuBanptData(
   category: string,
   stage: string,
   akreditasiId: string,
-  data: MutuBanptData
+  data: MutuBanptData,
 ) {
   if (IS_BROWSER) {
     const key = `mutu_banpt_data_${akreditasiId}_${category}_${stage}`;
@@ -226,7 +256,7 @@ export function saveMutuBanptData(
     window.dispatchEvent(
       new CustomEvent("mutu_banpt_change", {
         detail: { category, stage, akreditasiId },
-      })
+      }),
     );
   }
 }

@@ -11,67 +11,47 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { getStoredAkreditasi } from "@/dummy-data/mutu-banpt";
-import { Akreditasi } from "@/types/mutu-banpt";
+import { useGetAccreditationListQuery } from "@/store/services/accreditationApi";
 
 export function DashboardBreadcrumb() {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
 
-  const [akredList, setAkredList] = useState<Akreditasi[]>([]);
-  const [activeAkredId, setActiveAkredId] = useState<string>("");
+  const { data: response, isLoading } = useGetAccreditationListQuery();
+  const akredList = response?.data || [];
 
   const isMutuBanpt = pathname.startsWith("/dashboard/mutu-banpt");
 
   // Load accreditations and sync active ID
-  useEffect(() => {
-    if (isMutuBanpt) {
-      const list = getStoredAkreditasi();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAkredList(list);
+  const activeAkredId = React.useMemo(() => {
+    if (!isMutuBanpt || akredList.length === 0) return "";
 
-      const storedId = localStorage.getItem("active_akreditasi_id");
-      if (storedId && list.some((a) => a.id === storedId)) {
-        setActiveAkredId(storedId);
-      } else if (list.length > 0) {
-        const defaultId = list[0].id;
-        setActiveAkredId(defaultId);
-        localStorage.setItem("active_akreditasi_id", defaultId);
-      }
+    const storedId = localStorage.getItem("active_akreditasi_id");
+
+    // Jika ID dari storage valid, gunakan itu
+    if (storedId && akredList.some((a) => a.id === storedId)) {
+      return storedId;
     }
-  }, [isMutuBanpt]);
 
-  // Sync list if changed elsewhere
+    // Jika tidak, gunakan ID pertama
+    const defaultId = akredList[0].id;
+    // Side effect untuk sync localStorage sebaiknya dilakukan di event handler atau useEffect terpisah
+    return defaultId;
+  }, [isMutuBanpt, akredList]);
+
   useEffect(() => {
-    if (!isMutuBanpt) return;
-
-    const handleListChange = () => {
-      const list = getStoredAkreditasi();
-      setAkredList(list);
-    };
-
-    const handleActiveChange = () => {
-      const storedId = localStorage.getItem("active_akreditasi_id");
-      if (storedId) setActiveAkredId(storedId);
-    };
-
-    window.addEventListener("akreditasi_list_change", handleListChange);
-    window.addEventListener("active_akreditasi_change", handleActiveChange);
-
-    return () => {
-      window.removeEventListener("akreditasi_list_change", handleListChange);
-      window.removeEventListener(
-        "active_akreditasi_change",
-        handleActiveChange,
-      );
-    };
-  }, [isMutuBanpt]);
+    if (activeAkredId && isMutuBanpt) {
+      localStorage.setItem("active_akreditasi_id", activeAkredId);
+    }
+  }, [activeAkredId, isMutuBanpt]);
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
-    setActiveAkredId(val);
+    // Perbarui state secara langsung saat user berinteraksi
     localStorage.setItem("active_akreditasi_id", val);
     window.dispatchEvent(new Event("active_akreditasi_change"));
+    // Jika kamu tetap butuh state lokal untuk trigger re-render,
+    // kamu bisa buat state terpisah untuk kontrol UI
   };
 
   if (segments.length === 0) return null;
@@ -125,7 +105,7 @@ export function DashboardBreadcrumb() {
           >
             {akredList.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.nama} ({a.tahun})
+                {a.name}
               </option>
             ))}
           </select>
