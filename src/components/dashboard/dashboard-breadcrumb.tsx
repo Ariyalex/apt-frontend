@@ -29,7 +29,7 @@ export function DashboardBreadcrumb() {
       const list = getStoredAkreditasi();
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setAkredList(list);
-      
+
       const storedId = localStorage.getItem("active_akreditasi_id");
       if (storedId && list.some((a) => a.id === storedId)) {
         setActiveAkredId(storedId);
@@ -60,7 +60,10 @@ export function DashboardBreadcrumb() {
 
     return () => {
       window.removeEventListener("akreditasi_list_change", handleListChange);
-      window.removeEventListener("active_akreditasi_change", handleActiveChange);
+      window.removeEventListener(
+        "active_akreditasi_change",
+        handleActiveChange,
+      );
     };
   }, [isMutuBanpt]);
 
@@ -94,7 +97,10 @@ export function DashboardBreadcrumb() {
                       {label}
                     </BreadcrumbPage>
                   ) : (
-                    <BreadcrumbLink asChild className="text-xs tracking-wider uppercase font-semibold text-muted-foreground">
+                    <BreadcrumbLink
+                      asChild
+                      className="text-xs tracking-wider uppercase font-semibold text-muted-foreground"
+                    >
                       <Link href={href}>{label}</Link>
                     </BreadcrumbLink>
                   )}
@@ -108,9 +114,9 @@ export function DashboardBreadcrumb() {
 
       {/* Global Accreditation Selector (Mutu BANPT routes only) */}
       {isMutuBanpt && akredList.length > 0 && (
-        <div className="flex items-center gap-2 animate-fadeIn shrink-0">
+        <div className="flex lg:flex-row flex-col md:items-center items-end gap-2 animate-fadeIn shrink-0">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-            Akreditasi:
+            Akreditasi
           </span>
           <select
             value={activeAkredId}

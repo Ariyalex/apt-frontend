@@ -166,7 +166,10 @@ const menuItems: SidebarItemType[] = [
     icon: Settings,
     children: [
       { title: "Dosen", href: "/dashboard/kelola-dosen" },
-      { title: "Kategori Rekognisi", href: "/dashboard/kelola-rekognisi/kategori" },
+      {
+        title: "Kategori Rekognisi",
+        href: "/dashboard/kelola-rekognisi/kategori",
+      },
     ],
   },
 ];
@@ -203,11 +206,14 @@ const adminMenuItems: SidebarItemType[] = [
     href: "/dashboard/kelola-dosen",
   },
   {
-    title: "Kelola Rekognisi",
+    title: "Rekognisi",
     icon: ShieldCheck,
     children: [
       { title: "Kelola Rekognisi", href: "/dashboard/kelola-rekognisi" },
-      { title: "Kategori Rekognisi", href: "/dashboard/kelola-rekognisi/kategori" },
+      {
+        title: "Kelola Kategori",
+        href: "/dashboard/kelola-rekognisi/kategori",
+      },
     ],
   },
   {
@@ -332,24 +338,22 @@ function SidebarItem({
   depth?: number;
 }): React.JSX.Element {
   const pathname = usePathname();
-  
+
   // Auto-expand if any child/descendant is active
   const isDescendantActive = item.children
     ? item.children.some((child) => {
         if (child.href && pathname.startsWith(child.href)) return true;
         if (child.children) {
-          return child.children.some((c) => c.href && pathname.startsWith(c.href));
+          return child.children.some(
+            (c) => c.href && pathname.startsWith(c.href),
+          );
         }
         return false;
       })
     : false;
 
   // Default open for the first level parent items if they match or if it's Mutu BANPT, or if descendant is active
-  const [isOpen, setIsOpen] = useState(
-    (depth === 0 &&
-      (item.title === "Mutu BANPT" || item.title === "Rekognisi Dosen" || item.title === "Kelola Rekognisi")) ||
-    isDescendantActive,
-  );
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     if (isDescendantActive) {
@@ -478,7 +482,10 @@ export function Sidebar(): React.JSX.Element {
       if (raw) {
         try {
           const session = JSON.parse(raw);
-          if (session.username === "admin" || session.role === "Administrator") {
+          if (
+            session.username === "admin" ||
+            session.role === "Administrator"
+          ) {
             setIsAdmin(true);
           }
           setUserRole(session.role || "");
@@ -492,7 +499,12 @@ export function Sidebar(): React.JSX.Element {
 
   const confirmLogout = async (): Promise<void> => {
     try {
-      const tokenToUse = refreshToken || (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null) || "";
+      const tokenToUse =
+        refreshToken ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("refreshToken")
+          : null) ||
+        "";
       await logout({ refresh_token: tokenToUse }).unwrap();
       toast.success("Anda berhasil keluar dari sistem.");
     } catch {
@@ -509,14 +521,14 @@ export function Sidebar(): React.JSX.Element {
     const hasMutuAccess = userRole === "Auditor" || userRole === "Assessor";
 
     activeMenuItems = menuItems
-      .filter(item => {
+      .filter((item) => {
         // Filter out Mutu BANPT if user does not have access
         if (item.title === "Mutu BANPT" && !hasMutuAccess) {
           return false;
         }
         return true;
       })
-      .map(item => {
+      .map((item) => {
         if (item.title === "Rekognisi Dosen" && hasMutuAccess) {
           return {
             title: item.title,
@@ -528,7 +540,9 @@ export function Sidebar(): React.JSX.Element {
       });
 
     if (hasMutuAccess) {
-      activeMenuItems = activeMenuItems.filter(item => item.title !== "Setting");
+      activeMenuItems = activeMenuItems.filter(
+        (item) => item.title !== "Setting",
+      );
     }
   }
 
@@ -562,8 +576,8 @@ export function Sidebar(): React.JSX.Element {
       </aside>
 
       {/* Logout Confirmation Dialog */}
-      <AlertDialog 
-        open={logoutOpen} 
+      <AlertDialog
+        open={logoutOpen}
         onOpenChange={(open) => {
           if (isLogoutLoading) return;
           setLogoutOpen(open);
@@ -575,7 +589,8 @@ export function Sidebar(): React.JSX.Element {
               Konfirmasi Keluar
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground">
-              Apakah Anda yakin ingin keluar dari sistem? Anda harus memasukkan kembali kredensial Anda untuk mengakses dasbor.
+              Apakah Anda yakin ingin keluar dari sistem? Anda harus memasukkan
+              kembali kredensial Anda untuk mengakses dasbor.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2 pt-2">
