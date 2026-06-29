@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Search, Plus } from "lucide-react";
 import { RekognisiChart } from "@/components/dashboard/rekognisi/rekognisi-chart";
 import { RekognisiTable } from "@/components/dashboard/rekognisi/rekognisi-table";
@@ -29,7 +29,9 @@ export default function RekognisiDosenPage(): React.JSX.Element {
     nama: rec.lecturer?.name || "",
     prodi: rec.lecturer?.study_program?.name || "",
     jenisRekognisi: rec.category?.name || "",
-    tahun: rec.obtained_at ? new Date(rec.obtained_at).getFullYear().toString() : "",
+    tahun: rec.obtained_at
+      ? new Date(rec.obtained_at).getFullYear().toString()
+      : "",
     deskripsi: rec.description,
     buktiUrl: (rec.proof_links || []).join(","),
   }));
@@ -39,6 +41,24 @@ export default function RekognisiDosenPage(): React.JSX.Element {
   const [tableProdi, setTableProdi] = useState<string>("Semua");
   const [tableJenis, setTableJenis] = useState<string>("Semua");
   const [searchQuery, setSearchQuery] = useState("Cari...");
+  const [isAuditor, setIsAuditor] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const raw = localStorage.getItem("userSession");
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session.role === "Auditor") {
+            setIsAuditor(true);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Custom focus handler to clear default value
   const handleFocus = () => {
@@ -108,19 +128,25 @@ export default function RekognisiDosenPage(): React.JSX.Element {
             Data rekognisi dosen
           </p>
         </div>
-        <Button
-          onClick={() => router.push("/dashboard/rekognisi-dosen/isi-data")}
-          className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm transition-colors cursor-pointer"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Tambah Rekognisi
-        </Button>
+        {isAuditor ? null : (
+          <Button
+            onClick={() => router.push("/dashboard/rekognisi-dosen/isi-data")}
+            className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm transition-colors cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Tambah Rekognisi
+          </Button>
+        )}
       </div>
 
       {isError ? (
         <div className="rounded-xl border border-error/25 bg-error/5 p-4 text-xs text-error flex justify-between items-center">
           <span>Gagal memuat data rekognisi dari server.</span>
-          <Button variant="link" onClick={() => refetch()} className="text-xs font-bold text-error underline p-0 h-auto">
+          <Button
+            variant="link"
+            onClick={() => refetch()}
+            className="text-xs font-bold text-error underline p-0 h-auto"
+          >
             Coba Lagi
           </Button>
         </div>
@@ -211,7 +237,10 @@ export default function RekognisiDosenPage(): React.JSX.Element {
                   <Skeleton className="h-4 w-20" />
                 </div>
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex gap-4 items-center py-2.5 border-b border-border/20 last:border-0">
+                  <div
+                    key={i}
+                    className="flex gap-4 items-center py-2.5 border-b border-border/20 last:border-0"
+                  >
                     <Skeleton className="h-3.5 w-12" />
                     <Skeleton className="h-3.5 w-28" />
                     <Skeleton className="h-3.5 w-full" />

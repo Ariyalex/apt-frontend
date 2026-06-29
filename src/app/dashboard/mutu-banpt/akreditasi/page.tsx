@@ -56,22 +56,46 @@ import {
   getStoredAkreditasi,
   saveStoredAkreditasi,
 } from "@/dummy-data/mutu-banpt";
-import { Akreditasi } from "@/types/mutu-banpt";
+import {
+  useCreateAccreditationMutation,
+  useDeleteAccreditationMutation,
+  useGetAccreditationListQuery,
+  useUpdateAccreditationMutation,
+} from "@/store/services/accreditationApi";
+import { Accreditation, SaveAccreditationRequest } from "@/types/mutu-banpt";
+import DatePicker from "react-datepicker";
+import {
+  useGetFileMutation,
+  useUploadFileMutation,
+} from "@/store/services/fileApi";
+import { getFileCategory } from "@/lib/utils";
 
 export default function AkreditasiPage(): React.JSX.Element {
-  const [list, setList] = useState<Akreditasi[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { data: responseData, isLoading } = useGetAccreditationListQuery();
+
+  const list = responseData?.data || [];
+
+  const [createAccreditation, { isLoading: isCreating }] =
+    useCreateAccreditationMutation();
+  const [updateAccreditation, { isLoading: isUpdating }] =
+    useUpdateAccreditationMutation();
+  const [deleteAccreditation, { isLoading: isDeleting }] =
+    useDeleteAccreditationMutation();
+  const [uploadFile, { isLoading: isUploadingFile }] = useUploadFileMutation();
+  const [getFile, { isLoading: isGetFile }] = useGetFileMutation();
 
   // Dialog Add/Edit State
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
-  const [editingAkred, setEditingAkred] = useState<Akreditasi | null>(null);
+  const [editingAkred, setEditingAkred] = useState<Accreditation | null>(null);
 
   // Form Fields
   const [formNama, setFormNama] = useState<string>("");
   const [formDeskripsi, setFormDeskripsi] = useState<string>("");
-  const [formTahun, setFormTahun] = useState<string>("");
+  const [formTahun, setFormTahun] = useState(
+    new Date().getFullYear().toString(),
+  );
   const [formRef, setFormRef] = useState<string>("");
-  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Attachment upload status
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "done">(
@@ -80,26 +104,7 @@ export default function AkreditasiPage(): React.JSX.Element {
   const [dragActive, setDragActive] = useState<boolean>(false);
 
   // Delete State
-  const [deleteTarget, setDeleteTarget] = useState<Akreditasi | null>(null);
-
-  // Simulated Loading State
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setList(getStoredAkreditasi());
-      setIsLoading(false);
-    }, 700);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Listen for local list updates
-  useEffect(() => {
-    const handleListChange = () => {
-      setList(getStoredAkreditasi());
-    };
-    window.addEventListener("akreditasi_list_change", handleListChange);
-    return () =>
-      window.removeEventListener("akreditasi_list_change", handleListChange);
-  }, []);
+  const [deleteTarget, setDeleteTarget] = useState<Accreditation | null>(null);
 
   const openAddDialog = () => {
     setEditingAkred(null);
@@ -111,13 +116,13 @@ export default function AkreditasiPage(): React.JSX.Element {
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (item: Akreditasi) => {
+  const openEditDialog = (item: Accreditation) => {
     setEditingAkred(item);
-    setFormNama(item.nama);
-    setFormDeskripsi(item.deskripsi);
-    setFormTahun(item.tahun);
-    setFormRef(item.referensi);
-    setUploadState(item.referensi ? "done" : "idle");
+    setFormNama(item.name);
+    setFormDeskripsi(item.description);
+    setFormTahun(item.year.toString());
+    setFormRef(item.reference);
+    setUploadState(item.reference ? "done" : "idle");
     setIsDialogOpen(true);
   };
 
@@ -170,12 +175,9 @@ export default function AkreditasiPage(): React.JSX.Element {
       return;
     }
 
-    setUploadState("uploading");
-    setTimeout(() => {
-      setFormRef(file.name);
-      setUploadState("done");
-      toast.success("File referensi berhasil dilampirkan!");
-    }, 1000);
+    setFormRef(file.name);
+    setSelectedFile(file);
+    setUploadState("done");
   };
 
   const removeAttachment = () => {
@@ -183,69 +185,144 @@ export default function AkreditasiPage(): React.JSX.Element {
     setUploadState("idle");
   };
 
-  const handleSave = async () => {
-    if (!formNama.trim() || !formTahun.trim()) {
-      toast.error("Nama akreditasi dan tahun harus diisi!");
+  const handleCreate = async () => {
+    if (!formNama.trim() || !formTahun || !selectedFile || !formRef) {
+      toast.error("Nama akreditasi, tahun, dan referensi harus diisi!");
       return;
     }
 
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    const ext = getFileCategory(
+      selectedFile.name.split(".").pop()!.toLowerCase(),
+    );
 
-    const currentList = getStoredAkreditasi();
+    if (ext == null) {
+      toast.error(`format file ${ext} tidak diizinkan`);
+      return;
+    }
+    const formData = new FormData();
 
-    if (editingAkred) {
-      // Edit mode
-      const updatedList = currentList.map((a) =>
-        a.id === editingAkred.id
-          ? {
-              ...a,
-              nama: formNama,
-              deskripsi: formDeskripsi,
-              tahun: formTahun,
-              referensi: formRef,
-            }
-          : a,
-      );
-      saveStoredAkreditasi(updatedList);
-      toast.success("Akreditasi berhasil diperbarui!");
-    } else {
-      // Add mode
-      const newItem: Akreditasi = {
-        id: `akred-${Date.now()}`,
-        nama: formNama,
-        deskripsi: formDeskripsi,
-        tahun: formTahun,
-        referensi: formRef,
+    formData.append(ext, selectedFile);
+
+    try {
+      const fileResponse = await uploadFile(formData).unwrap();
+
+      const response = await createAccreditation({
+        name: formNama,
+        reference: fileResponse.data,
+        description: formDeskripsi,
+        year: Number(formTahun),
+      }).unwrap();
+
+      if (response.success) {
+        toast.success(response.message);
+      } else {
+        toast.error(response.message);
+      }
+    } catch (error) {
+      const customErr = error as {
+        data?: { message?: string };
+        message?: string;
       };
-      saveStoredAkreditasi([...currentList, newItem]);
-      toast.success("Akreditasi baru berhasil ditambahkan!");
+      const errMsg =
+        customErr?.data?.message ||
+        customErr?.message ||
+        "Terjadi kesalahan saat menyimpan data";
+      toast.error(errMsg);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (editingAkred == null) {
+      toast.error("Item tidak terpillih");
+      return;
+    }
+    if (!formNama.trim() || !formTahun || !selectedFile || !formRef) {
+      toast.error("Nama akreditasi, tahun, dan referensi harus diisi!");
+      return;
     }
 
-    setIsSaving(false);
-    setIsDialogOpen(false);
+    let fileResponse;
+
+    try {
+      if (selectedFile != null) {
+        const ext = getFileCategory(
+          selectedFile.name.split(".").pop()!.toLowerCase(),
+        );
+
+        if (ext == null) {
+          toast.error(`format file ${ext} tidak diizinkan`);
+          return;
+        }
+        const formData = new FormData();
+
+        formData.append(ext, selectedFile);
+        fileResponse = await uploadFile(formData).unwrap();
+      }
+
+      const response = await updateAccreditation({
+        id: editingAkred!.id,
+        body: {
+          name: formNama,
+          reference: fileResponse ? fileResponse.data : formRef,
+          description: formDeskripsi,
+          year: Number(formTahun),
+        },
+      }).unwrap();
+
+      if (response.success) {
+        toast.success(response.message);
+      } else {
+        toast.error(response.message);
+      }
+    } catch (error) {
+      const customErr = error as {
+        data?: { message?: string };
+        message?: string;
+      };
+      const errMsg =
+        customErr?.data?.message ||
+        customErr?.message ||
+        "Terjadi kesalahan saat menyimpan data";
+      toast.error(errMsg);
+    }
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
 
-    const currentList = getStoredAkreditasi();
-    const updatedList = currentList.filter((a) => a.id !== deleteTarget.id);
-    saveStoredAkreditasi(updatedList);
-
-    // Clear active selection if the active one was deleted
-    const activeId = localStorage.getItem("active_akreditasi_id");
-    if (activeId === deleteTarget.id) {
-      if (updatedList.length > 0) {
-        localStorage.setItem("active_akreditasi_id", updatedList[0].id);
-      } else {
-        localStorage.removeItem("active_akreditasi_id");
-      }
-      window.dispatchEvent(new Event("active_akreditasi_change"));
+    try {
+      const response = await deleteAccreditation(deleteTarget.id).unwrap();
+      toast.success(response.message);
+      setDeleteTarget(null);
+    } catch (error) {
+      const customErr = error as {
+        data?: { message?: string };
+        message?: string;
+      };
+      const errMsg =
+        customErr?.data?.message ||
+        customErr?.message ||
+        "Terjadi kesalahan saat menyimpan data";
+      toast.error(errMsg);
     }
+  };
 
-    toast.success("Akreditasi berhasil dihapus!");
-    setDeleteTarget(null);
+  const handleViewFile = async (filePath: string) => {
+    try {
+      // getFile sekarang langsung mengembalikan string URL (contoh: "blob:http://localhost:3000/...")
+      const objectUrl = await getFile(filePath).unwrap();
+
+      // Buka URL tersebut di tab baru
+      window.open(objectUrl, "_blank");
+
+      // Bersihkan memori setelah 1 menit
+      setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+      }, 60000);
+    } catch (error) {
+      console.error("Gagal memuat file:", error);
+      toast.error("Gagal memuat file gambar.");
+    }
   };
 
   return (
@@ -301,7 +378,9 @@ export default function AkreditasiPage(): React.JSX.Element {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-2/5 font-bold">Nama Akreditasi</TableHead>
+                  <TableHead className="w-2/5 font-bold">
+                    Nama Akreditasi
+                  </TableHead>
                   <TableHead className="w-2/5 font-bold">Deskripsi</TableHead>
                   <TableHead className="text-center font-bold">Tahun</TableHead>
                   <TableHead className="font-bold">Dokumen Referensi</TableHead>
@@ -316,29 +395,34 @@ export default function AkreditasiPage(): React.JSX.Element {
                   >
                     <TableCell className="align-top font-medium">
                       <div className="font-bold text-foreground leading-normal">
-                        {item.nama}
+                        {item.name}
                       </div>
                     </TableCell>
                     <TableCell className="align-top text-muted-foreground leading-relaxed">
-                      {item.deskripsi || "-"}
+                      {item.description || "-"}
                     </TableCell>
                     <TableCell className="align-top text-center font-semibold text-foreground">
                       <span className="inline-flex items-center gap-1 rounded bg-muted/65 px-2 py-0.5 font-bold">
                         <Calendar className="h-3 w-3 text-muted-foreground" />
-                        {item.tahun}
+                        {item.year}
                       </span>
                     </TableCell>
                     <TableCell className="align-top">
-                      {item.referensi ? (
-                        <div className="flex items-center gap-1.5 text-primary font-semibold">
+                      {item.reference ? (
+                        <button
+                          type="button"
+                          onClick={() => handleViewFile(item.reference)}
+                          disabled={isGetFile}
+                          className="flex items-center gap-1.5 text-primary cursor-pointer font-semibold"
+                        >
                           <FileText className="h-4 w-4 shrink-0" />
                           <span
                             className="truncate max-w-[150px]"
-                            title={item.referensi}
+                            title={item.reference}
                           >
-                            {item.referensi}
+                            {item.reference.split("/").pop()}
                           </span>
-                        </div>
+                        </button>
                       ) : (
                         <span className="text-muted-foreground/60 italic">
                           Tidak ada
@@ -389,7 +473,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                 value={formNama}
                 onChange={(e) => setFormNama(e.target.value)}
                 placeholder="Contoh: Akreditasi BANPT 2026 - UIN Suka"
-                disabled={isSaving}
+                disabled={isCreating || isUpdating}
                 className="bg-card border-border text-foreground"
               />
             </Field>
@@ -402,7 +486,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                 value={formDeskripsi}
                 onChange={(e) => setFormDeskripsi(e.target.value)}
                 placeholder="Tuliskan keterangan detail akreditasi..."
-                disabled={isSaving}
+                disabled={isCreating || isUpdating}
                 rows={3}
                 className="w-full bg-card border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary text-foreground resize-none"
               />
@@ -411,20 +495,31 @@ export default function AkreditasiPage(): React.JSX.Element {
             {/* Tahun */}
             <Field>
               <FieldLabel htmlFor="form-tahun">Tahun Akreditasi</FieldLabel>
-              <Input
-                id="form-tahun"
-                type="number"
-                value={formTahun}
-                onChange={(e) => setFormTahun(e.target.value)}
-                placeholder="2026"
-                disabled={isSaving}
-                className="w-32 bg-card border-border text-foreground"
+              <DatePicker
+                selected={
+                  formTahun ? new Date(parseInt(formTahun), 0, 1) : null
+                }
+                onChange={(date: Date | null) => {
+                  if (date) {
+                    setFormTahun(date.getFullYear().toString());
+                  }
+                }}
+                showYearPicker
+                dateFormat="yyyy"
+                customInput={
+                  <input
+                    disabled={isCreating || isUpdating}
+                    className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer text-foreground text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                }
               />
             </Field>
 
             {/* File Reference Drop uploader using Attachment component */}
             <Field>
-              <FieldLabel>Dokumen Referensi (jpg, png, zip, pdf, xlsx, docx)</FieldLabel>
+              <FieldLabel>
+                Dokumen Referensi (jpg, png, zip, pdf, xlsx, docx)
+              </FieldLabel>
 
               {uploadState === "idle" || uploadState === "uploading" ? (
                 <div
@@ -441,7 +536,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                   <input
                     type="file"
                     id="ref-file"
-                    disabled={isSaving}
+                    disabled={isCreating || isUpdating}
                     onChange={handleFileSelect}
                     className="hidden"
                   />
@@ -477,8 +572,8 @@ export default function AkreditasiPage(): React.JSX.Element {
                     <FileText className="h-5 w-5" />
                   </AttachmentMedia>
                   <AttachmentContent>
-                    <AttachmentTitle className="text-foreground font-semibold truncate">
-                      {formRef}
+                    <AttachmentTitle className="text-foreground font-semibold truncate block max-w-[200px] sm:max-w-[320px]">
+                      {formRef.split("/").pop()}
                     </AttachmentTitle>
                     <AttachmentDescription className="text-muted-foreground">
                       Lampiran referensi akreditasi aktif
@@ -489,7 +584,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                       variant="ghost"
                       size="icon-xs"
                       onClick={removeAttachment}
-                      disabled={isSaving}
+                      disabled={isCreating || isUpdating}
                       className="text-error hover:bg-error/10 hover:text-error"
                     >
                       <X className="h-4 w-4" />
@@ -503,18 +598,18 @@ export default function AkreditasiPage(): React.JSX.Element {
           <DialogFooter className="gap-2 sm:gap-0 border-t border-border/40 pt-4 mt-2">
             <Button
               variant="outline"
-              disabled={isSaving}
+              disabled={isCreating || isUpdating}
               onClick={() => setIsDialogOpen(false)}
               className="text-xs h-9 cursor-pointer"
             >
               Batal
             </Button>
             <Button
-              onClick={handleSave}
-              disabled={isSaving}
+              onClick={editingAkred ? handleUpdate : handleCreate}
+              disabled={isCreating || isUpdating}
               className="bg-primary text-primary-foreground text-xs font-semibold h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm cursor-pointer"
             >
-              {isSaving ? (
+              {isCreating || isUpdating || isUploadingFile ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                   Menyimpan...
@@ -539,7 +634,7 @@ export default function AkreditasiPage(): React.JSX.Element {
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground leading-normal">
               Aksi ini bersifat destruktif. Menghapus akreditasi{" "}
-              <strong>{deleteTarget?.nama}</strong> akan menghilangkan data
+              <strong>{deleteTarget?.name}</strong> akan menghilangkan data
               instrumen kelolaan di bawahnya secara permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -551,7 +646,14 @@ export default function AkreditasiPage(): React.JSX.Element {
               onClick={handleDeleteConfirm}
               className="bg-error hover:bg-error/90 text-error-foreground font-semibold text-xs h-9 cursor-pointer"
             >
-              Ya, Hapus
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Menghapus...
+                </>
+              ) : (
+                "Ya, Hapus"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

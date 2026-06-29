@@ -20,19 +20,19 @@ export interface FormulaData {
 export interface AssessmentAspect {
   id: string;
   type: "radio" | "formula";
-  description: string;           // assessment description
-  complianceDescription: string;     // compliance description
-  dataSource: string;              // data source
-  proofUrl?: string;               // URL if uploaded/referenced (fallback)
-  proofFileName?: string;          // Name of uploaded document
-  buktiRequired: boolean;          // Whether proof document is mandatory
-  expectationResult?: number;      // Expectation target value
+  description: string; // assessment description
+  complianceDescription: string; // compliance description
+  dataSource: string; // data source
+  proofUrl?: string; // URL if uploaded/referenced (fallback)
+  proofFileName?: string; // Name of uploaded document
+  buktiRequired: boolean; // Whether proof document is mandatory
+  expectationResult?: number; // Expectation target value
   expectationFormat?: "decimal" | "percentage"; // Format
-  score?: number;                  // Selected score/value (for auditing)
-  selectedRadioIndex?: number;     // Index of selected custom radio choice
+  score?: number; // Selected score/value (for auditing)
+  selectedRadioIndex?: number; // Index of selected custom radio choice
   radioVariables?: RadioVariable[]; // Custom radio variables/choices for ordinary assessment
-  formula?: FormulaData;           // formula and variable inputs
-  isSubmitted?: boolean;           // Track submission status
+  formula?: FormulaData; // formula and variable inputs
+  isSubmitted?: boolean; // Track submission status
 }
 
 export interface IndicatorTab {
@@ -50,12 +50,20 @@ export interface MutuBanptData {
   indicators: IndicatorTab[];
 }
 
-export interface Akreditasi {
+export interface Accreditation {
   id: string;
-  nama: string;
-  deskripsi: string;
-  tahun: string;
-  referensi: string; // uploaded reference file name
+  name: string;
+  description: string;
+  year: number;
+  reference: string;
+  created_at: string;
+}
+
+export interface SaveAccreditationRequest {
+  name: string;
+  description?: string | null;
+  year: number;
+  reference: string;
 }
 
 export interface LocalConstant {
