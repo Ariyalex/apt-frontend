@@ -74,6 +74,7 @@ export default function Dashboard(): React.JSX.Element {
       try {
         sessionData = JSON.parse(raw);
         if (sessionData && (sessionData.username === "admin" || sessionData.role === "Administrator")) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setIsAdmin(true);
         }
       } catch {

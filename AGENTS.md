@@ -73,5 +73,62 @@ This document outlines the architectural standards, code style, UI constraints, 
 * **Jangan Confidence dengan Aksi API (Selalu Tampilkan Loading)**: Jangan berasumsi/optimis bahwa aksi yang berkaitan dengan API akan langsung berhasil tanpa loading. Selalu tampilkan state loading terlebih dahulu ketika melakukan `await response API`. Selama proses loading, semua field input, dropdown select, tombol aksi (Submit/Save/Reset/Hapus), dan tombol batal harus dinonaktifkan (`disabled`), serta tampilkan spinner indikator loading pada tombol aksi utama.
 * **No Optimistic/Confident Actions Without Loading State**: Never perform actions interacting with APIs without showing a loading state. Always display a loading state (e.g., disable input fields and action buttons, show spinners or loading indicators) while awaiting API responses. This prevents double submissions, accidental clicks, and provides positive user feedback.
 
+## 13. Form Input Field Wrappers (Field, FieldLabel, FieldDescription)
+* **Wrap Form Inputs**: Always wrap text inputs, number inputs, textareas, and other input fields inside the `<Field>` component from `@/components/ui/field`.
+* **FieldLabel & FieldDescription**: Use `<FieldLabel>` for input labels and `<FieldDescription>` for helper text/descriptions rather than generic native tags. This guarantees consistent spacing, typography scale, and automated ARIA descriptor bindings.
+* **Radix Input Standard Usage**:
+  ```tsx
+  import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
+  import { Input } from "@/components/ui/input";
+
+  export function InputField() {
+    return (
+      <Field>
+        <FieldLabel htmlFor="username">Username</FieldLabel>
+        <Input id="username" type="text" placeholder="Enter your username" />
+        <FieldDescription>Choose a unique username for your account.</FieldDescription>
+      </Field>
+    );
+  }
+  ```
+
+## 14. Table Component Usage (Table, TableHeader, TableRow, TableHead, TableBody, TableCell)
+* **Standard Table Components**: Always use the shadcn Table components instead of native HTML `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>`, and `<td>` elements.
+* **Component Imports**:
+  ```tsx
+  import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+    TableCaption,
+    TableFooter,
+  } from "@/components/ui/table"
+  ```
+* **Dropdown Actions in Cells**: When adding dropdown actions inside table cells, use the following layout format:
+  ```tsx
+  <TableCell className="text-right">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="size-8">
+          <MoreHorizontalIcon />
+          <span className="sr-only">Open menu</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem>Edit</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive">
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </TableCell>
+  ```
+
+
+
 
 

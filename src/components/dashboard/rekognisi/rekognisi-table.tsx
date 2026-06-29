@@ -8,12 +8,21 @@ import { Submission } from "@/dummy-data/bagikan-form";
 import { useUpdateRecognitionMutation } from "@/store/services/recognitionApi";
 import { useGetRecognitionCategoriesQuery } from "@/store/services/recognitionCategoryApi";
 import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface RekognisiTableProps {
   data: DosenData[];
+  showActions?: boolean;
 }
 
-export function RekognisiTable({ data }: RekognisiTableProps) {
+export function RekognisiTable({ data, showActions = false }: RekognisiTableProps) {
   const router = useRouter();
   const [sortField, setSortField] = useState<keyof DosenData | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -74,15 +83,6 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
     }
   };
 
-  const sortedData = [...data].sort((a, b) => {
-    if (!sortField) return 0;
-    const valA = a[sortField].toString().toLowerCase();
-    const valB = b[sortField].toString().toLowerCase();
-    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-    return 0;
-  });
-
   const renderSortIcon = (field: keyof DosenData) => {
     if (sortField !== field) {
       return <ArrowUpDown className="h-3 w-3 text-muted-foreground/70 group-hover:text-foreground transition-colors" />;
@@ -94,16 +94,27 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
     );
   };
 
+  const sortedData = [...data].sort((a, b) => {
+    if (!sortField) return 0;
+    
+    const aVal = (a[sortField] || "").toString().toLowerCase();
+    const bVal = (b[sortField] || "").toString().toLowerCase();
+    
+    if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
+
   return (
     <div className="space-y-3">
       {/* Scrollable horizontal wrapper without height restrictions */}
       <div className="overflow-x-auto rounded-lg border border-border w-full">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase">
-              <th className="px-4 py-3 font-semibold border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">NIP</th>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase">
+              <TableHead className="px-4 py-3 font-semibold border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">NIP</TableHead>
               
-              <th 
+              <TableHead 
                 onClick={() => handleSort("nama")} 
                 className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
               >
@@ -111,9 +122,9 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
                   Nama Dosen
                   {renderSortIcon("nama")}
                 </div>
-              </th>
+              </TableHead>
               
-              <th 
+              <TableHead 
                 onClick={() => handleSort("prodi")} 
                 className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
               >
@@ -121,9 +132,9 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
                   Prodi
                   {renderSortIcon("prodi")}
                 </div>
-              </th>
+              </TableHead>
               
-              <th 
+              <TableHead 
                 onClick={() => handleSort("jenisRekognisi")} 
                 className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
               >
@@ -131,9 +142,9 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
                   Jenis Rekognisi
                   {renderSortIcon("jenisRekognisi")}
                 </div>
-              </th>
+              </TableHead>
               
-              <th 
+              <TableHead 
                 onClick={() => handleSort("tahun")} 
                 className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
               >
@@ -141,54 +152,56 @@ export function RekognisiTable({ data }: RekognisiTableProps) {
                   Tahun
                   {renderSortIcon("tahun")}
                 </div>
-              </th>
+              </TableHead>
               
-              <th className="px-4 py-3 font-semibold border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Deskripsi</th>
-              <th className="px-4 py-3 font-semibold text-right border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
+              <TableHead className="px-4 py-3 font-semibold border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Deskripsi</TableHead>
+              {showActions && <TableHead className="px-4 py-3 font-semibold text-right border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Aksi</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {sortedData.length > 0 ? (
               sortedData.map((dosen, i) => (
-                <tr 
+                <TableRow 
                   key={dosen.id || i} 
                   onClick={() => router.push(`/dashboard/rekognisi-dosen/${dosen.id}`)}
                   className="border-b border-border last:border-0 hover:bg-muted/10 text-xs text-foreground transition-colors cursor-pointer"
                 >
-                  <td className="px-4 py-3.5 font-medium text-muted-foreground">{dosen.nip}</td>
-                  <td className="px-4 py-3.5 font-semibold">{dosen.nama}</td>
-                  <td className="px-4 py-3.5">{dosen.prodi}</td>
-                  <td className="px-4 py-3.5">
+                  <TableCell className="px-4 py-3.5 font-medium text-muted-foreground">{dosen.nip}</TableCell>
+                  <TableCell className="px-4 py-3.5 font-semibold">{dosen.nama}</TableCell>
+                  <TableCell className="px-4 py-3.5">{dosen.prodi}</TableCell>
+                  <TableCell className="px-4 py-3.5">
                     <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary capitalize">
                       {dosen.jenisRekognisi}
                     </span>
-                  </td>
-                  <td className="px-4 py-3.5 font-semibold text-muted-foreground">{dosen.tahun}</td>
-                  <td className="px-4 py-3.5 text-muted-foreground leading-relaxed font-semibold" title={dosen.deskripsi}>
+                  </TableCell>
+                  <TableCell className="px-4 py-3.5 font-semibold text-muted-foreground">{dosen.tahun}</TableCell>
+                  <TableCell className="px-4 py-3.5 text-muted-foreground leading-relaxed font-semibold" title={dosen.deskripsi}>
                     {dosen.deskripsi}
-                  </td>
-                  <td className="px-4 py-3.5 text-right">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={(e) => handleOpenEdit(e, dosen)}
-                      className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
-                      title="Edit Data"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
-                </tr>
+                  </TableCell>
+                  {showActions && (
+                    <TableCell className="px-4 py-3.5 text-right">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => handleOpenEdit(e, dosen)}
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                        title="Edit Data"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  )}
+                </TableRow>
               ))
             ) : (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-xs text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={showActions ? 7 : 6} className="px-4 py-8 text-center text-xs text-muted-foreground">
                   Tidak ada data ditemukan
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Table Footer Actions */}
