@@ -3,11 +3,11 @@ import type { InstituteResponse, SingleInstituteResponse, SaveInstituteRequest }
 
 export const instituteApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getInstitutes: builder.query<InstituteResponse, { name?: string } | void>({
+    getInstitutes: builder.query<InstituteResponse, { name?: string; page?: number; limit?: number } | void>({
       query: (params) => ({
         url: "/institute",
         method: "GET",
-        params: params?.name ? { name: params.name } : undefined,
+        params: params || undefined,
       }),
       providesTags: ["Institute"],
     }),

@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ExternalLink } from "lucide-react";
+import {
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -21,13 +28,35 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import {
-  getMutuBanptData,
-  formatCategoryName,
-  formatStageName,
-  getSubmissionsForAspect,
-} from "@/dummy-data/mutu-banpt";
-import { IndicatorTab, AssessmentAspect, AspectSubmission } from "@/types/mutu-banpt";
+import { formatCategoryName, formatStageName } from "@/dummy-data/mutu-banpt";
+import type {
+  IndicatorTab,
+  AssessmentAspect,
+} from "@/types/mutu-banpt";
+import { useGetAssessmentEvaluationListQuery } from "@/store/services/assessmentEvaluationApi";
+import { useGetAccreditationIndicatorStatsQuery } from "@/store/services/accreditationApi";
+import { useGetIndicatorListQuery } from "@/store/services/indicatorApi";
+import { useGetFileMutation } from "@/store/services/fileApi";
+import { toast } from "sonner";
+
+const mapCriteria = (criteria: string): string => {
+  switch (criteria) {
+    case "budaya-mutu":
+      return "quality_culture";
+    case "relevansi-pendidikan":
+      return "education_relevance";
+    case "relevansi-penelitian":
+      return "research_relevance";
+    case "relevansi-pkm":
+      return "comunity_service_relevance";
+    case "akuntabilitas":
+      return "accountability";
+    case "diferensiasi-misi":
+      return "mission_differentiation";
+    default:
+      return criteria;
+  }
+};
 
 interface MutuCategoryClientProps {
   category: string;
@@ -52,8 +81,34 @@ export default function MutuCategoryClientPage({
 
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-  const [selectedAspect, setSelectedAspect] = useState<AssessmentAspect | null>(null);
+  const [selectedAspect, setSelectedAspect] = useState<AssessmentAspect | null>(
+    null,
+  );
   const [selectedStageLabel, setSelectedStageLabel] = useState<string>("");
+  const [drawerPage, setDrawerPage] = useState<number>(1);
+  const [getFile] = useGetFileMutation();
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDrawerPage(1);
+  }, [selectedAspect, isDrawerOpen]);
+
+  const handleViewProof = (proofUrl: string) => {
+    if (!proofUrl) return;
+    const promise = getFile(proofUrl).unwrap().then((objectUrl) => {
+      window.open(objectUrl, "_blank");
+      return objectUrl;
+    });
+
+    toast.promise(promise, {
+      loading: "Mengunduh file bukti...",
+      success: "File berhasil dimuat!",
+      error: (err: unknown) => {
+        const errorObj = err as { message?: string };
+        return errorObj.message || "Gagal memuat file bukti";
+      },
+    });
+  };
 
   useEffect(() => {
     const raw = localStorage.getItem("userSession");
@@ -73,43 +128,132 @@ export default function MutuCategoryClientPage({
 
   // Sync active accreditation
   useEffect(() => {
-    const handleActiveChange = () => {
-      const storedId = localStorage.getItem("active_akreditasi_id");
-      if (storedId) {
-        setActiveAkredId(storedId);
-        setIsLoading(true);
-      }
-    };
-
     const storedId = localStorage.getItem("active_akreditasi_id");
     if (storedId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveAkredId(storedId);
     }
 
+    const handleActiveChange = () => {
+      const newId = localStorage.getItem("active_akreditasi_id");
+      if (newId) {
+        setActiveAkredId(newId);
+      }
+    };
+
     window.addEventListener("active_akreditasi_change", handleActiveChange);
-    return () => window.removeEventListener("active_akreditasi_change", handleActiveChange);
+    return () =>
+      window.removeEventListener(
+        "active_akreditasi_change",
+        handleActiveChange,
+      );
   }, []);
 
-  // Fetch all 4 stages data
+  // Reset selected indicator and stage data when accreditation changes
   useEffect(() => {
-    if (category && activeAkredId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsLoading(true);
-      const stages = ["masukan", "proses", "luaran", "dampak"];
-      
-      const timer = setTimeout(() => {
-        const list = stages.map((stg) => ({
-          stage: stg,
-          indicators: getMutuBanptData(category, stg, activeAkredId).indicators,
-        }));
-        setStageDataList(list);
-        setIsLoading(false);
-      }, 700);
+    // Clear stage data list to trigger re-mapping based on new stats
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStageDataList([]);
+    // Reset selected stage label for consistency
+     
+    setSelectedStageLabel("");
+  }, [activeAkredId]);
 
-      return () => clearTimeout(timer);
+  // RTK Query API Hooks
+  const {
+    data: statsRes,
+    isFetching: isStatsFetching,
+  } = useGetAccreditationIndicatorStatsQuery(activeAkredId, {
+    skip: !activeAkredId,
+  });
+
+  // Search indicators by criteria for the current category
+  const {
+    data: indicatorsRes,
+    isFetching: isIndicatorsFetching,
+  } = useGetIndicatorListQuery({
+    accreditation_id: activeAkredId,
+    criteria: mapCriteria(category),
+    target: "input",
+  }, {
+    skip: !activeAkredId,
+  });
+
+  // (Removed unused all evaluations query)
+
+  // Fetch evaluations for the selected indicator (used in the drawer)
+  const { data: drawerEvalsRes, isFetching: isDrawerEvalsFetching } = useGetAssessmentEvaluationListQuery(
+    { accreditation_id: activeAkredId, indicator_id: selectedAspect?.id },
+    { skip: !selectedAspect },
+  );
+
+  // Sync loading state
+  useEffect(() => {
+    const isFetching = isStatsFetching || isDrawerEvalsFetching || isIndicatorsFetching;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(isFetching);
+  }, [isStatsFetching, isDrawerEvalsFetching, isIndicatorsFetching]);
+
+  // Map API response models to UI Component states (IndicatorTab / AssessmentAspect)
+  useEffect(() => {
+    if (statsRes?.data && indicatorsRes?.data) {
+      const indicatorIdSet = new Set(indicatorsRes.data.map((ind) => ind.id));
+      const stages = ["masukan", "proses", "luaran", "dampak"];
+      const targetMap = {
+        masukan: "input",
+        proses: "process",
+        luaran: "output",
+        dampak: "impact",
+      };
+
+      const mappedList = stages.map((stg) => {
+        const backendTarget = targetMap[stg as keyof typeof targetMap];
+
+        // Filter stats by criteria, target, and matching indicator IDs
+        const stageItems = statsRes.data.filter(
+          (item) =>
+            item.criteria === mapCriteria(category) &&
+            item.target === backendTarget &&
+            indicatorIdSet.has(item.indicator_id)
+        );
+
+        const mappedIndicators: IndicatorTab[] = stageItems.map((item, index) => {
+          const aspects: AssessmentAspect[] = [
+            {
+              id: item.indicator_id,
+              type: "formula",
+              description: item.assessment,
+              complianceDescription: item.fulfillment,
+              dataSource: "-",
+              proofUrl: undefined,
+              buktiRequired: false,
+              expectationResult: 0,
+              expectationFormat: "decimal",
+              score: Number(item.score || 0),
+              isSubmitted: true,
+            },
+          ];
+
+          return {
+            id: index + 1,
+            title: `Indikator ${item.number}`,
+            status: "selesai" as const,
+            justifikasi: "",
+            indikatorDescription: item.name,
+            aspects,
+          };
+        });
+
+        return {
+          stage: stg,
+          indicators: mappedIndicators,
+        };
+      });
+
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStageDataList(mappedList);
     }
-  }, [category, activeAkredId]);
+  }, [statsRes, indicatorsRes, category]);
 
   // Role permissions
   const isAssessor = userRole === "Assessor";
@@ -127,42 +271,8 @@ export default function MutuCategoryClientPage({
     );
   }
 
-  // Safe formula evaluator
-  const calculateFormula = (
-    expression: string,
-    variables: { name: string; value: number }[]
-  ): number => {
-    try {
-      let evalStr = expression;
-      evalStr = evalStr.replace("%", "").replace(" * 100", "");
-
-      variables.forEach((v) => {
-        const regex = new RegExp(`\\b${v.name}\\b`, "g");
-        evalStr = evalStr.replace(regex, v.value.toString());
-      });
-
-      const cleanStr = evalStr.replace(/[^0-9+\-*/().\s]/g, "");
-      const computed = new Function(`return (${cleanStr})`)();
-
-      if (expression.includes("* 100") || expression.includes("%")) {
-        return parseFloat((computed * 100).toFixed(2));
-      }
-      return parseFloat(computed.toFixed(2));
-    } catch {
-      return 0;
-    }
-  };
-
   const getAspectScoreText = (asp: AssessmentAspect): string => {
-    if (asp.type === "radio") {
-      const scoreVal = asp.score ?? 0;
-      return asp.expectationFormat === "percentage" ? `${scoreVal}%` : `${scoreVal}`;
-    }
-    if (asp.type === "formula" && asp.formula) {
-      const scoreVal = calculateFormula(asp.formula.expression, asp.formula.variables);
-      return asp.expectationFormat === "percentage" ? `${scoreVal}%` : `${scoreVal}`;
-    }
-    return "0";
+    return asp.score !== undefined ? String(asp.score) : "0";
   };
 
   const handleRowClick = (asp: AssessmentAspect, stageKey: string) => {
@@ -172,8 +282,33 @@ export default function MutuCategoryClientPage({
     setIsDrawerOpen(true);
   };
 
-  // Submissions drawer helper list
-  const drawerSubmissions: AspectSubmission[] = selectedAspect ? getSubmissionsForAspect(selectedAspect.id) : [];
+  // Map evaluations directly from API (filtered by indicator_id server-side)
+  const drawerSubmissions = (drawerEvalsRes?.data ?? []).map((ev) => ({
+    id: ev.id,
+    nama: ev.user?.name || "Program Studi/Unit",
+    institute: ev.institute || "-",
+    studyProgram: ev.study_program || "-",
+    bukti: ev.proof || "",
+    expectationScore: Number(ev.calculation_rule.expectation_result || 0),
+    score: Number(ev.calculated_result),
+    status:
+      Number(ev.calculated_result) >= Number(ev.calculation_rule.expectation_result || 0)
+        ? ("Memenuhi" as const)
+        : ("Tidak Memenuhi" as const),
+    createdAt: ev.created_at || new Date().toISOString(),
+    updatedAt: ev.updated_at || new Date().toISOString(),
+  }));
+
+  const drawerLimit = 10;
+  const totalDrawerItems = drawerSubmissions.length;
+  const totalDrawerPages = Math.ceil(totalDrawerItems / drawerLimit);
+  const paginatedDrawerSubmissions = drawerSubmissions.slice(
+    (drawerPage - 1) * drawerLimit,
+    drawerPage * drawerLimit,
+  );
+  const startDrawerItem =
+    totalDrawerItems === 0 ? 0 : (drawerPage - 1) * drawerLimit + 1;
+  const endDrawerItem = Math.min(drawerPage * drawerLimit, totalDrawerItems);
 
   return (
     <div className="w-full space-y-6 animate-fadeIn">
@@ -197,19 +332,35 @@ export default function MutuCategoryClientPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-24"><Skeleton className="h-4 w-12 bg-muted/40" /></TableHead>
-                      <TableHead><Skeleton className="h-4 w-28 bg-muted/40" /></TableHead>
-                      <TableHead><Skeleton className="h-4 w-36 bg-muted/40" /></TableHead>
-                      <TableHead className="w-20 text-right"><Skeleton className="h-4 w-8 ml-auto bg-muted/40" /></TableHead>
+                      <TableHead className="w-24">
+                        <Skeleton className="h-4 w-12 bg-muted/40" />
+                      </TableHead>
+                      <TableHead>
+                        <Skeleton className="h-4 w-28 bg-muted/40" />
+                      </TableHead>
+                      <TableHead>
+                        <Skeleton className="h-4 w-36 bg-muted/40" />
+                      </TableHead>
+                      <TableHead className="w-20 text-right">
+                        <Skeleton className="h-4 w-8 ml-auto bg-muted/40" />
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {[1, 2].map((j) => (
                       <TableRow key={j}>
-                        <TableCell><Skeleton className="h-4 w-16 bg-muted/40" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-3/4 bg-muted/40" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-5/6 bg-muted/40" /></TableCell>
-                        <TableCell className="text-right"><Skeleton className="h-4 w-8 ml-auto bg-muted/40" /></TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-16 bg-muted/40" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-3/4 bg-muted/40" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-5/6 bg-muted/40" />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Skeleton className="h-4 w-8 ml-auto bg-muted/40" />
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -227,7 +378,7 @@ export default function MutuCategoryClientPage({
               ind.aspects.map((asp) => ({
                 ...asp,
                 indicatorTitle: ind.title,
-              }))
+              })),
             );
 
             return (
@@ -247,16 +398,27 @@ export default function MutuCategoryClientPage({
                   <Table>
                     <TableHeader className="bg-muted/10">
                       <TableRow>
-                        <TableHead className="w-28 font-bold text-foreground">Indikator</TableHead>
-                        <TableHead className="font-bold text-foreground">Aspek Penilaian</TableHead>
-                        <TableHead className="font-bold text-foreground">Deskripsi Pemenuhan</TableHead>
-                        <TableHead className="w-24 text-right font-bold text-foreground">Skor</TableHead>
+                        <TableHead className="w-28 font-bold text-foreground">
+                          Indikator
+                        </TableHead>
+                        <TableHead className="font-bold text-foreground">
+                          Aspek Penilaian
+                        </TableHead>
+                        <TableHead className="font-bold text-foreground">
+                          Deskripsi Pemenuhan
+                        </TableHead>
+                        <TableHead className="w-24 text-right font-bold text-foreground">
+                          Skor
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {allAspects.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground py-6 italic">
+                          <TableCell
+                            colSpan={4}
+                            className="text-center text-muted-foreground py-6 italic"
+                          >
                             Belum ada aspek penilaian terdaftar untuk tahap ini.
                           </TableCell>
                         </TableRow>
@@ -264,7 +426,9 @@ export default function MutuCategoryClientPage({
                         allAspects.map((asp) => (
                           <TableRow
                             key={asp.id}
-                            onClick={(): void => handleRowClick(asp, stageData.stage)}
+                            onClick={(): void =>
+                              handleRowClick(asp, stageData.stage)
+                            }
                             className={
                               canInteract
                                 ? "hover:bg-muted/40 cursor-pointer transition-colors duration-150 select-none"
@@ -296,14 +460,19 @@ export default function MutuCategoryClientPage({
       )}
 
       {/* Interactive Submissions Drawer */}
-      <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} direction="bottom">
+      <Drawer
+        open={isDrawerOpen}
+        onOpenChange={setIsDrawerOpen}
+        direction="bottom"
+      >
         <DrawerContent className="max-h-[92vh] h-[92vh] p-6 bg-card border-t border-border text-xs flex flex-col">
-          <DrawerHeader className="px-0 pt-0">
+          <DrawerHeader>
             <DrawerTitle className="text-sm font-bold text-foreground lowercase first-letter:uppercase">
               {selectedStageLabel} {catLabel}
             </DrawerTitle>
             <DrawerDescription className="text-xs text-muted-foreground">
-              Daftar rekapitulasi data pengisi indikator dari berbagai program studi/unit kerja.
+              Daftar rekapitulasi data pengisi indikator dari berbagai program
+              studi/unit kerja.
             </DrawerDescription>
           </DrawerHeader>
 
@@ -313,38 +482,64 @@ export default function MutuCategoryClientPage({
                 <TableHeader className="bg-muted/10">
                   <TableRow>
                     <TableHead className="font-bold text-foreground">Nama</TableHead>
+                    <TableHead className="font-bold text-foreground">Institusi / Prodi</TableHead>
                     <TableHead className="font-bold text-foreground">Bukti</TableHead>
-                    <TableHead className="w-32 text-center font-bold text-foreground">Expectation Score</TableHead>
+                    <TableHead className="w-32 text-center font-bold text-foreground">Expectation</TableHead>
                     <TableHead className="w-20 text-center font-bold text-foreground">Skor</TableHead>
                     <TableHead className="w-24 text-center font-bold text-foreground">Status</TableHead>
-                    <TableHead className="w-32 text-center font-bold text-foreground">Created At</TableHead>
-                    <TableHead className="w-32 text-center font-bold text-foreground">Updated At</TableHead>
+                    <TableHead className="w-32 text-center font-bold text-foreground">Dibuat</TableHead>
+                    <TableHead className="w-32 text-center font-bold text-foreground">Diperbarui</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {drawerSubmissions.length === 0 ? (
+                  {isDrawerEvalsFetching ? (
+                    /* Skeleton saat loading data evaluasi */
+                    [1, 2, 3].map((k) => (
+                      <TableRow key={k}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((c) => (
+                          <TableCell key={c}>
+                            <Skeleton className="h-4 w-full bg-muted/40" />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : paginatedDrawerSubmissions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-6 italic">
-                        Belum ada data pengisi masuk.
+                      <TableCell
+                        colSpan={8}
+                        className="text-center text-muted-foreground py-8 italic"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className="h-6 w-6 text-muted-foreground/40" />
+                          <span>Belum ada data evaluasi untuk indikator ini.</span>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    drawerSubmissions.map((sub) => (
+                    paginatedDrawerSubmissions.map((sub) => (
                       <TableRow key={sub.id} className="hover:bg-muted/10">
                         <TableCell className="font-semibold text-foreground">
                           {sub.nama}
                         </TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          <div>{sub.institute}</div>
+                          <div className="text-primary/80 font-medium">{sub.studyProgram}</div>
+                        </TableCell>
                         <TableCell>
-                          <a
-                            href={sub.bukti}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e): void => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-primary hover:underline font-semibold text-xs cursor-pointer"
-                          >
-                            Kunjungi Bukti
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
+                          {sub.bukti ? (
+                            <button
+                              onClick={(e): void => {
+                                e.stopPropagation();
+                                handleViewProof(sub.bukti);
+                              }}
+                              className="inline-flex items-center gap-1 text-primary hover:underline font-semibold text-xs cursor-pointer"
+                            >
+                              Kunjungi Bukti
+                              <ExternalLink className="h-3 w-3" />
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground italic">Tidak Ada</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center font-semibold text-muted-foreground">
                           {sub.expectationScore}
@@ -353,27 +548,110 @@ export default function MutuCategoryClientPage({
                           {sub.score}
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              sub.status === "Memenuhi"
+                                ? "bg-success/10 text-success border-success/20"
+                                : "bg-error/10 text-error border-error/20"
+                            }`}
+                          >
                             {sub.status}
                           </span>
                         </TableCell>
                         <TableCell className="text-center text-muted-foreground">
-                          {sub.createdAt}
+                          {new Date(sub.createdAt).toLocaleString("id-ID", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
                         </TableCell>
                         <TableCell className="text-center text-muted-foreground">
-                          {sub.updatedAt}
+                          {new Date(sub.updatedAt).toLocaleString("id-ID", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
                         </TableCell>
                       </TableRow>
                     ))
                   )}
                 </TableBody>
               </Table>
+
+              {/* Drawer Table Pagination Controls */}
+              {!isDrawerEvalsFetching && totalDrawerItems > 0 && (
+                <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-muted/10 text-xs text-muted-foreground select-none">
+                  <div>
+                    Menampilkan{" "}
+                    <span className="font-semibold text-foreground">
+                      {startDrawerItem}
+                    </span>{" "}
+                    -{" "}
+                    <span className="font-semibold text-foreground">
+                      {endDrawerItem}
+                    </span>{" "}
+                    dari{" "}
+                    <span className="font-semibold text-foreground">
+                      {totalDrawerItems}
+                    </span>{" "}
+                    data
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setDrawerPage(1)}
+                      disabled={drawerPage === 1}
+                    >
+                      <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setDrawerPage(drawerPage - 1)}
+                      disabled={drawerPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="px-2 text-xs font-medium text-foreground">
+                      Halaman {drawerPage} dari {totalDrawerPages || 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setDrawerPage(drawerPage + 1)}
+                      disabled={
+                        drawerPage === totalDrawerPages ||
+                        totalDrawerPages === 0
+                      }
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setDrawerPage(totalDrawerPages)}
+                      disabled={
+                        drawerPage === totalDrawerPages ||
+                        totalDrawerPages === 0
+                      }
+                    >
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <DrawerFooter className="px-0 pb-0 pt-4 flex flex-row justify-end gap-3 border-t border-border/40 shrink-0">
             <DrawerClose asChild>
-              <Button variant="outline" className="h-8 text-xs font-semibold px-4 cursor-pointer">
+              <Button
+                variant="outline"
+                className="h-8 text-xs font-semibold px-4 cursor-pointer"
+              >
                 Tutup
               </Button>
             </DrawerClose>

@@ -7,6 +7,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useGetRecognitionListQuery } from "@/store/services/recognitionApi";
+import { useGetStudyProgramsQuery } from "@/store/services/studyProgramApi";
+import { useGetRecognitionCategoriesQuery } from "@/store/services/recognitionCategoryApi";
 import { useRouter } from "next/navigation";
 
 export default function KelolaRekognisiDosenPage(): React.JSX.Element {
@@ -29,13 +31,48 @@ export default function KelolaRekognisiDosenPage(): React.JSX.Element {
     }
   }, []);
 
-  // Query approved recognition records from API
+  // Pagination and search/filter states
+  const [page, setPage] = useState<number>(1);
+  const limit = 10;
+
+  const [tableProdi, setTableProdi] = useState<string>("Semua");
+  const [tableJenis, setTableJenis] = useState<string>("Semua");
+  const [searchQuery, setSearchQuery] = useState("Cari...");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+
+  // Debounce search input
+  useEffect(() => {
+    const activeSearch = searchQuery === "Cari..." ? "" : searchQuery;
+    const handler = setTimeout(() => {
+      setDebouncedSearch(activeSearch);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Reset page to 1 when search or filter criteria changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [debouncedSearch, tableProdi, tableJenis]);
+
+  // Query approved recognition records from API (paginated & filtered)
   const {
     data: recognitionResponse,
     isLoading: isApiLoading,
     isError,
     refetch,
-  } = useGetRecognitionListQuery({ status: "approved" });
+  } = useGetRecognitionListQuery({
+    status: "approved",
+    page,
+    limit,
+    lecturer_name: debouncedSearch || undefined,
+    study_program: tableProdi !== "Semua" ? tableProdi : undefined,
+    category: tableJenis !== "Semua" ? tableJenis : undefined,
+  });
+
+  // Query categories and study programs to populate comboboxes
+  const { data: prodiRes } = useGetStudyProgramsQuery({ limit: 100 });
+  const { data: catRes } = useGetRecognitionCategoriesQuery();
 
   const recognitionList = recognitionResponse?.data || [];
 
@@ -51,11 +88,6 @@ export default function KelolaRekognisiDosenPage(): React.JSX.Element {
     buktiUrl: (rec.proof_links || []).join(","),
   }));
 
-  // Filter states
-  const [tableProdi, setTableProdi] = useState<string>("Semua");
-  const [tableJenis, setTableJenis] = useState<string>("Semua");
-  const [searchQuery, setSearchQuery] = useState("Cari...");
-
   const handleFocus = () => {
     if (searchQuery === "Cari...") {
       setSearchQuery("");
@@ -68,18 +100,14 @@ export default function KelolaRekognisiDosenPage(): React.JSX.Element {
     }
   };
 
-  const getActiveSearchQuery = () => {
-    return searchQuery === "Cari..." ? "" : searchQuery;
-  };
-
-  // Get unique lists for filtering
+  // Get lists for filtering
   const prodis = [
     "Semua",
-    ...Array.from(new Set(initialData.map((item) => item.prodi))),
+    ...(prodiRes?.data || []).map((p) => p.name),
   ];
   const jenisList = [
     "Semua",
-    ...Array.from(new Set(initialData.map((item) => item.jenisRekognisi))),
+    ...(catRes?.data || []).map((c) => c.name),
   ];
 
   // Options structures for Combobox
@@ -93,18 +121,8 @@ export default function KelolaRekognisiDosenPage(): React.JSX.Element {
     label: j === "Semua" ? "Semua Jenis" : j,
   }));
 
-  // Filter data for Table
-  const tableFilteredData = initialData.filter((item) => {
-    const activeSearch = getActiveSearchQuery();
-    const matchProdi = tableProdi === "Semua" || item.prodi === tableProdi;
-    const matchJenis =
-      tableJenis === "Semua" || item.jenisRekognisi === tableJenis;
-    const matchSearch =
-      item.nama.toLowerCase().includes(activeSearch.toLowerCase()) ||
-      item.nip.includes(activeSearch) ||
-      item.deskripsi.toLowerCase().includes(activeSearch.toLowerCase());
-    return matchProdi && matchJenis && matchSearch;
-  });
+  // Since filtering is now offloaded to the server, data is already filtered
+  const tableFilteredData = initialData;
 
   return (
     <div className="space-y-6">
@@ -202,7 +220,14 @@ export default function KelolaRekognisiDosenPage(): React.JSX.Element {
               ))}
             </div>
           ) : (
-            <RekognisiTable data={tableFilteredData} showActions={true} />
+            <RekognisiTable
+              data={tableFilteredData}
+              page={page}
+              totalPages={recognitionResponse?.meta?.total_pages || 1}
+              totalItems={recognitionResponse?.meta?.total_items || 0}
+              onPageChange={(p) => setPage(p)}
+              showActions={true}
+            />
           )}
         </div>
       )}

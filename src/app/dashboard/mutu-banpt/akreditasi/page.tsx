@@ -8,8 +8,8 @@ import {
   Shield,
   Calendar,
   FileText,
-  UploadCloud,
   Loader2,
+  UploadCloud,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,13 +35,13 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import {
   Attachment,
@@ -52,19 +52,17 @@ import {
   AttachmentActions,
   AttachmentAction,
 } from "@/components/ui/attachment";
-
+import type { Accreditation } from "@/types/mutu-banpt";
+import {
+  useGetFileMutation,
+  useUploadFileMutation,
+} from "@/store/services/fileApi";
 import {
   useCreateAccreditationMutation,
   useDeleteAccreditationMutation,
   useGetAccreditationListQuery,
   useUpdateAccreditationMutation,
 } from "@/store/services/accreditationApi";
-import { Accreditation } from "@/types/mutu-banpt";
-import DatePicker from "react-datepicker";
-import {
-  useGetFileMutation,
-  useUploadFileMutation,
-} from "@/store/services/fileApi";
 import { getFileCategory } from "@/lib/utils";
 
 export default function AkreditasiPage(): React.JSX.Element {
@@ -98,7 +96,42 @@ export default function AkreditasiPage(): React.JSX.Element {
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "done">(
     "idle",
   );
+
+  // Drag & drop state
   const [dragActive, setDragActive] = useState<boolean>(false);
+
+  const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFile(e.dataTransfer.files[0]);
+      setUploadState("done");
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+      setUploadState("done");
+    }
+  };
+
+  const removeAttachment = () => {
+    setSelectedFile(null);
+    setFormRef("");
+    setUploadState("idle");
+  };
 
   // Delete State
   const [deleteTarget, setDeleteTarget] = useState<Accreditation | null>(null);
@@ -109,6 +142,7 @@ export default function AkreditasiPage(): React.JSX.Element {
     setFormDeskripsi("");
     setFormTahun(new Date().getFullYear().toString());
     setFormRef("");
+    setSelectedFile(null);
     setUploadState("idle");
     setIsDialogOpen(true);
   };
@@ -120,70 +154,12 @@ export default function AkreditasiPage(): React.JSX.Element {
     setFormTahun(item.year.toString());
     setFormRef(item.reference);
     setUploadState(item.reference ? "done" : "idle");
+    setSelectedFile(null);
     setIsDialogOpen(true);
   };
 
-  // Drag & drop handlers
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
-    }
-  };
-
-  const processFile = (file: File) => {
-    const allowedExtensions = [
-      "jpg",
-      "jpeg",
-      "png",
-      "zip",
-      "pdf",
-      "xlsx",
-      "xls",
-      "doc",
-      "docx",
-      "docs",
-    ];
-    const ext = file.name.split(".").pop()?.toLowerCase();
-
-    if (!ext || !allowedExtensions.includes(ext)) {
-      toast.error(
-        `Format file .${ext} tidak diizinkan. Gunakan dokumen/gambar valid.`,
-      );
-      return;
-    }
-
-    setFormRef(file.name);
-    setSelectedFile(file);
-    setUploadState("done");
-  };
-
-  const removeAttachment = () => {
-    setFormRef("");
-    setUploadState("idle");
-  };
-
   const handleCreate = async () => {
-    if (!formNama.trim() || !formTahun || !selectedFile || !formRef) {
+    if (!formNama.trim() || !formTahun || !selectedFile) {
       toast.error("Nama akreditasi, tahun, dan referensi harus diisi!");
       return;
     }
@@ -205,13 +181,14 @@ export default function AkreditasiPage(): React.JSX.Element {
 
       const response = await createAccreditation({
         name: formNama,
-        reference: fileResponse.data,
+        reference: fileResponse.data.file_url,
         description: formDeskripsi,
         year: Number(formTahun),
       }).unwrap();
 
       if (response.success) {
         toast.success(response.message);
+        setIsDialogOpen(false);
       } else {
         toast.error(response.message);
       }
@@ -233,7 +210,7 @@ export default function AkreditasiPage(): React.JSX.Element {
       toast.error("Item tidak terpillih");
       return;
     }
-    if (!formNama.trim() || !formTahun || !selectedFile || !formRef) {
+    if (!formNama.trim() || !formTahun || (!selectedFile && !formRef)) {
       toast.error("Nama akreditasi, tahun, dan referensi harus diisi!");
       return;
     }
@@ -260,7 +237,7 @@ export default function AkreditasiPage(): React.JSX.Element {
         id: editingAkred!.id,
         body: {
           name: formNama,
-          reference: fileResponse ? fileResponse.data : formRef,
+          reference: fileResponse ? fileResponse.data.file_url : formRef,
           description: formDeskripsi,
           year: Number(formTahun),
         },
@@ -268,6 +245,7 @@ export default function AkreditasiPage(): React.JSX.Element {
 
       if (response.success) {
         toast.success(response.message);
+        setIsDialogOpen(false);
       } else {
         toast.error(response.message);
       }
@@ -470,7 +448,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                 value={formNama}
                 onChange={(e) => setFormNama(e.target.value)}
                 placeholder="Contoh: Akreditasi BANPT 2026 - UIN Suka"
-                disabled={isCreating || isUpdating}
+                disabled={isCreating || isUpdating || isUploadingFile}
                 className="bg-card border-border text-foreground"
               />
             </Field>
@@ -483,7 +461,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                 value={formDeskripsi}
                 onChange={(e) => setFormDeskripsi(e.target.value)}
                 placeholder="Tuliskan keterangan detail akreditasi..."
-                disabled={isCreating || isUpdating}
+                disabled={isCreating || isUpdating || isUploadingFile}
                 rows={3}
                 className="w-full bg-card border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary text-foreground resize-none"
               />
@@ -491,24 +469,19 @@ export default function AkreditasiPage(): React.JSX.Element {
 
             {/* Tahun */}
             <Field>
-              <FieldLabel htmlFor="form-tahun">Tahun Akreditasi</FieldLabel>
-              <DatePicker
-                selected={
-                  formTahun ? new Date(parseInt(formTahun), 0, 1) : null
-                }
-                onChange={(date: Date | null) => {
-                  if (date) {
-                    setFormTahun(date.getFullYear().toString());
-                  }
-                }}
-                showYearPicker
-                dateFormat="yyyy"
-                customInput={
-                  <input
-                    disabled={isCreating || isUpdating}
-                    className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer text-foreground text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                }
+              <FieldLabel htmlFor="form-tahun">
+                Tahun Akreditasi
+              </FieldLabel>
+              <Input
+                id="form-tahun"
+                type="number"
+                min={2000}
+                max={2100}
+                value={formTahun}
+                onChange={(e) => setFormTahun(e.target.value)}
+                disabled={isCreating || isUpdating || isUploadingFile}
+                placeholder="Contoh: 2026"
+                className="bg-card border-border text-foreground"
               />
             </Field>
 
@@ -533,7 +506,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                   <input
                     type="file"
                     id="ref-file"
-                    disabled={isCreating || isUpdating}
+                    disabled={isCreating || isUpdating || isUploadingFile}
                     onChange={handleFileSelect}
                     className="hidden"
                   />
@@ -581,7 +554,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                       variant="ghost"
                       size="icon-xs"
                       onClick={removeAttachment}
-                      disabled={isCreating || isUpdating}
+                      disabled={isCreating || isUpdating || isUploadingFile}
                       className="text-error hover:bg-error/10 hover:text-error"
                     >
                       <X className="h-4 w-4" />
@@ -592,10 +565,10 @@ export default function AkreditasiPage(): React.JSX.Element {
             </Field>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 border-t border-border/40 pt-4 mt-2">
+          <DialogFooter className="gap-2 sm:gap-0 border-t border-border/40 pt-4 mt-2" aria-label="dialog-actions">
             <Button
               variant="outline"
-              disabled={isCreating || isUpdating}
+              disabled={isCreating || isUpdating || isUploadingFile}
               onClick={() => setIsDialogOpen(false)}
               className="text-xs h-9 cursor-pointer"
             >
@@ -603,7 +576,7 @@ export default function AkreditasiPage(): React.JSX.Element {
             </Button>
             <Button
               onClick={editingAkred ? handleUpdate : handleCreate}
-              disabled={isCreating || isUpdating}
+              disabled={isCreating || isUpdating || isUploadingFile}
               className="bg-primary text-primary-foreground text-xs font-semibold h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm cursor-pointer"
             >
               {isCreating || isUpdating || isUploadingFile ? (

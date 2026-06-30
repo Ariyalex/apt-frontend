@@ -37,52 +37,123 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { IndicatorTab, AssessmentAspect, FormulaVariable, RadioVariable, LocalConstant } from "@/types/mutu-banpt";
-import { getMutuBanptData, saveMutuBanptData, formatCategoryName, formatStageName } from "@/dummy-data/mutu-banpt";
+import {
+  IndicatorTab,
+  AssessmentAspect,
+  FormulaVariable,
+  RadioVariable,
+  LocalConstant,
+  SaveIndicatorRequest,
+  SaveAssessmentRuleRequest,
+  RuleVariable,
+  AssessmentRule,
+} from "@/types/mutu-banpt";
+import {
+  useGetIndicatorListQuery,
+  useCreateIndicatorMutation,
+  useUpdateIndicatorMutation,
+  useDeleteIndicatorMutation,
+} from "@/store/services/indicatorApi";
+import {
+  useGetAssessmentRuleListQuery,
+  useCreateAssessmentRuleMutation,
+  useUpdateAssessmentRuleMutation,
+  useDeleteAssessmentRuleMutation,
+} from "@/store/services/assessmentRuleApi";
+import { formatCategoryName, formatStageName } from "@/dummy-data/mutu-banpt";
 
-interface MutuBanptAdminProps {
-  category: string;
-  stage: string;
+interface AdminIndicatorTab extends IndicatorTab {
+  apiId?: string;
 }
 
-export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminProps): React.JSX.Element {
+const mapCriteria = (criteria: string): string => {
+  switch (criteria) {
+    case "budaya-mutu":
+      return "quality_culture";
+    case "relevansi-pendidikan":
+      return "education_relevance";
+    case "relevansi-penelitian":
+      return "research_relevance";
+    case "relevansi-pkm":
+      return "comunity_service_relevance";
+    case "akuntabilitas":
+      return "accountability";
+    case "diferensiasi-misi":
+      return "mission_differentiation";
+    default:
+      return criteria;
+  }
+};
+
+const mapTarget = (target: string): string => {
+  switch (target) {
+    case "masukan":
+      return "input";
+    case "proses":
+      return "process";
+    case "luaran":
+      return "output";
+    case "dampak":
+      return "impact";
+    default:
+      return target;
+  }
+};
+
+interface MutuBanptAdminProps {
+  criteria: string;
+  target: string;
+}
+
+export default function MutuBanptAdminPage({
+  criteria: category,
+  target: stage,
+}: MutuBanptAdminProps): React.JSX.Element {
   const catLabel = formatCategoryName(category);
   const stageLabel = formatStageName(stage);
 
   const [activeAkredId, setActiveAkredId] = useState<string>("");
-  const [indicators, setIndicators] = useState<IndicatorTab[]>([]);
+  const [indicators, setIndicators] = useState<AdminIndicatorTab[]>([]);
   const [selectedId, setSelectedId] = useState<number>(1);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Dialogs open state
-  const [isIndicatorDialogOpen, setIsIndicatorDialogOpen] = useState<boolean>(false);
+  const [isIndicatorDialogOpen, setIsIndicatorDialogOpen] =
+    useState<boolean>(false);
   const [isAspectDialogOpen, setIsAspectDialogOpen] = useState<boolean>(false);
-  
+
   // Indicator Form state
-  const [editingIndicator, setEditingIndicator] = useState<IndicatorTab | null>(null);
+  const [editingIndicator, setEditingIndicator] =
+    useState<AdminIndicatorTab | null>(null);
   const [indNo, setIndNo] = useState<string>("");
   const [indJustifikasi, setIndJustifikasi] = useState<string>("");
   const [indDeskripsi, setIndDeskripsi] = useState<string>("");
   const [indDeleteConfirm, setIndDeleteConfirm] = useState<boolean>(false);
 
   // Aspect Form state
-  const [editingAspect, setEditingAspect] = useState<AssessmentAspect | null>(null);
+  const [editingAspect, setEditingAspect] = useState<AssessmentAspect | null>(
+    null,
+  );
   const [aspectType, setAspectType] = useState<"radio" | "formula">("radio");
   const [aspDescription, setAspDescription] = useState<string>("");
   const [aspCompliance, setAspCompliance] = useState<string>("");
   const [aspDataSource, setAspDataSource] = useState<string>("");
   const [aspExpectation, setAspExpectation] = useState<string>("");
-  const [aspFormat, setAspFormat] = useState<"decimal" | "percentage">("decimal");
+  const [aspFormat, setAspFormat] = useState<"decimal" | "percentage">(
+    "decimal",
+  );
   const [aspBuktiRequired, setAspBuktiRequired] = useState<boolean>(true);
   const [aspDeleteConfirm, setAspDeleteConfirm] = useState<string | null>(null);
 
   // Variable management (within Aspect dialog)
-  const [formulaVariables, setFormulaVariables] = useState<FormulaVariable[]>([]);
+  const [formulaVariables, setFormulaVariables] = useState<FormulaVariable[]>(
+    [],
+  );
   const [newVarName, setNewVarName] = useState<string>("");
   const [newVarLabel, setNewVarLabel] = useState<string>("");
   const [newVarType, setNewVarType] = useState<"input" | "static">("input");
   const [newVarValue, setNewVarValue] = useState<string>("0");
-  
+
   // Radio choices variables
   const [radioVariables, setRadioVariables] = useState<RadioVariable[]>([]);
   const [newRadioName, setNewRadioName] = useState<string>("");
@@ -110,61 +181,166 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
           label: "100%",
           expression: "Input-Numerator-100Percent / Denominator-Percentage",
           variables: [
-            { name: "Input-Numerator-100Percent", label: "Konstanta Persen 100%", type: "static", value: 100 },
-            { name: "Denominator-Percentage", label: "Denominator Persen (Default 100)", type: "static", value: 100 }
-          ]
-        }
+            {
+              name: "Input-Numerator-100Percent",
+              label: "Konstanta Persen 100%",
+              type: "static",
+              value: 100,
+            },
+            {
+              name: "Denominator-Percentage",
+              label: "Denominator Persen (Default 100)",
+              type: "static",
+              value: 100,
+            },
+          ],
+        },
       ];
-      localStorage.setItem("mutu_banpt_local_constants", JSON.stringify(initial));
+      localStorage.setItem(
+        "mutu_banpt_local_constants",
+        JSON.stringify(initial),
+      );
       setLocalConstants(initial);
     }
   }, []);
 
-  // Fetch active accreditation from localStorage and setup listener
-  useEffect(() => {
-    const handleActiveChange = () => {
-      const storedId = localStorage.getItem("active_akreditasi_id");
-      if (storedId) setActiveAkredId(storedId);
-    };
+  // RTK Query API Hooks
+  const { data: indicatorsRes, refetch: refetchIndicators } =
+    useGetIndicatorListQuery(
+      {
+        accreditation_id: activeAkredId,
+        criteria: mapCriteria(category),
+        target: mapTarget(stage),
+      },
+      { skip: !activeAkredId || !category || !stage },
+    );
 
+  const { data: rulesRes, refetch: refetchRules } =
+    useGetAssessmentRuleListQuery();
+
+  const [createIndicator] = useCreateIndicatorMutation();
+  const [updateIndicator] = useUpdateIndicatorMutation();
+  const [deleteIndicator] = useDeleteIndicatorMutation();
+
+  const [createRule] = useCreateAssessmentRuleMutation();
+  const [updateRule] = useUpdateAssessmentRuleMutation();
+  const [deleteRule] = useDeleteAssessmentRuleMutation();
+
+  // Sync active accreditation from local storage
+  useEffect(() => {
     const storedId = localStorage.getItem("active_akreditasi_id");
     if (storedId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveAkredId(storedId);
     }
 
+    const handleActiveChange = () => {
+      const newId = localStorage.getItem("active_akreditasi_id");
+      if (newId) {
+        setActiveAkredId(newId);
+      }
+    };
+
     window.addEventListener("active_akreditasi_change", handleActiveChange);
-    return () => window.removeEventListener("active_akreditasi_change", handleActiveChange);
+    return () =>
+      window.removeEventListener(
+        "active_akreditasi_change",
+        handleActiveChange,
+      );
   }, []);
 
-  // Fetch indicators data based on category, stage and accreditation
+  // Map API responses to state
   useEffect(() => {
-    if (category && stage && activeAkredId) {
-      const data = getMutuBanptData(category, stage, activeAkredId);
+    if (indicatorsRes?.data && rulesRes?.data) {
+      const apiIndicators = indicatorsRes.data;
+      const apiRules = rulesRes.data;
+
+      // Group rules by indicator_id
+      const rulesMap: Record<string, AssessmentRule[]> = {};
+      apiRules.forEach((rule) => {
+        const indId = rule.indicator.id;
+        if (!rulesMap[indId]) {
+          rulesMap[indId] = [];
+        }
+        rulesMap[indId].push(rule);
+      });
+
+      // Map to IndicatorTab[]
+      const mapped: AdminIndicatorTab[] = apiIndicators.map((ind, index) => {
+        const indRules = rulesMap[ind.id] || [];
+        const aspects: AssessmentAspect[] = indRules.map((rule) => {
+          const formulaVars: FormulaVariable[] = rule.input_rules.map((v) => ({
+            name: v.var,
+            label: v.var,
+            type: (v.type as "input" | "static") || "input",
+            value: Number(v.val || 0),
+          }));
+
+          const radioVars: RadioVariable[] =
+            rule.type === "points"
+              ? rule.input_rules.map((v) => ({
+                  name: v.var,
+                  value: Number(v.val),
+                }))
+              : [];
+
+          return {
+            id: rule.id,
+            type:
+              rule.type === "maths" ? ("formula" as const) : ("radio" as const),
+            description: rule.assessment,
+            complianceDescription: rule.fulfillment,
+            dataSource: rule.data_source,
+            buktiRequired: rule.proof_required,
+            expectationResult: Number(rule.expectation_result || 0),
+            expectationFormat:
+              (rule.result_format as "decimal" | "percentage") || "decimal",
+            radioVariables: radioVars,
+            formula: rule.formula
+              ? {
+                  expression: rule.formula,
+                  variables: formulaVars,
+                  targetVariable: rule.type === "maths" ? "Hasil" : "Skor",
+                  threshold: Number(rule.expectation_result || 0),
+                }
+              : undefined,
+          };
+        });
+
+        return {
+          id: index + 1, // local id index
+          apiId: ind.id, // KEEP the actual indicator uuid
+          title: ind.number,
+          status: "belum" as const,
+          justifikasi: ind.justification,
+          indikatorDescription: ind.name,
+          aspects,
+        };
+      });
+
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIndicators(data.indicators);
-      if (data.indicators.length > 0) {
-        setSelectedId(data.indicators[0].id);
+      setIndicators(mapped);
+      if (mapped.length > 0) {
+        const valid = mapped.some((ind) => ind.id === selectedId);
+         
+        setSelectedId(valid ? selectedId : mapped[0].id);
       }
-    } else {
-      setIndicators([]);
     }
-  }, [category, stage, activeAkredId]);
+  }, [indicatorsRes, rulesRes, selectedId]);
+
+  // Sync state event listener
+  useEffect(() => {
+    const handleMutuChange = () => {
+      refetchIndicators();
+      refetchRules();
+    };
+
+    window.addEventListener("mutu_banpt_change", handleMutuChange);
+    return () =>
+      window.removeEventListener("mutu_banpt_change", handleMutuChange);
+  }, [refetchIndicators, refetchRules]);
 
   const activeIndicator = indicators.find((ind) => ind.id === selectedId);
-
-  // PERSISTENCE HELPER
-  const persistIndicators = async (newIndicators: IndicatorTab[]) => {
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    setIndicators(newIndicators);
-    saveMutuBanptData(category, stage, activeAkredId, {
-      category,
-      stage,
-      indicators: newIndicators,
-    });
-    setIsSaving(false);
-  };
 
   // INDICATOR ACTIONS
   const openAddIndicator = () => {
@@ -195,46 +371,57 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
       return;
     }
 
-    let newList = [...indicators];
-    if (editingIndicator) {
-      // Edit
-      newList = newList.map((ind) =>
-        ind.id === editingIndicator.id
-          ? { ...ind, id: parsedNo, justifikasi: indJustifikasi, indikatorDescription: indDeskripsi }
-          : ind
-      );
-      toast.success("Indikator berhasil diperbarui!");
-    } else {
-      // Add
-      const newItem: IndicatorTab = {
-        id: parsedNo,
-        title: `Indikator ${parsedNo}`,
-        status: "belum",
-        justifikasi: indJustifikasi,
-        indikatorDescription: indDeskripsi,
-        aspects: [],
+    setIsSaving(true);
+    try {
+      const payload: SaveIndicatorRequest = {
+        accreditation_id: activeAkredId,
+        number: `Indikator ${parsedNo}`,
+        name: indDeskripsi,
+        justification: indJustifikasi,
+        criteria: mapCriteria(category),
+        target: mapTarget(stage),
       };
-      newList.push(newItem);
-      toast.success("Indikator baru berhasil ditambahkan!");
-    }
 
-    // Sort by id ascending
-    newList.sort((a, b) => a.id - b.id);
-    await persistIndicators(newList);
-    setSelectedId(parsedNo);
-    setIsIndicatorDialogOpen(false);
+      if (editingIndicator) {
+        // Edit mode (we read apiId!)
+        const apiId = editingIndicator.apiId;
+        if (apiId) {
+          await updateIndicator({ id: apiId, body: payload }).unwrap();
+          toast.success("Indikator berhasil diperbarui!");
+        }
+      } else {
+        // Add mode
+        await createIndicator(payload).unwrap();
+        toast.success("Indikator baru berhasil ditambahkan!");
+      }
+
+      refetchIndicators();
+      setIsIndicatorDialogOpen(false);
+    } catch {
+      toast.error("Gagal menyimpan indikator.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteIndicator = async () => {
     if (!editingIndicator) return;
-    const newList = indicators.filter((ind) => ind.id !== editingIndicator.id);
-    await persistIndicators(newList);
-    if (newList.length > 0) {
-      setSelectedId(newList[0].id);
+    const apiId = editingIndicator.apiId;
+    if (!apiId) return;
+
+    setIsSaving(true);
+    try {
+      await deleteIndicator(apiId).unwrap();
+      refetchIndicators();
+      setSelectedId(1);
+      setIndDeleteConfirm(false);
+      setIsIndicatorDialogOpen(false);
+      toast.success("Indikator berhasil dihapus!");
+    } catch {
+      toast.error("Gagal menghapus indikator.");
+    } finally {
+      setIsSaving(false);
     }
-    setIndDeleteConfirm(false);
-    setIsIndicatorDialogOpen(false);
-    toast.success("Indikator berhasil dihapus!");
   };
 
   // ASPECT ACTIONS
@@ -248,13 +435,13 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
     setAspFormat("decimal");
     setAspBuktiRequired(true);
     setConstInput("");
-    
+
     // Clear formula states
     setFormulaVariables([]);
     setRadioVariables([]);
     setFormulaExpression("");
     setFormulaTokens([]);
-    
+
     setIsAspectDialogOpen(true);
   };
 
@@ -272,7 +459,9 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
     if (asp.type === "formula" && asp.formula) {
       setFormulaVariables(asp.formula.variables || []);
       let expr = asp.formula.expression || "";
-      const sortedConstants = [...localConstants].sort((a, b) => b.expression.length - a.expression.length);
+      const sortedConstants = [...localConstants].sort(
+        (a, b) => b.expression.length - a.expression.length,
+      );
       for (const lc of sortedConstants) {
         expr = expr.split(lc.expression).join(lc.label);
       }
@@ -281,7 +470,9 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
     } else if (asp.type === "radio") {
       setRadioVariables(asp.radioVariables || []);
       let expr = asp.formula?.expression || "";
-      const sortedConstants = [...localConstants].sort((a, b) => b.expression.length - a.expression.length);
+      const sortedConstants = [...localConstants].sort(
+        (a, b) => b.expression.length - a.expression.length,
+      );
       for (const lc of sortedConstants) {
         expr = expr.split(lc.expression).join(lc.label);
       }
@@ -331,7 +522,7 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
       toast.error("Point pilihan radio harus berupa angka!");
       return;
     }
-    
+
     // We construct a clean variable name by replacing spaces with underscores
     const varName = newRadioName.trim().replace(/\s+/g, "_");
 
@@ -347,12 +538,16 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
 
     const updatedRadios = [...radioVariables, newItem];
     setRadioVariables(updatedRadios);
-    
+
     // Auto-update formula and tokens for ordinary/radio assessment
     // "berikan default var + var + var sesuai jumlah var yang sudah dibuat"
-    const expression = updatedRadios.map(r => r.name).join(" + ");
+    const expression = updatedRadios.map((r) => r.name).join(" + ");
     setFormulaExpression(expression);
-    setFormulaTokens(updatedRadios.map(r => r.name).flatMap((t, i) => i > 0 ? ["+", t] : [t]));
+    setFormulaTokens(
+      updatedRadios
+        .map((r) => r.name)
+        .flatMap((t, i) => (i > 0 ? ["+", t] : [t])),
+    );
 
     setNewRadioName("");
     setNewRadioValue("0");
@@ -370,9 +565,13 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
   const handleRemoveRadioVariable = (name: string) => {
     const updatedRadios = radioVariables.filter((v) => v.name !== name);
     setRadioVariables(updatedRadios);
-    const expression = updatedRadios.map(r => r.name).join(" + ");
+    const expression = updatedRadios.map((r) => r.name).join(" + ");
     setFormulaExpression(expression);
-    setFormulaTokens(updatedRadios.map(r => r.name).flatMap((t, i) => i > 0 ? ["+", t] : [t]));
+    setFormulaTokens(
+      updatedRadios
+        .map((r) => r.name)
+        .flatMap((t, i) => (i > 0 ? ["+", t] : [t])),
+    );
   };
 
   // Visual Formula building actions
@@ -400,7 +599,7 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
         const suffix = String.fromCharCode(charCode);
         const name = `${base}-${suffix}`;
         const collision = existing.some((c) =>
-          c.variables.some((v) => v.name === name)
+          c.variables.some((v) => v.name === name),
         );
         if (!collision) return suffix;
         charCode++;
@@ -436,7 +635,7 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
           label: "Denominator Persen (Default 100)",
           type: "static",
           value: 100,
-        }
+        },
       ];
 
       newConst = {
@@ -473,7 +672,7 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
           label: `Penyebut Pecahan ${input}`,
           type: "static",
           value: denomVal,
-        }
+        },
       ];
 
       newConst = {
@@ -500,7 +699,7 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
             label: `Konstanta ${input}`,
             type: "static",
             value: staticVal,
-          }
+          },
         ],
       };
     }
@@ -508,7 +707,10 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
     if (newConst) {
       const updated = [...localConstants, newConst];
       setLocalConstants(updated);
-      localStorage.setItem("mutu_banpt_local_constants", JSON.stringify(updated));
+      localStorage.setItem(
+        "mutu_banpt_local_constants",
+        JSON.stringify(updated),
+      );
       setConstInput("");
       toast.success(`Konstanta local "${input}" berhasil disimpan!`);
     }
@@ -531,103 +733,95 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
       toast.error("Deskripsi dan sumber data tidak boleh kosong!");
       return;
     }
+    if (!activeIndicator) return;
+    const activeIndicatorApiId = activeIndicator.apiId;
+    if (!activeIndicatorApiId) return;
 
     const parsedExpectation = parseFloat(aspExpectation);
 
-    let finalFormulaData = undefined;
-    if (aspectType === "formula" || aspectType === "radio") {
-      if (!formulaExpression.trim()) {
-        toast.error("Rumus kalkulasi aspek harus dirakit!");
-        return;
-      }
+    // Prepare variables list as RuleVariable[] for the database
+    let variablesList: RuleVariable[] = [];
+    if (aspectType === "formula") {
+      variablesList = formulaVariables.map((v) => ({
+        var: v.name,
+        type: v.type,
+        val: v.value,
+      }));
+    } else {
+      variablesList = radioVariables.map((rv) => ({
+        var: rv.name,
+        type: "input",
+        val: rv.value,
+      }));
+    }
 
-      // Map tokens to actual backend expressions
-      const mappedTokens = formulaTokens.map((tok) => {
-        const found = localConstants.find((lc) => lc.label === tok);
-        return found ? found.expression : tok;
-      });
-      const finalExpression = mappedTokens.join(" ");
-      
-      // For formula aspect, variables are formulaVariables. 
-      // For radio aspect, variables are generated dynamically from radioVariables choices as static types
-      let variablesList: FormulaVariable[] = [];
-      if (aspectType === "formula") {
-        variablesList = [...formulaVariables];
-      } else {
-        variablesList = radioVariables.map(rv => ({
-          name: rv.name,
-          label: rv.name.replace(/_/g, " "),
-          type: "static" as const,
-          value: 0 // initialized to 0
-        }));
-      }
-
-      // Merge variables from used local constants in formula tokens
-      for (const tok of formulaTokens) {
-        const found = localConstants.find((lc) => lc.label === tok);
-        if (found) {
-          for (const v of found.variables) {
-            if (!variablesList.some((vl) => vl.name === v.name)) {
-              variablesList.push(v);
-            }
+    // Merge variables from used local constants in formula tokens
+    for (const tok of formulaTokens) {
+      const found = localConstants.find((lc) => lc.label === tok);
+      if (found) {
+        for (const v of found.variables) {
+          if (!variablesList.some((vl) => vl.var === v.name)) {
+            variablesList.push({
+              var: v.name,
+              type: v.type,
+              val: v.value,
+            });
           }
         }
       }
- 
-      finalFormulaData = {
-        expression: finalExpression,
-        variables: variablesList,
-        targetVariable: aspectType === "formula" ? "Hasil" : "Skor",
-        threshold: isNaN(parsedExpectation) ? 0 : parsedExpectation,
-      };
     }
 
-    const aspectId = editingAspect?.id ?? `${category}-${stage}-ind${selectedId}-asp${Date.now()}`;
-    const newAspect: AssessmentAspect = {
-      id: aspectId,
-      type: aspectType,
-      description: aspDescription,
-      complianceDescription: aspCompliance,
-      dataSource: aspDataSource,
-      buktiRequired: aspBuktiRequired,
-      expectationResult: isNaN(parsedExpectation) ? undefined : parsedExpectation,
-      expectationFormat: aspFormat,
-      proofFileName: editingAspect?.proofFileName, // keep existing file reference if editing
-      selectedRadioIndex: editingAspect?.selectedRadioIndex,
-      radioVariables: aspectType === "radio" ? radioVariables : undefined,
-      formula: finalFormulaData,
+    // Map tokens to actual backend expressions
+    const mappedTokens = formulaTokens.map((tok) => {
+      const found = localConstants.find((lc) => lc.label === tok);
+      return found ? found.expression : tok;
+    });
+    const finalExpression = mappedTokens.join(" ");
+
+    const payload: SaveAssessmentRuleRequest = {
+      indicator_id: activeIndicatorApiId,
+      assessment: aspDescription,
+      fulfillment: aspCompliance,
+      data_source: aspDataSource,
+      type: aspectType === "formula" ? "maths" : "points",
+      input_rules: variablesList, // Backend typo 'inut_rules' matches SaveAssessmentRuleRequest
+      formula: finalExpression,
+      expectation_result: isNaN(parsedExpectation) ? 0 : parsedExpectation,
+      result_format: aspFormat,
+      proof_required: aspBuktiRequired,
     };
 
-    const updatedIndicators = indicators.map((ind) => {
-      if (ind.id !== selectedId) return ind;
-
-      let newAspects = [...ind.aspects];
+    setIsSaving(true);
+    try {
       if (editingAspect) {
-        newAspects = newAspects.map((a) => (a.id === editingAspect.id ? newAspect : a));
+        await updateRule({ id: editingAspect.id, body: payload }).unwrap();
+        toast.success("Aspek penilaian diperbarui!");
       } else {
-        newAspects.push(newAspects.length === 0 ? { ...newAspect, id: `${category}-${stage}-ind${selectedId}-asp1` } : newAspect);
+        await createRule(payload).unwrap();
+        toast.success("Aspek penilaian baru berhasil dibuat!");
       }
 
-      return { ...ind, aspects: newAspects };
-    });
-
-    await persistIndicators(updatedIndicators);
-    setIsAspectDialogOpen(false);
-    toast.success(editingAspect ? "Aspek penilaian diperbarui!" : "Aspek penilaian baru berhasil dibuat!");
+      refetchRules();
+      setIsAspectDialogOpen(false);
+    } catch {
+      toast.error("Gagal menyimpan aspek penilaian.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteAspect = async (aspId: string) => {
-    const updatedIndicators = indicators.map((ind) => {
-      if (ind.id !== selectedId) return ind;
-      return {
-        ...ind,
-        aspects: ind.aspects.filter((a) => a.id !== aspId),
-      };
-    });
-
-    await persistIndicators(updatedIndicators);
-    setAspDeleteConfirm(null);
-    toast.success("Aspek penilaian berhasil dihapus!");
+    setIsSaving(true);
+    try {
+      await deleteRule(aspId).unwrap();
+      refetchRules();
+      setAspDeleteConfirm(null);
+      toast.success("Aspek penilaian berhasil dihapus!");
+    } catch {
+      toast.error("Gagal menghapus aspek penilaian.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Math operators catalog
@@ -642,7 +836,8 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
             Kelola {catLabel} - {stageLabel}
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Konfigurasi indikator, justifikasi, aspek penilaian, dan variabel rumus untuk auditor.
+            Konfigurasi indikator, justifikasi, aspek penilaian, dan variabel
+            rumus untuk auditor.
           </p>
         </div>
         {indicators.length > 0 && (
@@ -662,9 +857,13 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
         <div className="bg-card border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-sm">
           <ShieldCheck className="h-14 w-14 text-muted-foreground/35 animate-pulse" />
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-foreground">Kriteria Mutu Masih Kosong</h3>
+            <h3 className="text-sm font-bold text-foreground">
+              Kriteria Mutu Masih Kosong
+            </h3>
             <p className="text-xs text-muted-foreground max-w-sm">
-              Belum ada indikator mutu untuk kategori <strong>{catLabel}</strong> di tahap <strong>{stageLabel}</strong>.
+              Belum ada indikator mutu untuk kategori{" "}
+              <strong>{catLabel}</strong> di tahap <strong>{stageLabel}</strong>
+              .
             </p>
           </div>
           <Button
@@ -695,8 +894,12 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                   </button>
                 </HoverCardTrigger>
                 <HoverCardContent className="w-80 p-3 bg-card border border-border rounded-lg shadow-md text-xs leading-relaxed text-foreground z-50">
-                  <p className="font-bold text-primary mb-1 uppercase tracking-wider text-[10px]">Keterangan:</p>
-                  <p className="text-muted-foreground">{ind.indikatorDescription}</p>
+                  <p className="font-bold text-primary mb-1 uppercase tracking-wider text-[10px]">
+                    Keterangan:
+                  </p>
+                  <p className="text-muted-foreground">
+                    {ind.indikatorDescription}
+                  </p>
                 </HoverCardContent>
               </HoverCard>
             ))}
@@ -715,12 +918,20 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
               </Button>
 
               <div>
-                <span className="font-bold text-primary uppercase tracking-wider text-[10px]">Justifikasi :</span>
-                <p className="text-foreground font-semibold mt-0.5 whitespace-pre-line">{activeIndicator.justifikasi || "-"}</p>
+                <span className="font-bold text-primary uppercase tracking-wider text-[10px]">
+                  Justifikasi :
+                </span>
+                <p className="text-foreground font-semibold mt-0.5 whitespace-pre-line">
+                  {activeIndicator.justifikasi || "-"}
+                </p>
               </div>
               <div>
-                <span className="font-bold text-primary uppercase tracking-wider text-[10px]">Indikator :</span>
-                <p className="text-muted-foreground mt-0.5 whitespace-pre-line">{activeIndicator.indikatorDescription}</p>
+                <span className="font-bold text-primary uppercase tracking-wider text-[10px]">
+                  Indikator :
+                </span>
+                <p className="text-muted-foreground mt-0.5 whitespace-pre-line">
+                  {activeIndicator.indikatorDescription}
+                </p>
               </div>
             </div>
           )}
@@ -759,7 +970,8 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
               {/* Render aspects list */}
               {activeIndicator.aspects.length === 0 ? (
                 <div className="text-center p-8 border border-dashed border-border rounded-xl text-muted-foreground text-xs">
-                  Belum ada aspek penilaian untuk indikator ini. Silakan tambahkan aspek biasa/rumus.
+                  Belum ada aspek penilaian untuk indikator ini. Silakan
+                  tambahkan aspek biasa/rumus.
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -779,8 +991,14 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                           </p>
                         </div>
 
-                        <Separator orientation="vertical" className="hidden md:block w-[1px]" />
-                        <Separator orientation="horizontal" className="md:hidden h-[1px] w-full" />
+                        <Separator
+                          orientation="vertical"
+                          className="hidden md:block w-[1px]"
+                        />
+                        <Separator
+                          orientation="horizontal"
+                          className="md:hidden h-[1px] w-full"
+                        />
 
                         <div className="flex-1 space-y-1">
                           <span className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider block">
@@ -795,15 +1013,31 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                       {/* Middle row details */}
                       <div className="flex flex-wrap gap-4 text-xs font-semibold text-muted-foreground py-2 border-t border-b border-border/40">
                         <div>
-                          Sumber Data: <span className="text-foreground">{asp.dataSource}</span>
+                          Sumber Data:{" "}
+                          <span className="text-foreground">
+                            {asp.dataSource}
+                          </span>
                         </div>
-                        <Separator orientation="vertical" className="h-4 w-[1px]" />
+                        <Separator
+                          orientation="vertical"
+                          className="h-4 w-[1px]"
+                        />
                         <div>
-                          Harapan: <span className="text-foreground">{asp.expectationResult || "-"} {asp.expectationFormat === "percentage" ? "%" : ""}</span>
+                          Harapan:{" "}
+                          <span className="text-foreground">
+                            {asp.expectationResult || "-"}{" "}
+                            {asp.expectationFormat === "percentage" ? "%" : ""}
+                          </span>
                         </div>
-                        <Separator orientation="vertical" className="h-4 w-[1px]" />
+                        <Separator
+                          orientation="vertical"
+                          className="h-4 w-[1px]"
+                        />
                         <div>
-                          Bukti Diperlukan: <span className="text-foreground">{asp.buktiRequired ? "Ya" : "Tidak"}</span>
+                          Bukti Diperlukan:{" "}
+                          <span className="text-foreground">
+                            {asp.buktiRequired ? "Ya" : "Tidak"}
+                          </span>
                         </div>
                       </div>
 
@@ -812,8 +1046,12 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                         <div>
                           {asp.type === "formula" || asp.type === "radio" ? (
                             <div className="text-xs">
-                              <span className="font-bold text-[9px] text-primary uppercase block">Rumus Perhitungan</span>
-                              <code className="font-mono text-foreground font-bold">{asp.formula?.expression}</code>
+                              <span className="font-bold text-[9px] text-primary uppercase block">
+                                Rumus Perhitungan
+                              </span>
+                              <code className="font-mono text-foreground font-bold">
+                                {asp.formula?.expression}
+                              </code>
                             </div>
                           ) : null}
                         </div>
@@ -845,11 +1083,16 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
       )}
 
       {/* Dialog Add/Edit Indicator */}
-      <Dialog open={isIndicatorDialogOpen} onOpenChange={setIsIndicatorDialogOpen}>
+      <Dialog
+        open={isIndicatorDialogOpen}
+        onOpenChange={setIsIndicatorDialogOpen}
+      >
         <DialogContent className="sm:max-w-lg p-6 bg-card border border-border text-xs">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold text-foreground">
-              {editingIndicator ? "Edit Indikator Mutu" : "Tambah Indikator Mutu"}
+              {editingIndicator
+                ? "Edit Indikator Mutu"
+                : "Tambah Indikator Mutu"}
             </DialogTitle>
           </DialogHeader>
 
@@ -868,7 +1111,9 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="ind-justifikasi">Justifikasi (Rujukan Hukum / SK)</FieldLabel>
+              <FieldLabel htmlFor="ind-justifikasi">
+                Justifikasi (Rujukan Hukum / SK)
+              </FieldLabel>
               <Textarea
                 id="ind-justifikasi"
                 value={indJustifikasi}
@@ -881,7 +1126,9 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="ind-deskripsi">Deskripsi Indikator</FieldLabel>
+              <FieldLabel htmlFor="ind-deskripsi">
+                Deskripsi Indikator
+              </FieldLabel>
               <Textarea
                 id="ind-deskripsi"
                 value={indDeskripsi}
@@ -920,7 +1167,11 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                 disabled={isSaving}
                 className="bg-primary text-primary-foreground text-xs font-semibold h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm cursor-pointer"
               >
-                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Simpan"}
+                {isSaving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  "Simpan"
+                )}
               </Button>
             </div>
           </DialogFooter>
@@ -932,8 +1183,8 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
         <DialogContent className="sm:max-w-2xl p-6 bg-card border border-border text-xs max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold text-foreground">
-              {editingAspect 
-                ? `Edit Aspek Penilaian (${aspectType === "formula" ? "Rumus" : "Biasa"})` 
+              {editingAspect
+                ? `Edit Aspek Penilaian (${aspectType === "formula" ? "Rumus" : "Biasa"})`
                 : `Tambah Aspek Penilaian (${aspectType === "formula" ? "Rumus" : "Biasa"})`}
             </DialogTitle>
           </DialogHeader>
@@ -942,7 +1193,9 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
             {/* Aspek Penilaian & Pemenuhan */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field>
-                <FieldLabel htmlFor="asp-description">Aspek Penilaian (Deskripsi Aspek)</FieldLabel>
+                <FieldLabel htmlFor="asp-description">
+                  Aspek Penilaian (Deskripsi Aspek)
+                </FieldLabel>
                 <Textarea
                   id="asp-description"
                   value={aspDescription}
@@ -954,7 +1207,9 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="asp-compliance">Aspek Pemenuhan (Kriteria Lulus)</FieldLabel>
+                <FieldLabel htmlFor="asp-compliance">
+                  Aspek Pemenuhan (Kriteria Lulus)
+                </FieldLabel>
                 <Textarea
                   id="asp-compliance"
                   value={aspCompliance}
@@ -983,7 +1238,9 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
             {/* Harapan (Expectation) & Format */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field>
-                <FieldLabel htmlFor="asp-expectation">Expectation Result (Nilai Kelulusan)</FieldLabel>
+                <FieldLabel htmlFor="asp-expectation">
+                  Expectation Result (Nilai Kelulusan)
+                </FieldLabel>
                 <Input
                   id="asp-expectation"
                   type="number"
@@ -1060,15 +1317,22 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                   <span className="font-bold text-[10px] text-primary uppercase block">
                     Definisikan Variabel Pilihan Radio
                   </span>
-                  
+
                   {/* Dynamic choices variables list */}
                   {radioVariables.length === 0 ? (
-                    <p className="text-muted-foreground italic text-[11px] py-1">Belum ada pilihan radio. Definisikan minimal satu pilihan.</p>
+                    <p className="text-muted-foreground italic text-[11px] py-1">
+                      Belum ada pilihan radio. Definisikan minimal satu pilihan.
+                    </p>
                   ) : (
                     <div className="flex flex-wrap gap-2 py-1">
                       {radioVariables.map((v) => (
-                        <div key={v.name} className="flex items-center gap-1.5 bg-card border border-border px-2 py-1 rounded">
-                          <span className="font-semibold text-foreground">{v.name.replace(/_/g, " ")} ({v.value})</span>
+                        <div
+                          key={v.name}
+                          className="flex items-center gap-1.5 bg-card border border-border px-2 py-1 rounded"
+                        >
+                          <span className="font-semibold text-foreground">
+                            {v.name.replace(/_/g, " ")} ({v.value})
+                          </span>
                           <button
                             type="button"
                             onClick={() => handleRemoveRadioVariable(v.name)}
@@ -1084,7 +1348,12 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                   {/* Add radio variable fields */}
                   <div className="flex flex-wrap gap-3 items-end pt-1">
                     <Field className="flex-1 min-w-[150px]">
-                      <FieldLabel htmlFor="new-radio-name" className="text-[10px] font-bold text-muted-foreground uppercase">Nama Pilihan</FieldLabel>
+                      <FieldLabel
+                        htmlFor="new-radio-name"
+                        className="text-[10px] font-bold text-muted-foreground uppercase"
+                      >
+                        Nama Pilihan
+                      </FieldLabel>
                       <Input
                         id="new-radio-name"
                         value={newRadioName}
@@ -1094,7 +1363,12 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                       />
                     </Field>
                     <Field className="w-24">
-                      <FieldLabel htmlFor="new-radio-value" className="text-[10px] font-bold text-muted-foreground uppercase">Poin / Nilai</FieldLabel>
+                      <FieldLabel
+                        htmlFor="new-radio-value"
+                        className="text-[10px] font-bold text-muted-foreground uppercase"
+                      >
+                        Poin / Nilai
+                      </FieldLabel>
                       <Input
                         id="new-radio-value"
                         type="number"
@@ -1124,13 +1398,22 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
 
                   {/* Dynamic formula variables list */}
                   {formulaVariables.length === 0 ? (
-                    <p className="text-muted-foreground italic text-[11px] py-1">Belum ada variabel rumus. Tambahkan variabel baru.</p>
+                    <p className="text-muted-foreground italic text-[11px] py-1">
+                      Belum ada variabel rumus. Tambahkan variabel baru.
+                    </p>
                   ) : (
                     <div className="flex flex-wrap gap-2 py-1">
                       {formulaVariables.map((v) => (
-                        <div key={v.name} className="flex items-center gap-1.5 bg-card border border-border px-2 py-1 rounded">
+                        <div
+                          key={v.name}
+                          className="flex items-center gap-1.5 bg-card border border-border px-2 py-1 rounded"
+                        >
                           <span className="font-semibold text-foreground">
-                            {v.name} ({v.type === "static" ? `Static: ${v.value}` : "Input Auditor"})
+                            {v.name} (
+                            {v.type === "static"
+                              ? `Static: ${v.value}`
+                              : "Input Auditor"}
+                            )
                           </span>
                           <button
                             type="button"
@@ -1147,7 +1430,12 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                   {/* Add formula variable sub-form */}
                   <div className="flex flex-wrap gap-3 items-end pt-1">
                     <Field className="w-28">
-                      <FieldLabel htmlFor="new-var-name" className="text-[10px] font-bold text-muted-foreground uppercase">Kode Variabel</FieldLabel>
+                      <FieldLabel
+                        htmlFor="new-var-name"
+                        className="text-[10px] font-bold text-muted-foreground uppercase"
+                      >
+                        Kode Variabel
+                      </FieldLabel>
                       <Input
                         id="new-var-name"
                         value={newVarName}
@@ -1157,7 +1445,12 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                       />
                     </Field>
                     <Field className="flex-1 min-w-[150px]">
-                      <FieldLabel htmlFor="new-var-label" className="text-[10px] font-bold text-muted-foreground uppercase">Keterangan / Label</FieldLabel>
+                      <FieldLabel
+                        htmlFor="new-var-label"
+                        className="text-[10px] font-bold text-muted-foreground uppercase"
+                      >
+                        Keterangan / Label
+                      </FieldLabel>
                       <Input
                         id="new-var-label"
                         value={newVarLabel}
@@ -1167,10 +1460,14 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                       />
                     </Field>
                     <Field className="w-32">
-                      <FieldLabel className="text-[10px] font-bold text-muted-foreground uppercase">Tipe</FieldLabel>
+                      <FieldLabel className="text-[10px] font-bold text-muted-foreground uppercase">
+                        Tipe
+                      </FieldLabel>
                       <Select
                         value={newVarType}
-                        onValueChange={(val) => setNewVarType(val as "input" | "static")}
+                        onValueChange={(val) =>
+                          setNewVarType(val as "input" | "static")
+                        }
                       >
                         <SelectTrigger className="w-full bg-card border border-border rounded-lg text-xs h-8 px-2 text-foreground cursor-pointer">
                           <SelectValue placeholder="Tipe" />
@@ -1183,7 +1480,12 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                     </Field>
                     {newVarType === "static" && (
                       <Field className="w-20">
-                        <FieldLabel htmlFor="new-var-value" className="text-[10px] font-bold text-muted-foreground uppercase">Nilai</FieldLabel>
+                        <FieldLabel
+                          htmlFor="new-var-value"
+                          className="text-[10px] font-bold text-muted-foreground uppercase"
+                        >
+                          Nilai
+                        </FieldLabel>
                         <Input
                           id="new-var-value"
                           type="number"
@@ -1213,9 +1515,11 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                   Visual Formula Builder (Rakit Rumus)
                 </span>
 
-                 {/* Operator Selector buttons */}
+                {/* Operator Selector buttons */}
                 <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">Klik tombol operator:</span>
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                    Klik tombol operator:
+                  </span>
                   <div className="flex flex-wrap gap-1.5">
                     {operators.map((op) => (
                       <button
@@ -1232,7 +1536,9 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
 
                 {/* Local Constants buttons */}
                 <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">Klik tombol konstanta local:</span>
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                    Klik tombol konstanta local:
+                  </span>
                   <div className="flex flex-wrap gap-1.5">
                     {localConstants.map((lc) => (
                       <button
@@ -1254,7 +1560,9 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
 
                 {/* Custom local constants builder */}
                 <div className="space-y-1.5 pt-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">Rakit Konstanta Baru (Angka / Persen / Pecahan):</span>
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                    Rakit Konstanta Baru (Angka / Persen / Pecahan):
+                  </span>
                   <div className="flex gap-2 items-center">
                     <Input
                       id="const-input"
@@ -1273,13 +1581,16 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                     </Button>
                   </div>
                   <span className="text-[9px] text-muted-foreground block leading-relaxed">
-                    (Input akan tersimpan di Local Storage dan memunculkan tombol konstanta baru di atas.)
+                    (Input akan tersimpan di Local Storage dan memunculkan
+                    tombol konstanta baru di atas.)
                   </span>
                 </div>
 
                 {/* Variable Selector buttons */}
                 <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">Klik tombol variabel:</span>
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                    Klik tombol variabel:
+                  </span>
                   <div className="flex flex-wrap gap-1.5">
                     {aspectType === "formula"
                       ? formulaVariables.map((v) => (
@@ -1302,8 +1613,10 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
                             {v.name}
                           </button>
                         ))}
-                    {((aspectType === "formula" && formulaVariables.length === 0) ||
-                      (aspectType === "radio" && radioVariables.length === 0)) && (
+                    {((aspectType === "formula" &&
+                      formulaVariables.length === 0) ||
+                      (aspectType === "radio" &&
+                        radioVariables.length === 0)) && (
                       <span className="text-[11px] text-muted-foreground/60 italic">
                         Definisikan variabel di atas terlebih dahulu.
                       </span>
@@ -1313,10 +1626,16 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
 
                 {/* Formula expression preview */}
                 <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase block">Preview Rumus Perhitungan</span>
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase block">
+                    Preview Rumus Perhitungan
+                  </span>
                   <div className="flex gap-2 items-center">
                     <div className="bg-card border border-border p-2.5 rounded-lg font-mono text-foreground font-semibold flex-1 text-xs select-none">
-                      {formulaExpression || <span className="text-muted-foreground/50">Rumus kosong...</span>}
+                      {formulaExpression || (
+                        <span className="text-muted-foreground/50">
+                          Rumus kosong...
+                        </span>
+                      )}
                     </div>
                     <Button
                       type="button"
@@ -1354,27 +1673,39 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
               disabled={isSaving}
               className="bg-primary text-primary-foreground text-xs font-semibold h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm cursor-pointer"
             >
-              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : "Simpan"}
+              {isSaving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+              ) : (
+                "Simpan"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Aspect Confirmation */}
-      <AlertDialog open={!!aspDeleteConfirm} onOpenChange={(o) => !o && setAspDeleteConfirm(null)}>
+      <AlertDialog
+        open={!!aspDeleteConfirm}
+        onOpenChange={(o) => !o && setAspDeleteConfirm(null)}
+      >
         <AlertDialogContent className="bg-card border border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-bold text-foreground">
               Hapus Aspek Penilaian?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground leading-normal">
-              Aksi ini bersifat destruktif dan akan menghapus kriteria evaluasi aspek ini secara permanen.
+              Aksi ini bersifat destruktif dan akan menghapus kriteria evaluasi
+              aspek ini secara permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="text-xs">
-            <AlertDialogCancel className="text-xs h-9 cursor-pointer">Batal</AlertDialogCancel>
+            <AlertDialogCancel className="text-xs h-9 cursor-pointer">
+              Batal
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => aspDeleteConfirm && handleDeleteAspect(aspDeleteConfirm)}
+              onClick={() =>
+                aspDeleteConfirm && handleDeleteAspect(aspDeleteConfirm)
+              }
               className="bg-error hover:bg-error/90 text-error-foreground font-semibold text-xs h-9 cursor-pointer"
             >
               Ya, Hapus
@@ -1391,11 +1722,15 @@ export default function MutuBanptAdminPage({ category, stage }: MutuBanptAdminPr
               Hapus Indikator {editingIndicator?.id}?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground leading-normal">
-              Aksi ini bersifat destruktif. Menghapus indikator akan menghilangkan seluruh data justifikasi dan aspek penilaian di bawahnya.
+              Aksi ini bersifat destruktif. Menghapus indikator akan
+              menghilangkan seluruh data justifikasi dan aspek penilaian di
+              bawahnya.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="text-xs">
-            <AlertDialogCancel className="text-xs h-9 cursor-pointer">Batal</AlertDialogCancel>
+            <AlertDialogCancel className="text-xs h-9 cursor-pointer">
+              Batal
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteIndicator}
               className="bg-error hover:bg-error/90 text-error-foreground font-semibold text-xs h-9 cursor-pointer"

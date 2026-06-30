@@ -150,6 +150,28 @@ const menuItems: SidebarItemType[] = [
           },
         ],
       },
+      {
+        title: "Diferensiasi Misi",
+        href: "/dashboard/mutu-banpt/diferensiasi-misi",
+        children: [
+          {
+            title: "Masukan",
+            href: "/dashboard/mutu-banpt/diferensiasi-misi/masukan",
+          },
+          {
+            title: "Proses",
+            href: "/dashboard/mutu-banpt/diferensiasi-misi/proses",
+          },
+          {
+            title: "Luaran",
+            href: "/dashboard/mutu-banpt/diferensiasi-misi/luaran",
+          },
+          {
+            title: "Dampak",
+            href: "/dashboard/mutu-banpt/diferensiasi-misi/dampak",
+          },
+        ],
+      },
     ],
   },
   {
@@ -323,6 +345,28 @@ const adminMenuItems: SidebarItemType[] = [
           {
             title: "Dampak",
             href: "/dashboard/mutu-banpt/akuntabilitas/dampak",
+          },
+        ],
+      },
+      {
+        title: "Diferensiasi Misi",
+        href: "/dashboard/mutu-banpt/diferensiasi-misi",
+        children: [
+          {
+            title: "Masukan",
+            href: "/dashboard/mutu-banpt/diferensiasi-misi/masukan",
+          },
+          {
+            title: "Proses",
+            href: "/dashboard/mutu-banpt/diferensiasi-misi/proses",
+          },
+          {
+            title: "Luaran",
+            href: "/dashboard/mutu-banpt/diferensiasi-misi/luaran",
+          },
+          {
+            title: "Dampak",
+            href: "/dashboard/mutu-banpt/diferensiasi-misi/dampak",
           },
         ],
       },

@@ -5,7 +5,7 @@ import { DashboardBreadcrumb } from "@/components/dashboard/dashboard-breadcrumb
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
       {/* Header Atas */}
       <Header />
 

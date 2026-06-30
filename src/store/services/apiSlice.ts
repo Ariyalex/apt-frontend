@@ -99,6 +99,9 @@ export const apiSlice = createApi({
     "Link",
     "Recognition",
     "Accreditation",
+    "AccreditationIndicator",
+    "AssessmentRule",
+    "AssessmentEvaluation",
   ],
   endpoints: () => ({}),
 });

@@ -29,8 +29,15 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getMutuBanptData, formatCategoryName } from "@/dummy-data/mutu-banpt";
-import { AssessmentAspect } from "@/types/mutu-banpt";
+import { formatCategoryName } from "@/dummy-data/mutu-banpt";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { useGetAccreditationStatsQuery } from "@/store/services/accreditationApi";
 
 const chartConfig = {
   masukan: {
@@ -51,23 +58,23 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-// Deterministic variation offsets per [category][stage] to make radar shapes visually distinct
-const VARIATION_OFFSETS: Record<string, Record<string, number>> = {
-  "budaya-mutu": { masukan: 0.6, proses: 0.3, luaran: 0.1, dampak: 0.45 },
-  "relevansi-pendidikan": {
-    masukan: 0.2,
-    proses: 0.5,
-    luaran: 0.35,
-    dampak: 0.1,
-  },
-  "relevansi-penelitian": {
-    masukan: 0.4,
-    proses: 0.15,
-    luaran: 0.55,
-    dampak: 0.3,
-  },
-  "relevansi-pkm": { masukan: 0.1, proses: 0.45, luaran: 0.2, dampak: 0.6 },
-  akuntabilitas: { masukan: 0.5, proses: 0.25, luaran: 0.4, dampak: 0.15 },
+const mapCategoryToApiPrefix = (cat: string): string => {
+  switch (cat) {
+    case "budaya-mutu":
+      return "quality_culture";
+    case "relevansi-pendidikan":
+      return "education_relevance";
+    case "relevansi-penelitian":
+      return "research_relevance";
+    case "relevansi-pkm":
+      return "community_service_relevance";
+    case "akuntabilitas":
+      return "accountability";
+    case "diferensiasi-misi":
+      return "mission_differentiation";
+    default:
+      return cat;
+  }
 };
 
 interface RadarDataPoint {
@@ -81,9 +88,15 @@ interface RadarDataPoint {
 
 export default function MutuBanptDashboardPage(): React.JSX.Element {
   const [activeAkredId, setActiveAkredId] = useState<string>("");
+  const [selectedStage, setSelectedStage] = useState<"semua" | "masukan" | "proses" | "luaran" | "dampak">("semua");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [radarData, setRadarData] = useState<RadarDataPoint[]>([]);
   const [overallAvg, setOverallAvg] = useState<number>(0);
+
+  const { data: statsRes, isFetching: isStatsFetching } = useGetAccreditationStatsQuery(activeAkredId, {
+    skip: !activeAkredId,
+    refetchOnMountOrArgChange: true,
+  });
 
   // Sync active accreditation
   useEffect(() => {
@@ -100,6 +113,7 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveAkredId(storedId);
     } else {
+       
       setActiveAkredId("akred-1"); // fallback default
     }
 
@@ -111,134 +125,47 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
       );
   }, []);
 
-  // Safe formula evaluator
-  const calculateFormula = (
-    expression: string,
-    variables: { name: string; value: number }[],
-  ): number => {
-    try {
-      let evalStr = expression;
-      evalStr = evalStr.replace("%", "").replace(" * 100", "");
-
-      variables.forEach((v) => {
-        const regex = new RegExp(`\\b${v.name}\\b`, "g");
-        evalStr = evalStr.replace(regex, v.value.toString());
-      });
-
-      const cleanStr = evalStr.replace(/[^0-9+\-*/().\s]/g, "");
-      const computed = new Function(`return (${cleanStr})`)();
-
-      if (expression.includes("* 100") || expression.includes("%")) {
-        return parseFloat((computed * 100).toFixed(2));
-      }
-      return parseFloat(computed.toFixed(2));
-    } catch {
-      return 0;
-    }
-  };
-
-  const getScaledAspectScore = (asp: AssessmentAspect): number => {
-    let val = 0;
-    if (asp.type === "radio") {
-      val = asp.score ?? 0;
-    } else if (asp.type === "formula" && asp.formula) {
-      val = calculateFormula(asp.formula.expression, asp.formula.variables);
-    }
-
-    // Scale large/percentage scores (like 40% vs 50%) to fit domain 1-3
-    if (asp.expectationFormat === "percentage" || val > 4) {
-      const target = asp.expectationResult ?? 100;
-      if (target === 0) return 1;
-      const ratio = val / target;
-      return Math.min(3, Math.max(1, parseFloat((ratio * 3).toFixed(2))));
-    }
-
-    // Scale standard 1-4 score to 1-3: normalized = 1 + (val - 1) * (2 / 3)
-    return Math.min(
-      3,
-      Math.max(1, parseFloat((1 + (val - 1) * (2 / 3)).toFixed(2))),
-    );
-  };
-
-  // Process data for radar chart and averages
   useEffect(() => {
-    if (activeAkredId) {
+    if (isStatsFetching) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(true);
-      const timer = setTimeout(() => {
-        const categories = [
-          "budaya-mutu",
-          "relevansi-pendidikan",
-          "relevansi-penelitian",
-          "relevansi-pkm",
-          "akuntabilitas",
-        ];
-        const stages = ["masukan", "proses", "luaran", "dampak"];
-
-        let totalScoreSum = 0;
-        let aspectsCount = 0;
-
-        const dataPoints = categories.map((cat) => {
-          const point: RadarDataPoint = {
-            category: cat,
-            categoryLabel: formatCategoryName(cat),
-            masukan: 1.0,
-            proses: 1.0,
-            luaran: 1.0,
-            dampak: 1.0,
-          };
-
-          const catOffsets = VARIATION_OFFSETS[cat] ?? {
-            masukan: 0,
-            proses: 0,
-            luaran: 0,
-            dampak: 0,
-          };
-
-          stages.forEach((stg) => {
-            const stgData = getMutuBanptData(cat, stg, activeAkredId);
-            const aspects = stgData.indicators.flatMap((ind) => ind.aspects);
-            const offset = catOffsets[stg] ?? 0;
-
-            if (aspects.length > 0) {
-              let stageSum = 0;
-              aspects.forEach((asp) => {
-                const scaled = getScaledAspectScore(asp);
-                stageSum += scaled;
-                totalScoreSum += scaled;
-                aspectsCount++;
-              });
-              const avg = stageSum / aspects.length;
-              // Apply variation offset to produce distinct visual shapes, clamped to [0.5, 3]
-              const varied = Math.min(3, Math.max(0.5, avg + offset));
-              point[stg as keyof RadarDataPoint] = parseFloat(
-                varied.toFixed(2),
-              ) as never;
-            } else {
-              // Even empty stages get a varied baseline
-              const varied = Math.min(3, Math.max(0.5, 1.0 + offset));
-              point[stg as keyof RadarDataPoint] = parseFloat(
-                varied.toFixed(2),
-              ) as never;
-            }
-          });
-
-          return point;
-        });
-
-        setRadarData(dataPoints);
-        setOverallAvg(
-          aspectsCount > 0
-            ? parseFloat((totalScoreSum / aspectsCount).toFixed(2))
-            : 0,
-        );
-        setIsLoading(false);
-      }, 700);
-
-      return () => clearTimeout(timer);
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAkredId]);
+    if (statsRes?.data) {
+      const stats = statsRes.data;
+      const categories = [
+        "budaya-mutu",
+        "relevansi-pendidikan",
+        "relevansi-penelitian",
+        "relevansi-pkm",
+        "akuntabilitas",
+        "diferensiasi-misi",
+      ];
+      
+      const dataPoints = categories.map((cat) => {
+        const prefix = mapCategoryToApiPrefix(cat);
+        const inputVal = Number(stats[`${prefix}_input` as keyof typeof stats] || 0);
+        const processVal = Number(stats[`${prefix}_process` as keyof typeof stats] || 0);
+        const outputVal = Number(stats[`${prefix}_output` as keyof typeof stats] || 0);
+        const impactVal = Number(stats[`${prefix}_impact` as keyof typeof stats] || 0);
+
+        return {
+          category: cat,
+          categoryLabel: formatCategoryName(cat),
+          masukan: inputVal,
+          proses: processVal,
+          luaran: outputVal,
+          dampak: impactVal,
+        };
+      });
+
+      setRadarData(dataPoints);
+      setOverallAvg(Number(stats.accreditation_total || 0));
+      setIsLoading(false);
+    } else {
+      setIsLoading(false);
+    }
+  }, [statsRes, isStatsFetching]);
 
   // Projected status badge details
   const getProjectedStatus = (score: number) => {
@@ -304,14 +231,32 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
           {/* Left Column: Radar Chart */}
           <div className="lg:col-span-6">
             <Card className="h-full border border-border shadow-sm bg-card flex flex-col justify-between">
-              <CardHeader className="items-center">
-                <CardTitle className="text-xs font-bold text-foreground tracking-wide text-center">
-                  Radar Capaian Standar Mutu
-                </CardTitle>
-                <CardDescription className="text-[10px] text-muted-foreground text-center">
-                  Pemetaan skor masukan, proses, luaran, dan dampak (Skala 1.0 -
-                  3.0)
-                </CardDescription>
+              <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-border/40 pb-4">
+                <div className="text-center sm:text-left">
+                  <CardTitle className="text-xs font-bold text-foreground tracking-wide">
+                    Radar Capaian Standar Mutu
+                  </CardTitle>
+                  <CardDescription className="text-[10px] text-muted-foreground mt-1">
+                    Pemetaan skor masukan, proses, luaran, dan dampak (Skala 1.0 - 3.0)
+                  </CardDescription>
+                </div>
+                <div className="w-[180px] shrink-0">
+                  <Select
+                    value={selectedStage}
+                    onValueChange={(v) => setSelectedStage(v as "semua" | "masukan" | "proses" | "luaran" | "dampak")}
+                  >
+                    <SelectTrigger className="w-full h-8 bg-card border border-border rounded-lg px-2.5 py-1 text-[11px] font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
+                      <SelectValue placeholder="Pilih Tahap" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semua">Semua Tahap</SelectItem>
+                      <SelectItem value="masukan">Masukan (Input)</SelectItem>
+                      <SelectItem value="proses">Proses (Process)</SelectItem>
+                      <SelectItem value="luaran">Luaran (Output)</SelectItem>
+                      <SelectItem value="dampak">Dampak (Impact)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent className="pb-2">
                 <ChartContainer
@@ -348,38 +293,46 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
                         tick={false}
                         axisLine={false}
                       />
-                      <Radar
-                        name="Masukan"
-                        dataKey="masukan"
-                        stroke="var(--color-masukan)"
-                        fill="var(--color-masukan)"
-                        fillOpacity={0.35}
-                        strokeWidth={2.5}
-                      />
-                      <Radar
-                        name="Proses"
-                        dataKey="proses"
-                        stroke="var(--color-proses)"
-                        fill="var(--color-proses)"
-                        fillOpacity={0.25}
-                        strokeWidth={2}
-                      />
-                      <Radar
-                        name="Luaran"
-                        dataKey="luaran"
-                        stroke="var(--color-luaran)"
-                        fill="var(--color-luaran)"
-                        fillOpacity={0.18}
-                        strokeWidth={1.5}
-                      />
-                      <Radar
-                        name="Dampak"
-                        dataKey="dampak"
-                        stroke="var(--color-dampak)"
-                        fill="var(--color-dampak)"
-                        fillOpacity={0.12}
-                        strokeWidth={1.5}
-                      />
+                      {(selectedStage === "semua" || selectedStage === "masukan") && (
+                        <Radar
+                          name="Masukan"
+                          dataKey="masukan"
+                          stroke="var(--color-masukan)"
+                          fill="var(--color-masukan)"
+                          fillOpacity={0.35}
+                          strokeWidth={2.5}
+                        />
+                      )}
+                      {(selectedStage === "semua" || selectedStage === "proses") && (
+                        <Radar
+                          name="Proses"
+                          dataKey="proses"
+                          stroke="var(--color-proses)"
+                          fill="var(--color-proses)"
+                          fillOpacity={0.25}
+                          strokeWidth={2}
+                        />
+                      )}
+                      {(selectedStage === "semua" || selectedStage === "luaran") && (
+                        <Radar
+                          name="Luaran"
+                          dataKey="luaran"
+                          stroke="var(--color-luaran)"
+                          fill="var(--color-luaran)"
+                          fillOpacity={0.18}
+                          strokeWidth={1.5}
+                        />
+                      )}
+                      {(selectedStage === "semua" || selectedStage === "dampak") && (
+                        <Radar
+                          name="Dampak"
+                          dataKey="dampak"
+                          stroke="var(--color-dampak)"
+                          fill="var(--color-dampak)"
+                          fillOpacity={0.12}
+                          strokeWidth={1.5}
+                        />
+                      )}
                       <ChartLegend
                         className="mt-6"
                         content={<ChartLegendContent />}
