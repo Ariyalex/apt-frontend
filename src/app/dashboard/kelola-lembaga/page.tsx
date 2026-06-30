@@ -64,9 +64,17 @@ export default function KelolaLembagaPage(): React.JSX.Element {
     return () => clearTimeout(handler);
   }, [searchKeyword]);
 
+  const [page, setPage] = useState<number>(1);
+  const limit = 10;
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [debouncedSearch]);
+
   // RTK Query hooks
   const { data: responseData, isLoading: isInstitutesLoading } =
-    useGetInstitutesQuery({ name: debouncedSearch });
+    useGetInstitutesQuery({ name: debouncedSearch, page, limit });
   const [createInstitute, { isLoading: isCreateLoading }] =
     useCreateInstituteMutation();
   const [updateInstitute, { isLoading: isUpdateLoading }] =
@@ -239,6 +247,10 @@ export default function KelolaLembagaPage(): React.JSX.Element {
 
       <LembagaTable
         lembagaList={lembagaList}
+        page={page}
+        totalPages={responseData?.meta?.total_pages || 1}
+        totalItems={responseData?.meta?.total_items || 0}
+        onPageChange={(p) => setPage(p)}
         onEdit={handleEditLembaga}
         onDelete={handleDeleteLembaga}
       />

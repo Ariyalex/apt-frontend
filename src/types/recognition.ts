@@ -13,6 +13,21 @@ export interface RecognitionModel {
   created_at: string;
 }
 
+export interface PaginatedRecognitionResponse {
+  success: boolean;
+  status: number;
+  message: string;
+  path: string;
+  timestamp: string;
+  meta?: {
+    current_page: number;
+    limit_page: number;
+    total_items: number;
+    total_pages: number;
+  };
+  data: RecognitionModel[];
+}
+
 export interface SaveRecognitionRequest {
   lecturer_id: string;
   category_id: number;

@@ -5,8 +5,8 @@ import {
   Accreditation,
 } from "@/types/mutu-banpt";
 
-export function formatCategoryName(category: string): string {
-  switch (category) {
+export function formatCategoryName(criteria: string): string {
+  switch (criteria) {
     case "budaya-mutu":
       return "Budaya Mutu";
     case "relevansi-pendidikan":
@@ -17,8 +17,10 @@ export function formatCategoryName(category: string): string {
       return "Relevansi PKM";
     case "akuntabilitas":
       return "Akuntabilitas";
+    case "diferensiasi-misi":
+      return "Diferensiasi Misi";
     default:
-      return category
+      return criteria
         .split("-")
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(" ");
@@ -269,7 +271,7 @@ export function getSubmissionsForAspect(aspectId: string): AspectSubmission[] {
       bukti: "http://drive.google.com/spmi-ti-dokumen",
       expectationScore: 4,
       score: 4,
-      status: "Selesai",
+      status: "Memenuhi",
       createdAt: "2026-06-20 09:00",
       updatedAt: "2026-06-25 14:30",
     },
@@ -279,7 +281,7 @@ export function getSubmissionsForAspect(aspectId: string): AspectSubmission[] {
       bukti: "http://drive.google.com/spmi-si-laporan",
       expectationScore: 4,
       score: 3,
-      status: "Selesai",
+      status: "Tidak Memenuhi",
       createdAt: "2026-06-21 10:15",
       updatedAt: "2026-06-24 16:00",
     },

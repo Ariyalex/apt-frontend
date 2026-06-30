@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2, CheckCircle2, ShieldCheck, FileText, UploadCloud, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  ShieldCheck,
+  FileText,
+  UploadCloud,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,26 +28,128 @@ import {
   AttachmentActions,
   AttachmentAction,
 } from "@/components/ui/attachment";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { formatCategoryName, formatStageName } from "@/dummy-data/mutu-banpt";
 import {
-  getMutuBanptData,
-  saveMutuBanptData,
-  formatCategoryName,
-  formatStageName,
-} from "@/dummy-data/mutu-banpt";
-import { IndicatorTab, AssessmentAspect } from "@/types/mutu-banpt";
+  IndicatorTab,
+  AssessmentAspect,
+  FormulaVariable,
+  RadioVariable,
+  AssessmentRule,
+  AssessmentEvaluation,
+  RuleVariable,
+  SaveAssessmentEvaluationRequest,
+} from "@/types/mutu-banpt";
 import MutuBanptAdminPage from "./mutu-banpt-admin";
+import { useGetIndicatorListQuery } from "@/store/services/indicatorApi";
+import { useGetAssessmentRuleListQuery } from "@/store/services/assessmentRuleApi";
+import {
+  useGetAssessmentEvaluationListQuery,
+  useCreateAssessmentEvaluationMutation,
+  useUpdateAssessmentEvaluationMutation,
+} from "@/store/services/assessmentEvaluationApi";
+import { useUploadFileMutation, useGetFileMutation } from "@/store/services/fileApi";
+
+const mapCriteria = (criteria: string): string => {
+  switch (criteria) {
+    case "budaya-mutu":
+      return "quality_culture";
+    case "relevansi-pendidikan":
+      return "education_relevance";
+    case "relevansi-penelitian":
+      return "research_relevance";
+    case "relevansi-pkm":
+      return "comunity_service_relevance";
+    case "akuntabilitas":
+      return "accountability";
+    case "diferensiasi-misi":
+      return "mission_differentiation";
+    default:
+      return criteria;
+  }
+};
+
+const mapTarget = (target: string): string => {
+  switch (target) {
+    case "masukan":
+      return "input";
+    case "proses":
+      return "process";
+    case "luaran":
+      return "output";
+    case "dampak":
+      return "impact";
+    default:
+      return target;
+  }
+};
 
 interface MutuBanptClientProps {
-  category: string;
-  stage: string;
+  criteria: string;
+  target: string;
 }
 
 export default function MutuBanptClientPage({
-  category,
-  stage,
+  criteria,
+  target,
 }: MutuBanptClientProps): React.JSX.Element {
-  const catLabel = formatCategoryName(category);
-  const stageLabel = formatStageName(stage);
+  const catLabel = formatCategoryName(criteria);
+  const stageLabel = formatStageName(target);
+
+  // Active accreditation filter state
+  const [activeAkredId, setActiveAkredId] = useState<string>("");
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+
+  // RTK Query API Hooks
+  const {
+    data: indicatorsRes,
+    isFetching: isIndicatorsFetching,
+    refetch: refetchIndicators,
+  } = useGetIndicatorListQuery(
+    {
+      accreditation_id: activeAkredId,
+      criteria: mapCriteria(criteria),
+      target: mapTarget(target),
+    },
+    { skip: !activeAkredId || !criteria || !target },
+  );
+
+  const {
+    data: rulesRes,
+    isFetching: isRulesFetching,
+    refetch: refetchRules,
+  } = useGetAssessmentRuleListQuery();
+
+  const {
+    data: evalsRes,
+    isFetching: isEvalsFetching,
+    refetch: refetchEvals,
+  } = useGetAssessmentEvaluationListQuery(
+    { accreditation_id: activeAkredId, user_id: currentUserId },
+    { skip: !activeAkredId || !currentUserId },
+  );
+
+  const [uploadFile] = useUploadFileMutation();
+  const [createEvaluation] = useCreateAssessmentEvaluationMutation();
+  const [updateEvaluation] = useUpdateAssessmentEvaluationMutation();
+  const [getFile] = useGetFileMutation();
+
+  const handleViewProof = (proofUrl: string) => {
+    if (!proofUrl) return;
+    const promise = getFile(proofUrl).unwrap().then((objectUrl) => {
+      window.open(objectUrl, "_blank");
+      return objectUrl;
+    });
+
+    toast.promise(promise, {
+      loading: "Mengunduh file bukti...",
+      success: "File berhasil dimuat!",
+      error: (err: unknown) => {
+        const errorObj = err as { message?: string };
+        return errorObj.message || "Gagal memuat file bukti";
+      },
+    });
+  };
 
   // Detect admin role
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
@@ -55,114 +164,203 @@ export default function MutuBanptClientPage({
           // eslint-disable-next-line react-hooks/set-state-in-effect
           setIsAdmin(true);
         }
+         
         setUserRole(session.role || "");
+        if (session.id) {
+           
+          setCurrentUserId(session.id);
+        }
       } catch {
         // ignore
       }
     }
   }, []);
 
-  // Active accreditation filter state
-  const [activeAkredId, setActiveAkredId] = useState<string>("");
   const [indicatorsState, setIndicatorsState] = useState<IndicatorTab[]>([]);
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<number>(1);
   const [savingAspectId, setSavingAspectId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // File upload state per aspect
-  const [uploadingAspectId, setUploadingAspectId] = useState<string | null>(null);
+  const [uploadingAspectId, _setUploadingAspectId] = useState<string | null>(null);
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+  const [localFiles, setLocalFiles] = useState<Record<string, File>>({});
 
   // Edit Mode states
   const [editModes, setEditModes] = useState<Record<string, boolean>>({});
   const [backupAspects, setBackupAspects] = useState<Record<string, AssessmentAspect>>({});
 
-  // Load selected accreditation ID and setup listener
+  // Sync loading state
   useEffect(() => {
-    const handleActiveChange = () => {
-      const storedId = localStorage.getItem("active_akreditasi_id");
-      if (storedId) {
-        setActiveAkredId(storedId);
-        setIsLoading(true);
-      }
-    };
+    const isFetching = isIndicatorsFetching || isRulesFetching || isEvalsFetching;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(isFetching);
+  }, [isIndicatorsFetching, isRulesFetching, isEvalsFetching]);
 
+  // Sync active accreditation from local storage
+  useEffect(() => {
     const storedId = localStorage.getItem("active_akreditasi_id");
     if (storedId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveAkredId(storedId);
     }
 
-    window.addEventListener("active_akreditasi_change", handleActiveChange);
-    return () => window.removeEventListener("active_akreditasi_change", handleActiveChange);
-  }, []);
-
-  // Fetch indicators data based on category, stage and active accreditation
-  useEffect(() => {
-    if (category && stage && activeAkredId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsLoading(true);
-      const timer = setTimeout(() => {
-        const initialData = getMutuBanptData(category, stage, activeAkredId);
-        
-        // Populate isSubmitted based on existing data
-        const mappedIndicators = initialData.indicators.map((ind) => ({
-          ...ind,
-          aspects: ind.aspects.map((asp) => {
-            const hasRadioVal = asp.type === "radio" && asp.selectedRadioIndex !== undefined;
-            const isSub = asp.isSubmitted ?? (hasRadioVal || !!asp.proofFileName);
-            return {
-              ...asp,
-              isSubmitted: isSub,
-            };
-          }),
-        }));
-
-        setIndicatorsState(mappedIndicators);
-        if (mappedIndicators.length > 0) {
-          const valid = mappedIndicators.some((ind) => ind.id === selectedIndicatorId);
-          setSelectedIndicatorId(valid ? selectedIndicatorId : mappedIndicators[0].id);
-        }
-        setIsLoading(false);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, stage, activeAkredId]);
-
-  // Synchronise state when modified by admin or other views
-  useEffect(() => {
-    if (!category || !stage || !activeAkredId) return;
-
-    const handleMutuChange = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (
-        customEvent.detail.category === category &&
-        customEvent.detail.stage === stage &&
-        customEvent.detail.akreditasiId === activeAkredId
-      ) {
-        const data = getMutuBanptData(category, stage, activeAkredId);
-        const mappedIndicators = data.indicators.map((ind) => ({
-          ...ind,
-          aspects: ind.aspects.map((asp) => {
-            const hasRadioVal = asp.type === "radio" && asp.selectedRadioIndex !== undefined;
-            const isSub = asp.isSubmitted ?? (hasRadioVal || !!asp.proofFileName);
-            return {
-              ...asp,
-              isSubmitted: isSub,
-            };
-          }),
-        }));
-        setIndicatorsState(mappedIndicators);
+    const handleActiveChange = () => {
+      const newId = localStorage.getItem("active_akreditasi_id");
+      if (newId) {
+        setActiveAkredId(newId);
       }
     };
 
+    window.addEventListener("active_akreditasi_change", handleActiveChange);
+    return () =>
+      window.removeEventListener(
+        "active_akreditasi_change",
+        handleActiveChange,
+      );
+  }, []);
+
+  // Map API response models to UI Component states (IndicatorTab / AssessmentAspect)
+  useEffect(() => {
+    if (indicatorsRes?.data && rulesRes?.data && evalsRes?.data) {
+      const apiIndicators = indicatorsRes.data;
+      const apiRules = rulesRes.data;
+      const apiEvals = evalsRes.data;
+
+      // Group rules by indicator_id
+      const rulesMap: Record<string, AssessmentRule[]> = {};
+      apiRules.forEach((rule) => {
+        const indId = rule.indicator.id;
+        if (!rulesMap[indId]) {
+          rulesMap[indId] = [];
+        }
+        rulesMap[indId].push(rule);
+      });
+
+      // Group evaluations by rule_id (ONLY for the current user!)
+      const evalsMap: Record<string, AssessmentEvaluation> = {};
+      apiEvals.forEach((ev) => {
+        if (ev.user?.id === currentUserId) {
+          evalsMap[ev.calculation_rule.id] = ev;
+        }
+      });
+
+      // Map to IndicatorTab[]
+      const mapped: IndicatorTab[] = apiIndicators.map((ind, index) => {
+        const indRules = rulesMap[ind.id] || [];
+        const aspects: AssessmentAspect[] = indRules.map((rule) => {
+          const evalItem = evalsMap[rule.id];
+
+          // Parse formula variables
+          const formulaVars: FormulaVariable[] = rule.input_rules.map((v) => {
+            const evalVar = evalItem?.input_variables.find(
+              (ev) => ev.var === v.var,
+            );
+            return {
+              name: v.var,
+              label: v.var,
+              type: (v.type as "input" | "static") || "input",
+              value: evalVar ? Number(evalVar.val) : Number(v.val || 0),
+            };
+          });
+
+          // If type is points (radio), prepare radioVariables
+          const radioVars: RadioVariable[] =
+            rule.type === "points"
+              ? rule.input_rules.map((v) => ({
+                  name: v.var,
+                  value: Number(v.val),
+                }))
+              : [];
+
+          // Determine selected radio index if evaluated
+          let selectedRadioIdx: number | undefined = undefined;
+          if (rule.type === "points" && evalItem) {
+            const filledVar = evalItem.input_variables.find(
+              (v) => Number(v.val) > 0,
+            );
+            if (filledVar) {
+              selectedRadioIdx = radioVars.findIndex(
+                (r) => r.name === filledVar.var,
+              );
+            }
+          }
+
+          const hasSub = !!evalItem;
+
+          return {
+            id: rule.id, // API rule ID
+            type:
+              rule.type === "maths" ? ("formula" as const) : ("radio" as const),
+            description: rule.assessment,
+            complianceDescription: rule.fulfillment,
+            dataSource: rule.data_source,
+            proofUrl: evalItem?.proof || undefined,
+            proofFileName: evalItem?.proof
+              ? evalItem.proof.split("/").pop()
+              : undefined,
+            buktiRequired: rule.proof_required,
+            expectationResult: Number(rule.expectation_result || 0),
+            expectationFormat:
+              (rule.result_format as "decimal" | "percentage") || "decimal",
+            score: evalItem ? Number(evalItem.calculated_result) : undefined,
+            selectedRadioIndex: selectedRadioIdx,
+            radioVariables: radioVars,
+            formula: rule.formula
+              ? {
+                  expression: rule.formula,
+                  variables: formulaVars,
+                  targetVariable: rule.type === "maths" ? "Hasil" : "Skor",
+                  threshold: Number(rule.expectation_result || 0),
+                }
+              : undefined,
+            isSubmitted: hasSub,
+          };
+        });
+
+        const allCompleted =
+          aspects.length > 0 &&
+          aspects.every((asp) => {
+            if (!asp.isSubmitted) return false;
+            if (asp.buktiRequired && !asp.proofUrl) return false;
+            return true;
+          });
+
+        return {
+          id: index + 1, // local selection index
+          title: ind.number,
+          status: allCompleted ? ("selesai" as const) : ("belum" as const),
+          justifikasi: ind.justification,
+          indikatorDescription: ind.name,
+          aspects,
+        };
+      });
+
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIndicatorsState(mapped);
+      if (mapped.length > 0) {
+        const valid = mapped.some((ind) => ind.id === selectedIndicatorId);
+         
+        setSelectedIndicatorId(valid ? selectedIndicatorId : mapped[0].id);
+      }
+    }
+  }, [indicatorsRes, rulesRes, evalsRes, selectedIndicatorId, currentUserId]);
+
+  // Sync state event listener
+  useEffect(() => {
+    const handleMutuChange = () => {
+      refetchIndicators();
+      refetchRules();
+      refetchEvals();
+    };
+
     window.addEventListener("mutu_banpt_change", handleMutuChange);
-    return () => window.removeEventListener("mutu_banpt_change", handleMutuChange);
-  }, [category, stage, activeAkredId]);
+    return () =>
+      window.removeEventListener("mutu_banpt_change", handleMutuChange);
+  }, [refetchIndicators, refetchRules, refetchEvals]);
 
   if (isAdmin) {
-    return <MutuBanptAdminPage category={category} stage={stage} />;
+    return <MutuBanptAdminPage criteria={criteria} target={target} />;
   }
 
   if (userRole && userRole !== "Auditor" && userRole !== "Assessor") {
@@ -175,7 +373,9 @@ export default function MutuBanptClientPage({
     );
   }
 
-  const activeIndicator = indicatorsState.find((ind) => ind.id === selectedIndicatorId);
+  const activeIndicator = indicatorsState.find(
+    (ind) => ind.id === selectedIndicatorId,
+  );
 
   // Custom radio choice selection (variables mapping points)
   const handleRadioChoiceSelect = (aspectId: string, choiceIndex: number) => {
@@ -186,36 +386,45 @@ export default function MutuBanptClientPage({
         return {
           ...ind,
           aspects: ind.aspects.map((asp) => {
-            if (asp.id !== aspectId || !asp.radioVariables || !asp.formula) return asp;
+            if (asp.id !== aspectId || !asp.radioVariables)
+              return asp;
 
             const selectedChoice = asp.radioVariables[choiceIndex];
             const score = selectedChoice.value;
 
-            // Map variables: active selected choice gets its points, others get 0
-            const updatedVars = asp.formula.variables.map((v) => {
-              if (v.name === selectedChoice.name) {
-                return { ...v, value: selectedChoice.value };
-              }
-              return { ...v, value: 0 };
-            });
+            // Map formula variables if formula exists
+            let updatedFormula = undefined;
+            if (asp.formula) {
+              const updatedVars = asp.formula.variables.map((v) => {
+                if (v.name === selectedChoice.name) {
+                  return { ...v, value: selectedChoice.value };
+                }
+                return { ...v, value: 0 };
+              });
+              updatedFormula = {
+                ...asp.formula,
+                variables: updatedVars,
+              };
+            }
 
             return {
               ...asp,
               score,
               selectedRadioIndex: choiceIndex,
-              formula: {
-                ...asp.formula,
-                variables: updatedVars,
-              },
+              formula: updatedFormula || asp.formula,
             };
           }),
         };
-      })
+      }),
     );
   };
 
   // Variable input change for formula types
-  const handleVariableChange = (aspectId: string, varName: string, value: number) => {
+  const handleVariableChange = (
+    aspectId: string,
+    varName: string,
+    value: number,
+  ) => {
     setIndicatorsState((prev) =>
       prev.map((ind) => ({
         ...ind,
@@ -226,19 +435,19 @@ export default function MutuBanptClientPage({
             formula: {
               ...asp.formula,
               variables: asp.formula.variables.map((v) =>
-                v.name === varName ? { ...v, value } : v
+                v.name === varName ? { ...v, value } : v,
               ),
             },
           };
         }),
-      }))
+      })),
     );
   };
 
   // Safe formula evaluator
   const calculateFormula = (
     expression: string,
-    variables: { name: string; value: number }[]
+    variables: { name: string; value: number }[],
   ): number => {
     try {
       let evalStr = expression;
@@ -278,46 +487,156 @@ export default function MutuBanptClientPage({
     setDragActiveId(null);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processUploadFile(aspectId, e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, aspectId: string) => {
-    if (e.target.files && e.target.files[0]) {
-      processUploadFile(aspectId, e.target.files[0]);
-    }
-  };
-
-  const processUploadFile = (aspectId: string, file: File) => {
-    setUploadingAspectId(aspectId);
-    setTimeout(() => {
+      const file = e.dataTransfer.files[0];
+      setLocalFiles((prev) => ({ ...prev, [aspectId]: file }));
       setIndicatorsState((prev) =>
         prev.map((ind) => ({
           ...ind,
           aspects: ind.aspects.map((asp) =>
-            asp.id === aspectId ? { ...asp, proofFileName: file.name } : asp
+            asp.id === aspectId ? { ...asp, proofFileName: file.name } : asp,
           ),
-        }))
+        })),
       );
-      setUploadingAspectId(null);
-      toast.success("Dokumen bukti berhasil diunggah!");
-    }, 900);
+    }
+  };
+
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    aspectId: string,
+  ) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setLocalFiles((prev) => ({ ...prev, [aspectId]: file }));
+      setIndicatorsState((prev) =>
+        prev.map((ind) => ({
+          ...ind,
+          aspects: ind.aspects.map((asp) =>
+            asp.id === aspectId ? { ...asp, proofFileName: file.name } : asp,
+          ),
+        })),
+      );
+    }
   };
 
   const handleRemoveFile = (aspectId: string) => {
+    setLocalFiles((prev) => {
+      const copy = { ...prev };
+      delete copy[aspectId];
+      return copy;
+    });
     setIndicatorsState((prev) =>
       prev.map((ind) => ({
         ...ind,
         aspects: ind.aspects.map((asp) =>
-          asp.id === aspectId ? { ...asp, proofFileName: undefined } : asp
+          asp.id === aspectId
+            ? { ...asp, proofUrl: undefined, proofFileName: undefined }
+            : asp,
         ),
-      }))
+      })),
     );
   };
 
-  // Edit mode actions
+  const handleSaveEvaluation = async (aspectId: string) => {
+    setSavingAspectId(aspectId);
+    try {
+      const aspect = activeIndicator?.aspects.find(
+        (asp) => asp.id === aspectId,
+      );
+      if (!aspect) return;
+
+      let proofUrl = aspect.proofUrl;
+
+      // Upload file only when saving/submitting if a local file exists
+      const localFile = localFiles[aspectId];
+      if (localFile) {
+        try {
+          const formData = new FormData();
+          formData.append("file", localFile);
+          const res = await uploadFile(formData).unwrap();
+          proofUrl = res.data.file_url;
+        } catch {
+          toast.error("Gagal mengunggah dokumen bukti.");
+          setSavingAspectId(null);
+          return;
+        }
+      }
+
+      // Check if proof document is required and we have a url (either from upload or existing)
+      if (aspect.buktiRequired && !proofUrl) {
+        toast.error("Dokumen bukti wajib diunggah!");
+        setSavingAspectId(null);
+        return;
+      }
+
+      // Prepare variables format for API: RuleVariable[]
+      let inputVars: RuleVariable[] = [];
+
+      if (aspect.type === "radio") {
+        if (aspect.selectedRadioIndex === undefined) {
+          toast.error("Pilihan penilaian harus dipilih!");
+          setSavingAspectId(null);
+          return;
+        }
+        const selected = aspect.radioVariables?.[aspect.selectedRadioIndex];
+        if (!selected) return;
+
+        // In points evaluation, the selected option has value, others are 0
+        inputVars = (aspect.radioVariables || []).map((rv) => ({
+          var: rv.name,
+          type: "input",
+          val: rv.name === selected.name ? rv.value : 0,
+        }));
+      } else if (aspect.type === "formula" && aspect.formula) {
+        inputVars = aspect.formula.variables.map((v) => ({
+          var: v.name,
+          type: v.type,
+          val: v.value,
+        }));
+      }
+
+      const payload: SaveAssessmentEvaluationRequest = {
+        rule_id: aspectId,
+        level: "university",
+        institute_id: null,
+        study_program_id: null,
+        proof: proofUrl || "",
+        input_variables: inputVars,
+      };
+
+      // Check if existing evaluation exists for current user
+      const existingEval = evalsRes?.data?.find(
+        (ev) =>
+          ev.calculation_rule.id === aspectId && ev.user?.id === currentUserId,
+      );
+
+      if (existingEval) {
+        await updateEvaluation({ id: existingEval.id, body: payload }).unwrap();
+      } else {
+        await createEvaluation(payload).unwrap();
+      }
+
+      // Clean local file cache on successful submission
+      setLocalFiles((prev) => {
+        const copy = { ...prev };
+        delete copy[aspectId];
+        return copy;
+      });
+
+      toast.success("Penilaian berhasil disimpan!");
+      refetchEvals();
+      setEditModes((prev) => ({ ...prev, [aspectId]: false }));
+    } catch {
+      toast.error("Gagal menyimpan penilaian.");
+    } finally {
+      setSavingAspectId(null);
+    }
+  };
+
   const handleStartEdit = (aspect: AssessmentAspect) => {
-    setBackupAspects((prev) => ({ ...prev, [aspect.id]: JSON.parse(JSON.stringify(aspect)) }));
+    setBackupAspects((prev) => ({
+      ...prev,
+      [aspect.id]: JSON.parse(JSON.stringify(aspect)),
+    }));
     setEditModes((prev) => ({ ...prev, [aspect.id]: true }));
   };
 
@@ -328,109 +647,18 @@ export default function MutuBanptClientPage({
         prev.map((ind) => ({
           ...ind,
           aspects: ind.aspects.map((a) => (a.id === aspectId ? backup : a)),
-        }))
+        })),
       );
     }
     setEditModes((prev) => ({ ...prev, [aspectId]: false }));
   };
 
   const handleSaveEdit = async (aspectId: string) => {
-    setSavingAspectId(aspectId);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const finalIndicators = [...indicatorsState];
-    const updatedIndicators = finalIndicators.map((ind) => {
-      const hasActiveAspect = ind.aspects.some((asp) => asp.id === aspectId);
-      if (!hasActiveAspect) return ind;
-
-      const allCompleted = ind.aspects.every((asp) => {
-        const isSub = asp.id === aspectId ? true : asp.isSubmitted;
-        if (!isSub) return false;
-        if (asp.buktiRequired && !asp.proofFileName) return false;
-
-        let val = 0;
-        if (asp.type === "radio") {
-          if (asp.selectedRadioIndex === undefined) return false;
-          val = asp.score || 0;
-        } else if (asp.type === "formula" && asp.formula) {
-          val = calculateFormula(asp.formula.expression, asp.formula.variables);
-        }
-        const expectation = asp.expectationResult ?? 0;
-        if (val < expectation) return false;
-
-        return true;
-      });
-
-      return {
-        ...ind,
-        aspects: ind.aspects.map((asp) =>
-          asp.id === aspectId ? { ...asp, isSubmitted: true } : asp
-        ),
-        status: allCompleted ? ("selesai" as const) : ("belum" as const),
-      };
-    });
-
-    setIndicatorsState(updatedIndicators);
-    saveMutuBanptData(category, stage, activeAkredId, {
-      category,
-      stage,
-      indicators: updatedIndicators,
-    });
-
-    setEditModes((prev) => ({ ...prev, [aspectId]: false }));
-    setSavingAspectId(null);
-    toast.success("Perubahan penilaian berhasil disimpan!");
+    await handleSaveEvaluation(aspectId);
   };
 
-  // Save/Submit assessment action (Initial submission)
   const handleSaveAspect = async (aspectId: string) => {
-    setSavingAspectId(aspectId);
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const finalIndicators = [...indicatorsState];
-    const updatedIndicators = finalIndicators.map((ind) => {
-      const hasActiveAspect = ind.aspects.some((asp) => asp.id === aspectId);
-      if (!hasActiveAspect) return ind;
-
-      // Verify if all aspects in the indicator have values filled
-      const allCompleted = ind.aspects.every((asp) => {
-        const isSub = asp.id === aspectId ? true : asp.isSubmitted;
-        if (!isSub) return false;
-        if (asp.buktiRequired && !asp.proofFileName) return false;
-        
-        let val = 0;
-        if (asp.type === "radio") {
-          if (asp.selectedRadioIndex === undefined) return false;
-          val = asp.score || 0;
-        } else if (asp.type === "formula" && asp.formula) {
-          val = calculateFormula(asp.formula.expression, asp.formula.variables);
-        }
-
-        const expectation = asp.expectationResult ?? 0;
-        if (val < expectation) return false;
-
-        return true;
-      });
-
-      return {
-        ...ind,
-        aspects: ind.aspects.map((asp) =>
-          asp.id === aspectId ? { ...asp, isSubmitted: true } : asp
-        ),
-        status: allCompleted ? ("selesai" as const) : ("belum" as const),
-      };
-    });
-
-    setIndicatorsState(updatedIndicators);
-    saveMutuBanptData(category, stage, activeAkredId, {
-      category,
-      stage,
-      indicators: updatedIndicators,
-    });
-
-    toast.success("Penilaian berhasil dikirim!");
-    setSavingAspectId(null);
+    await handleSaveEvaluation(aspectId);
   };
 
   return (
@@ -441,7 +669,8 @@ export default function MutuBanptClientPage({
           {catLabel} - {stageLabel}
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Lakukan audit mutu internal dan penilaian aspek berdasarkan indikator kriteria BAN-PT
+          Lakukan audit mutu internal dan penilaian aspek berdasarkan indikator
+          kriteria BAN-PT
         </p>
       </div>
 
@@ -458,9 +687,12 @@ export default function MutuBanptClientPage({
       ) : indicatorsState.length === 0 ? (
         <div className="bg-card border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center space-y-3">
           <ShieldCheck className="h-12 w-12 text-muted-foreground/35" />
-          <h3 className="text-sm font-bold text-foreground">Instrumen Evaluasi Belum Tersedia</h3>
+          <h3 className="text-sm font-bold text-foreground">
+            Instrumen Evaluasi Belum Tersedia
+          </h3>
           <p className="text-xs text-muted-foreground max-w-sm">
-            Admin belum membuat konfigurasi instrumen mutu BAN-PT untuk kategori <strong>{catLabel}</strong> di tahap ini.
+            Admin belum membuat konfigurasi instrumen mutu BAN-PT untuk kategori{" "}
+            <strong>{catLabel}</strong> di tahap ini.
           </p>
         </div>
       ) : (
@@ -494,7 +726,9 @@ export default function MutuBanptClientPage({
                   <p className="font-bold text-primary mb-1 uppercase tracking-wider text-[10px]">
                     Deskripsi Indikator:
                   </p>
-                  <p className="text-muted-foreground">{ind.indikatorDescription}</p>
+                  <p className="text-muted-foreground">
+                    {ind.indikatorDescription}
+                  </p>
                 </HoverCardContent>
               </HoverCard>
             ))}
@@ -544,17 +778,23 @@ export default function MutuBanptClientPage({
                     let isFulfilled = false;
 
                     if (asp.formula) {
-                      formulaVal = calculateFormula(asp.formula.expression, asp.formula.variables);
-                      isFulfilled = formulaVal >= (asp.expectationResult ?? asp.formula.threshold);
+                      formulaVal = calculateFormula(
+                        asp.formula.expression,
+                        asp.formula.variables,
+                      );
+                      isFulfilled =
+                        formulaVal >=
+                        (asp.expectationResult ?? asp.formula.threshold);
                     }
 
                     // Check if submit is allowed: score/choices filled & proof attached if required
-                    const isChoiceFilled = asp.type === "radio" 
-                      ? asp.selectedRadioIndex !== undefined 
-                      : true;
-                    
-                    const isProofFilled = asp.buktiRequired 
-                      ? !!asp.proofFileName 
+                    const isChoiceFilled =
+                      asp.type === "radio"
+                        ? asp.selectedRadioIndex !== undefined
+                        : true;
+
+                    const isProofFilled = asp.buktiRequired
+                      ? !!asp.proofFileName
                       : true;
 
                     const isReadOnly = asp.isSubmitted && !editModes[asp.id];
@@ -575,8 +815,14 @@ export default function MutuBanptClientPage({
                             </p>
                           </div>
 
-                          <Separator orientation="vertical" className="hidden md:block w-[1px]" />
-                          <Separator orientation="horizontal" className="md:hidden h-[1px] w-full" />
+                          <Separator
+                            orientation="vertical"
+                            className="hidden md:block w-[1px]"
+                          />
+                          <Separator
+                            orientation="horizontal"
+                            className="md:hidden h-[1px] w-full"
+                          />
 
                           <div className="flex-1 space-y-1">
                             <span className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider block">
@@ -590,7 +836,10 @@ export default function MutuBanptClientPage({
 
                         {/* Data Source Row */}
                         <div className="py-2 px-3 bg-muted/20 border-l-2 border-primary rounded text-xs font-semibold text-muted-foreground">
-                          Sumber Data: <span className="text-foreground">{asp.dataSource}</span>
+                          Sumber Data:{" "}
+                          <span className="text-foreground">
+                            {asp.dataSource}
+                          </span>
                         </div>
 
                         {/* Form Bottom Area */}
@@ -602,31 +851,38 @@ export default function MutuBanptClientPage({
                                 <span className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider block">
                                   Pilih Penilaian Skor
                                 </span>
-                                <div className="flex flex-wrap gap-2.5">
-                                  {asp.radioVariables?.map((v, idx) => (
-                                    <label
-                                      key={v.name}
-                                      className={`flex items-center justify-center px-4 py-2 h-9 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
-                                        asp.selectedRadioIndex === idx
-                                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                          : "bg-card border-border hover:bg-muted/50 text-foreground"
-                                      } ${
-                                        isReadOnly ? "opacity-75 cursor-not-allowed" : ""
-                                      }`}
+                                <div className="flex flex-col gap-2.5">
+                                  {asp.radioVariables && asp.radioVariables.length > 0 ? (
+                                    <RadioGroup
+                                      value={asp.selectedRadioIndex !== undefined ? String(asp.selectedRadioIndex) : undefined}
+                                      onValueChange={(val) => handleRadioChoiceSelect(asp.id, Number(val))}
+                                      disabled={isReadOnly || savingAspectId === asp.id}
+                                      className="flex flex-col gap-2.5"
                                     >
-                                      <input
-                                        type="radio"
-                                        name={`choice-${asp.id}`}
-                                        value={idx}
-                                        checked={asp.selectedRadioIndex === idx}
-                                        disabled={isReadOnly || savingAspectId === asp.id}
-                                        onChange={() => handleRadioChoiceSelect(asp.id, idx)}
-                                        className="sr-only"
-                                      />
-                                      {v.name.replace(/_/g, " ")} ({v.value})
-                                    </label>
-                                  ))}
-                                  {(!asp.radioVariables || asp.radioVariables.length === 0) && (
+                                      {asp.radioVariables.map((v, idx) => (
+                                        <div
+                                          key={v.name}
+                                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-xs font-semibold transition-all ${
+                                            asp.selectedRadioIndex === idx
+                                              ? "bg-primary/5 border-primary/45 shadow-sm text-foreground"
+                                              : "bg-card border-border hover:bg-muted/30 text-muted-foreground"
+                                          }`}
+                                        >
+                                          <RadioGroupItem
+                                            value={String(idx)}
+                                            id={`choice-${asp.id}-${idx}`}
+                                            className="h-4.5 w-4.5 border-border"
+                                          />
+                                          <label
+                                            htmlFor={`choice-${asp.id}-${idx}`}
+                                            className="flex-1 cursor-pointer select-none text-foreground py-0.5 leading-none"
+                                          >
+                                            {v.name.replace(/_/g, " ")} ({v.value})
+                                          </label>
+                                        </div>
+                                      ))}
+                                    </RadioGroup>
+                                  ) : (
                                     <span className="text-muted-foreground italic">
                                       Tidak ada pilihan.
                                     </span>
@@ -641,8 +897,19 @@ export default function MutuBanptClientPage({
                                     Upload Bukti Dokumen (Wajib)
                                   </span>
                                   {asp.proofFileName ? (
-                                    <Attachment state="done" className="w-full border-border">
-                                      <AttachmentMedia variant="icon" className="bg-primary/5 text-primary">
+                                    <Attachment
+                                      state="done"
+                                      className={`w-full border-border ${asp.proofUrl ? "cursor-pointer hover:bg-muted/5 transition-colors" : ""}`}
+                                      onClick={() => {
+                                        if (asp.proofUrl) {
+                                          handleViewProof(asp.proofUrl);
+                                        }
+                                      }}
+                                    >
+                                      <AttachmentMedia
+                                        variant="icon"
+                                        className="bg-primary/5 text-primary"
+                                      >
                                         <FileText className="h-5 w-5" />
                                       </AttachmentMedia>
                                       <AttachmentContent>
@@ -658,7 +925,9 @@ export default function MutuBanptClientPage({
                                           <AttachmentAction
                                             variant="ghost"
                                             size="icon-xs"
-                                            onClick={() => handleRemoveFile(asp.id)}
+                                            onClick={() =>
+                                              handleRemoveFile(asp.id)
+                                            }
                                             disabled={savingAspectId === asp.id}
                                             className="text-error hover:bg-error/10 hover:text-error"
                                           >
@@ -669,10 +938,18 @@ export default function MutuBanptClientPage({
                                     </Attachment>
                                   ) : (
                                     <div
-                                      onDragEnter={(e) => !isReadOnly && handleDrag(e, asp.id)}
-                                      onDragOver={(e) => !isReadOnly && handleDrag(e, asp.id)}
-                                      onDragLeave={(e) => !isReadOnly && handleDrag(e, asp.id)}
-                                      onDrop={(e) => !isReadOnly && handleDrop(e, asp.id)}
+                                      onDragEnter={(e) =>
+                                        !isReadOnly && handleDrag(e, asp.id)
+                                      }
+                                      onDragOver={(e) =>
+                                        !isReadOnly && handleDrag(e, asp.id)
+                                      }
+                                      onDragLeave={(e) =>
+                                        !isReadOnly && handleDrag(e, asp.id)
+                                      }
+                                      onDrop={(e) =>
+                                        !isReadOnly && handleDrop(e, asp.id)
+                                      }
                                       className={`border border-dashed rounded-lg p-3.5 text-center transition-all ${
                                         dragActiveId === asp.id && !isReadOnly
                                           ? "border-primary bg-primary/5"
@@ -682,24 +959,36 @@ export default function MutuBanptClientPage({
                                       <input
                                         type="file"
                                         id={`file-upload-${asp.id}`}
-                                        disabled={isReadOnly || uploadingAspectId === asp.id || savingAspectId === asp.id}
-                                        onChange={(e) => handleFileSelect(e, asp.id)}
+                                        disabled={
+                                          isReadOnly ||
+                                          uploadingAspectId === asp.id ||
+                                          savingAspectId === asp.id
+                                        }
+                                        onChange={(e) =>
+                                          handleFileSelect(e, asp.id)
+                                        }
                                         className="hidden"
                                       />
                                       {uploadingAspectId === asp.id ? (
                                         <div className="flex items-center justify-center gap-1.5 py-1">
                                           <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                                          <span className="font-semibold text-muted-foreground">Uploading...</span>
+                                          <span className="font-semibold text-muted-foreground">
+                                            Uploading...
+                                          </span>
                                         </div>
                                       ) : (
                                         <label
                                           htmlFor={`file-upload-${asp.id}`}
                                           className={`flex items-center justify-center gap-2 py-1 ${
-                                            isReadOnly ? "cursor-not-allowed" : "cursor-pointer"
+                                            isReadOnly
+                                              ? "cursor-not-allowed"
+                                              : "cursor-pointer"
                                           }`}
                                         >
                                           <UploadCloud className="h-5 w-5 text-muted-foreground" />
-                                          <span className="font-bold text-foreground">Upload file bukti</span>
+                                          <span className="font-bold text-foreground">
+                                            Upload file bukti
+                                          </span>
                                         </label>
                                       )}
                                     </div>
@@ -721,7 +1010,9 @@ export default function MutuBanptClientPage({
                                           : "bg-error/20 text-error"
                                       }`}
                                     >
-                                      {isFulfilled ? "Terpenuhi" : "Tidak Terpenuhi"}
+                                      {isFulfilled
+                                        ? "Terpenuhi"
+                                        : "Tidak Terpenuhi"}
                                     </span>
                                   </div>
                                   <div>
@@ -729,7 +1020,15 @@ export default function MutuBanptClientPage({
                                       Hasil Perhitungan
                                     </span>
                                     <span className="text-xs font-bold text-foreground block mt-0.5">
-                                      {formulaVal} {asp.expectationFormat === "percentage" ? "%" : ""} (Harapan: {asp.expectationResult} {asp.expectationFormat === "percentage" ? "%" : ""})
+                                      {formulaVal}{" "}
+                                      {asp.expectationFormat === "percentage"
+                                        ? "%"
+                                        : ""}{" "}
+                                      (Harapan: {asp.expectationResult}{" "}
+                                      {asp.expectationFormat === "percentage"
+                                        ? "%"
+                                        : ""}
+                                      )
                                     </span>
                                   </div>
                                 </div>
@@ -747,7 +1046,10 @@ export default function MutuBanptClientPage({
                                       </Button>
                                       <Button
                                         onClick={() => handleSaveEdit(asp.id)}
-                                        disabled={savingAspectId === asp.id || !isProofFilled}
+                                        disabled={
+                                          savingAspectId === asp.id ||
+                                          !isProofFilled
+                                        }
                                         className="flex-1 bg-primary text-primary-foreground font-bold text-xs h-9 px-3 rounded-lg hover:bg-primary/95 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                                       >
                                         {savingAspectId === asp.id ? (
@@ -769,7 +1071,11 @@ export default function MutuBanptClientPage({
                                 ) : (
                                   <Button
                                     onClick={() => handleSaveAspect(asp.id)}
-                                    disabled={savingAspectId === asp.id || !isChoiceFilled || !isProofFilled}
+                                    disabled={
+                                      savingAspectId === asp.id ||
+                                      !isChoiceFilled ||
+                                      !isProofFilled
+                                    }
                                     className="w-full bg-primary text-primary-foreground font-bold text-xs h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                                   >
                                     {savingAspectId === asp.id ? (
@@ -814,12 +1120,15 @@ export default function MutuBanptClientPage({
                                         <Input
                                           type="number"
                                           value={v.value}
-                                          disabled={isReadOnly || savingAspectId === asp.id}
+                                          disabled={
+                                            isReadOnly ||
+                                            savingAspectId === asp.id
+                                          }
                                           onChange={(e) =>
                                             handleVariableChange(
                                               asp.id,
                                               v.name,
-                                              parseFloat(e.target.value) || 0
+                                              parseFloat(e.target.value) || 0,
                                             )
                                           }
                                           className="w-24 bg-card border border-border rounded px-2.5 py-1 text-xs focus:outline-none focus:border-primary text-foreground text-right shrink-0 disabled:opacity-75 disabled:cursor-not-allowed"
@@ -837,8 +1146,19 @@ export default function MutuBanptClientPage({
                                     Upload Bukti Dokumen (Wajib)
                                   </span>
                                   {asp.proofFileName ? (
-                                    <Attachment state="done" className="w-full border-border">
-                                      <AttachmentMedia variant="icon" className="bg-primary/5 text-primary">
+                                    <Attachment
+                                      state="done"
+                                      className={`w-full border-border ${asp.proofUrl ? "cursor-pointer hover:bg-muted/5 transition-colors" : ""}`}
+                                      onClick={() => {
+                                        if (asp.proofUrl) {
+                                          handleViewProof(asp.proofUrl);
+                                        }
+                                      }}
+                                    >
+                                      <AttachmentMedia
+                                        variant="icon"
+                                        className="bg-primary/5 text-primary"
+                                      >
                                         <FileText className="h-5 w-5" />
                                       </AttachmentMedia>
                                       <AttachmentContent>
@@ -854,7 +1174,9 @@ export default function MutuBanptClientPage({
                                           <AttachmentAction
                                             variant="ghost"
                                             size="icon-xs"
-                                            onClick={() => handleRemoveFile(asp.id)}
+                                            onClick={() =>
+                                              handleRemoveFile(asp.id)
+                                            }
                                             disabled={savingAspectId === asp.id}
                                             className="text-error hover:bg-error/10 hover:text-error"
                                           >
@@ -865,10 +1187,18 @@ export default function MutuBanptClientPage({
                                     </Attachment>
                                   ) : (
                                     <div
-                                      onDragEnter={(e) => !isReadOnly && handleDrag(e, asp.id)}
-                                      onDragOver={(e) => !isReadOnly && handleDrag(e, asp.id)}
-                                      onDragLeave={(e) => !isReadOnly && handleDrag(e, asp.id)}
-                                      onDrop={(e) => !isReadOnly && handleDrop(e, asp.id)}
+                                      onDragEnter={(e) =>
+                                        !isReadOnly && handleDrag(e, asp.id)
+                                      }
+                                      onDragOver={(e) =>
+                                        !isReadOnly && handleDrag(e, asp.id)
+                                      }
+                                      onDragLeave={(e) =>
+                                        !isReadOnly && handleDrag(e, asp.id)
+                                      }
+                                      onDrop={(e) =>
+                                        !isReadOnly && handleDrop(e, asp.id)
+                                      }
                                       className={`border border-dashed rounded-lg p-3.5 text-center transition-all ${
                                         dragActiveId === asp.id && !isReadOnly
                                           ? "border-primary bg-primary/5"
@@ -878,24 +1208,36 @@ export default function MutuBanptClientPage({
                                       <input
                                         type="file"
                                         id={`file-upload-${asp.id}`}
-                                        disabled={isReadOnly || uploadingAspectId === asp.id || savingAspectId === asp.id}
-                                        onChange={(e) => handleFileSelect(e, asp.id)}
+                                        disabled={
+                                          isReadOnly ||
+                                          uploadingAspectId === asp.id ||
+                                          savingAspectId === asp.id
+                                        }
+                                        onChange={(e) =>
+                                          handleFileSelect(e, asp.id)
+                                        }
                                         className="hidden"
                                       />
                                       {uploadingAspectId === asp.id ? (
                                         <div className="flex items-center justify-center gap-1.5 py-1">
                                           <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                                          <span className="font-semibold text-muted-foreground">Uploading...</span>
+                                          <span className="font-semibold text-muted-foreground">
+                                            Uploading...
+                                          </span>
                                         </div>
                                       ) : (
                                         <label
                                           htmlFor={`file-upload-${asp.id}`}
                                           className={`flex items-center justify-center gap-2 py-1 ${
-                                            isReadOnly ? "cursor-not-allowed" : "cursor-pointer"
+                                            isReadOnly
+                                              ? "cursor-not-allowed"
+                                              : "cursor-pointer"
                                           }`}
                                         >
                                           <UploadCloud className="h-5 w-5 text-muted-foreground" />
-                                          <span className="font-bold text-foreground">Upload file bukti</span>
+                                          <span className="font-bold text-foreground">
+                                            Upload file bukti
+                                          </span>
                                         </label>
                                       )}
                                     </div>
@@ -917,7 +1259,9 @@ export default function MutuBanptClientPage({
                                           : "bg-error/20 text-error"
                                       }`}
                                     >
-                                      {isFulfilled ? "Terpenuhi" : "Tidak Terpenuhi"}
+                                      {isFulfilled
+                                        ? "Terpenuhi"
+                                        : "Tidak Terpenuhi"}
                                     </span>
                                   </div>
                                   <div>
@@ -925,7 +1269,15 @@ export default function MutuBanptClientPage({
                                       Hasil Perhitungan
                                     </span>
                                     <span className="text-xs font-bold text-foreground block mt-0.5">
-                                      {formulaVal} {asp.expectationFormat === "percentage" ? "%" : ""} (Harapan: {asp.expectationResult} {asp.expectationFormat === "percentage" ? "%" : ""})
+                                      {formulaVal}{" "}
+                                      {asp.expectationFormat === "percentage"
+                                        ? "%"
+                                        : ""}{" "}
+                                      (Harapan: {asp.expectationResult}{" "}
+                                      {asp.expectationFormat === "percentage"
+                                        ? "%"
+                                        : ""}
+                                      )
                                     </span>
                                   </div>
                                 </div>
@@ -943,7 +1295,10 @@ export default function MutuBanptClientPage({
                                       </Button>
                                       <Button
                                         onClick={() => handleSaveEdit(asp.id)}
-                                        disabled={savingAspectId === asp.id || !isProofFilled}
+                                        disabled={
+                                          savingAspectId === asp.id ||
+                                          !isProofFilled
+                                        }
                                         className="flex-1 bg-primary text-primary-foreground font-bold text-xs h-9 px-3 rounded-lg hover:bg-primary/95 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                                       >
                                         {savingAspectId === asp.id ? (
@@ -965,7 +1320,10 @@ export default function MutuBanptClientPage({
                                 ) : (
                                   <Button
                                     onClick={() => handleSaveAspect(asp.id)}
-                                    disabled={savingAspectId === asp.id || !isProofFilled}
+                                    disabled={
+                                      savingAspectId === asp.id ||
+                                      !isProofFilled
+                                    }
                                     className="w-full bg-primary text-primary-foreground font-bold text-xs h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                                   >
                                     {savingAspectId === asp.id ? (

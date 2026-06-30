@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Edit2, Search, Loader2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Search, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -141,6 +141,18 @@ export default function DosenManagementPage(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchQuery, setActiveSearchQuery] = useState("");
 
+  // Pagination states
+  const [approvedPage, setApprovedPage] = useState<number>(1);
+  const [pendingPage, setPendingPage] = useState<number>(1);
+  const limit = 10;
+
+  // Reset page to 1 when filters or search change
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setApprovedPage(1);
+    setPendingPage(1);
+  }, [activeSearchQuery, filterProdi, filterFaculty]);
+
   const handleSearch = (): void => {
     setActiveSearchQuery(searchQuery);
   };
@@ -160,6 +172,8 @@ export default function DosenManagementPage(): React.JSX.Element {
     name: activeSearchQuery.trim() || undefined,
     study_program: filterProdi !== "Semua" ? filterProdi : undefined,
     institute: filterFaculty !== "Semua" ? filterFaculty : undefined,
+    page: approvedPage,
+    limit,
   });
 
   const { 
@@ -171,6 +185,8 @@ export default function DosenManagementPage(): React.JSX.Element {
     name: activeSearchQuery.trim() || undefined,
     study_program: filterProdi !== "Semua" ? filterProdi : undefined,
     institute: filterFaculty !== "Semua" ? filterFaculty : undefined,
+    page: pendingPage,
+    limit,
   });
 
   const { data: studyProgramsResponse } = useGetStudyProgramsQuery();
@@ -281,6 +297,16 @@ export default function DosenManagementPage(): React.JSX.Element {
     status: "pending",
     submittedAt: new Date().toISOString(),
   }));
+
+  const totalApproved = approvedResponse?.meta?.total_items || 0;
+  const totalApprovedPages = approvedResponse?.meta?.total_pages || 1;
+  const startApproved = totalApproved === 0 ? 0 : (approvedPage - 1) * 10 + 1;
+  const endApproved = Math.min(approvedPage * 10, totalApproved);
+
+  const totalPending = pendingResponse?.meta?.total_items || 0;
+  const totalPendingPages = pendingResponse?.meta?.total_pages || 1;
+  const startPending = totalPending === 0 ? 0 : (pendingPage - 1) * 10 + 1;
+  const endPending = Math.min(pendingPage * 10, totalPending);
 
   const validateUinEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -698,6 +724,54 @@ export default function DosenManagementPage(): React.JSX.Element {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-muted/10 text-xs text-muted-foreground select-none">
+              <div>
+                Menampilkan <span className="font-semibold text-foreground">{startApproved}</span> - <span className="font-semibold text-foreground">{endApproved}</span> dari <span className="font-semibold text-foreground">{totalApproved}</span> data
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setApprovedPage(1)}
+                  disabled={approvedPage === 1}
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setApprovedPage(approvedPage - 1)}
+                  disabled={approvedPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="px-2 text-xs font-medium text-foreground">
+                  Halaman {approvedPage} dari {totalApprovedPages || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setApprovedPage(approvedPage + 1)}
+                  disabled={approvedPage === totalApprovedPages || totalApprovedPages === 0}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setApprovedPage(totalApprovedPages)}
+                  disabled={approvedPage === totalApprovedPages || totalApprovedPages === 0}
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </TabsContent>
 
@@ -790,6 +864,54 @@ export default function DosenManagementPage(): React.JSX.Element {
                   )}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-muted/10 text-xs text-muted-foreground select-none">
+              <div>
+                Menampilkan <span className="font-semibold text-foreground">{startPending}</span> - <span className="font-semibold text-foreground">{endPending}</span> dari <span className="font-semibold text-foreground">{totalPending}</span> data
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPendingPage(1)}
+                  disabled={pendingPage === 1}
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPendingPage(pendingPage - 1)}
+                  disabled={pendingPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="px-2 text-xs font-medium text-foreground">
+                  Halaman {pendingPage} dari {totalPendingPages || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPendingPage(pendingPage + 1)}
+                  disabled={pendingPage === totalPendingPages || totalPendingPages === 0}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPendingPage(totalPendingPages)}
+                  disabled={pendingPage === totalPendingPages || totalPendingPages === 0}
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </TabsContent>

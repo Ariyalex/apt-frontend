@@ -1,6 +1,6 @@
 import { ApiResponse } from "@/types/auth";
 import { apiSlice } from "./apiSlice";
-import { Accreditation, SaveAccreditationRequest } from "@/types/mutu-banpt";
+import { Accreditation, SaveAccreditationRequest, AccreditationStats, IndicatorStatItem } from "@/types/mutu-banpt";
 
 export const accreditationApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
@@ -40,6 +40,20 @@ export const accreditationApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["Accreditation"],
     }),
+    getAccreditationStats: builder.query<ApiResponse<AccreditationStats>, string>({
+      query: (id) => ({
+        url: `/accreditation/${id}/stats`,
+        method: "GET",
+      }),
+      providesTags: ["Accreditation"],
+    }),
+    getAccreditationIndicatorStats: builder.query<ApiResponse<IndicatorStatItem[]>, string>({
+      query: (id) => ({
+        url: `/accreditation/${id}/indicator/stats`,
+        method: "GET",
+      }),
+      providesTags: ["Accreditation"],
+    }),
   }),
 });
 
@@ -48,4 +62,6 @@ export const {
   useCreateAccreditationMutation,
   useUpdateAccreditationMutation,
   useDeleteAccreditationMutation,
+  useGetAccreditationStatsQuery,
+  useGetAccreditationIndicatorStatsQuery,
 } = accreditationApi;

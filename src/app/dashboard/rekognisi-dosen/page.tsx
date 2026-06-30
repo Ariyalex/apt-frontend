@@ -12,18 +12,54 @@ import { useRouter } from "next/navigation";
 
 export default function RekognisiDosenPage(): React.JSX.Element {
   const router = useRouter();
-  // Query recognition records from API
+  const [page, setPage] = useState<number>(1);
+  const limit = 10;
+  const [searchQuery, setSearchQuery] = useState("Cari...");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+
+  useEffect(() => {
+    const activeSearch = searchQuery === "Cari..." ? "" : searchQuery;
+    const handler = setTimeout(() => {
+      setDebouncedSearch(activeSearch);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Separate filter states for Chart and Table
+  const [chartProdi, setChartProdi] = useState<string>("Semua");
+  const [tableProdi, setTableProdi] = useState<string>("Semua");
+  const [tableJenis, setTableJenis] = useState<string>("Semua");
+  const [isAuditor, setIsAuditor] = useState(true);
+
+  // Reset page to 1 when search or filter criteria changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [debouncedSearch, tableProdi, tableJenis]);
+
+  // Query recognition records from API for Chart and Filters
+  const { data: chartResponse } = useGetRecognitionListQuery({ status: "approved", limit: 1000 });
+
+  // Query recognition records from API for Table
   const {
     data: recognitionResponse,
     isLoading: isApiLoading,
     isError,
     refetch,
-  } = useGetRecognitionListQuery({ status: "approved" });
+  } = useGetRecognitionListQuery({
+    status: "approved",
+    page,
+    limit,
+    lecturer_name: debouncedSearch || undefined,
+    study_program: tableProdi !== "Semua" ? tableProdi : undefined,
+    category: tableJenis !== "Semua" ? tableJenis : undefined,
+  });
 
+  const chartList = chartResponse?.data || [];
   const recognitionList = recognitionResponse?.data || [];
 
-  // Map API models to expected DosenData properties for components compatibility
-  const initialData = recognitionList.map((rec) => ({
+  // Map API models for Chart
+  const chartInitialData = chartList.map((rec) => ({
     id: rec.id,
     nip: rec.lecturer?.nip || "",
     nama: rec.lecturer?.name || "",
@@ -36,12 +72,19 @@ export default function RekognisiDosenPage(): React.JSX.Element {
     buktiUrl: (rec.proof_links || []).join(","),
   }));
 
-  // Separate filter states for Chart and Table
-  const [chartProdi, setChartProdi] = useState<string>("Semua");
-  const [tableProdi, setTableProdi] = useState<string>("Semua");
-  const [tableJenis, setTableJenis] = useState<string>("Semua");
-  const [searchQuery, setSearchQuery] = useState("Cari...");
-  const [isAuditor, setIsAuditor] = useState(true);
+  // Map API models for Table
+  const initialData = recognitionList.map((rec) => ({
+    id: rec.id,
+    nip: rec.lecturer?.nip || "",
+    nama: rec.lecturer?.name || "",
+    prodi: rec.lecturer?.study_program?.name || "",
+    jenisRekognisi: rec.category?.name || "",
+    tahun: rec.obtained_at
+      ? new Date(rec.obtained_at).getFullYear().toString()
+      : "",
+    deskripsi: rec.description,
+    buktiUrl: (rec.proof_links || []).join(","),
+  }));
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -73,18 +116,16 @@ export default function RekognisiDosenPage(): React.JSX.Element {
     }
   };
 
-  const getActiveSearchQuery = () => {
-    return searchQuery === "Cari..." ? "" : searchQuery;
-  };
 
-  // Get unique lists for filtering
+
+  // Get unique lists for filtering (from full chart data)
   const prodis = [
     "Semua",
-    ...Array.from(new Set(initialData.map((item) => item.prodi))),
+    ...Array.from(new Set(chartInitialData.map((item) => item.prodi))),
   ];
   const jenisList = [
     "Semua",
-    ...Array.from(new Set(initialData.map((item) => item.jenisRekognisi))),
+    ...Array.from(new Set(chartInitialData.map((item) => item.jenisRekognisi))),
   ];
 
   // Options structures for Combobox
@@ -99,22 +140,12 @@ export default function RekognisiDosenPage(): React.JSX.Element {
   }));
 
   // 1. Filter data for Chart (Only filtered by chartProdi)
-  const chartFilteredData = initialData.filter((item) => {
+  const chartFilteredData = chartInitialData.filter((item) => {
     return chartProdi === "Semua" || item.prodi === chartProdi;
   });
 
-  // 2. Filter data for Table (Filtered by tableProdi, tableJenis and searchQuery)
-  const tableFilteredData = initialData.filter((item) => {
-    const activeSearch = getActiveSearchQuery();
-    const matchProdi = tableProdi === "Semua" || item.prodi === tableProdi;
-    const matchJenis =
-      tableJenis === "Semua" || item.jenisRekognisi === tableJenis;
-    const matchSearch =
-      item.nama.toLowerCase().includes(activeSearch.toLowerCase()) ||
-      item.nip.includes(activeSearch) ||
-      item.deskripsi.toLowerCase().includes(activeSearch.toLowerCase());
-    return matchProdi && matchJenis && matchSearch;
-  });
+  // Since filtering is offloaded to server, table data is already filtered
+  const tableFilteredData = initialData;
 
   return (
     <div className="space-y-6">
@@ -250,7 +281,13 @@ export default function RekognisiDosenPage(): React.JSX.Element {
                 ))}
               </div>
             ) : (
-              <RekognisiTable data={tableFilteredData} />
+              <RekognisiTable
+                data={tableFilteredData}
+                page={page}
+                totalPages={recognitionResponse?.meta?.total_pages || 1}
+                totalItems={recognitionResponse?.meta?.total_items || 0}
+                onPageChange={(p) => setPage(p)}
+              />
             )}
           </div>
         </>

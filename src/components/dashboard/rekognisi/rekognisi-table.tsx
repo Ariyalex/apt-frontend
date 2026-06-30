@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpDown, ArrowUp, ArrowDown, Edit2 } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { DosenData } from "@/types/rekognisi";
 import { Button } from "@/components/ui/button";
 import { SubmissionEditDialog } from "./submission-edit-dialog";
@@ -16,13 +16,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  createColumnHelper,
+} from "@tanstack/react-table";
 
 interface RekognisiTableProps {
   data: DosenData[];
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
   showActions?: boolean;
 }
 
-export function RekognisiTable({ data, showActions = false }: RekognisiTableProps) {
+const columnHelper = createColumnHelper<DosenData>();
+
+export function RekognisiTable({
+  data,
+  page,
+  totalPages,
+  totalItems,
+  onPageChange,
+  showActions = false,
+}: RekognisiTableProps) {
   const router = useRouter();
   const [sortField, setSortField] = useState<keyof DosenData | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -94,103 +113,141 @@ export function RekognisiTable({ data, showActions = false }: RekognisiTableProp
     );
   };
 
-  const sortedData = [...data].sort((a, b) => {
-    if (!sortField) return 0;
+  const sortedData = React.useMemo(() => {
+    const sorted = [...data];
+    if (!sortField) return sorted;
     
-    const aVal = (a[sortField] || "").toString().toLowerCase();
-    const bVal = (b[sortField] || "").toString().toLowerCase();
-    
-    if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-    if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-    return 0;
+    sorted.sort((a, b) => {
+      const aVal = (a[sortField] || "").toString().toLowerCase();
+      const bVal = (b[sortField] || "").toString().toLowerCase();
+      
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [data, sortField, sortDirection]);
+
+  const columns = React.useMemo(
+    () => [
+      columnHelper.accessor("nip", {
+        header: () => <span className="font-semibold text-muted-foreground">NIP</span>,
+        cell: (info) => <span className="font-medium text-muted-foreground">{info.getValue()}</span>,
+      }),
+      columnHelper.accessor("nama", {
+        header: () => (
+          <div className="flex items-center gap-1.5 cursor-pointer select-none" onClick={() => handleSort("nama")}>
+            Nama Dosen {renderSortIcon("nama")}
+          </div>
+        ),
+        cell: (info) => <span className="font-semibold text-foreground">{info.getValue()}</span>,
+      }),
+      columnHelper.accessor("prodi", {
+        header: () => (
+          <div className="flex items-center gap-1.5 cursor-pointer select-none" onClick={() => handleSort("prodi")}>
+            Prodi {renderSortIcon("prodi")}
+          </div>
+        ),
+        cell: (info) => <span className="text-foreground">{info.getValue()}</span>,
+      }),
+      columnHelper.accessor("jenisRekognisi", {
+        header: () => (
+          <div className="flex items-center gap-1.5 cursor-pointer select-none" onClick={() => handleSort("jenisRekognisi")}>
+            Jenis Rekognisi {renderSortIcon("jenisRekognisi")}
+          </div>
+        ),
+        cell: (info) => (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary capitalize">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      columnHelper.accessor("tahun", {
+        header: () => (
+          <div className="flex items-center gap-1.5 cursor-pointer select-none" onClick={() => handleSort("tahun")}>
+            Tahun {renderSortIcon("tahun")}
+          </div>
+        ),
+        cell: (info) => <span className="font-semibold text-muted-foreground">{info.getValue()}</span>,
+      }),
+      columnHelper.accessor("deskripsi", {
+        header: () => <span className="font-semibold text-muted-foreground">Deskripsi</span>,
+        cell: (info) => (
+          <div className="text-muted-foreground leading-relaxed font-semibold max-w-xs truncate" title={info.getValue()}>
+            {info.getValue()}
+          </div>
+        ),
+      }),
+      ...(showActions
+        ? [
+            columnHelper.display({
+              id: "actions",
+              header: () => <div className="text-right font-semibold text-muted-foreground">Aksi</div>,
+              cell: (info) => {
+                const dosen = info.row.original;
+                return (
+                  <div className="flex justify-end">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => handleOpenEdit(e, dosen)}
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Edit Data"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                );
+              },
+            }),
+          ]
+        : []),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sortField, sortDirection, showActions]
+  );
+
+  const table = useReactTable({
+    data: sortedData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
+    pageCount: totalPages,
   });
+
+  const startItem = totalItems === 0 ? 0 : (page - 1) * 10 + 1;
+  const endItem = Math.min(page * 10, totalItems);
 
   return (
     <div className="space-y-3">
-      {/* Scrollable horizontal wrapper without height restrictions */}
       <div className="overflow-x-auto rounded-lg border border-border w-full">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase">
-              <TableHead className="px-4 py-3 font-semibold border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">NIP</TableHead>
-              
-              <TableHead 
-                onClick={() => handleSort("nama")} 
-                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
-              >
-                <div className="flex items-center gap-1.5">
-                  Nama Dosen
-                  {renderSortIcon("nama")}
-                </div>
-              </TableHead>
-              
-              <TableHead 
-                onClick={() => handleSort("prodi")} 
-                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
-              >
-                <div className="flex items-center gap-1.5">
-                  Prodi
-                  {renderSortIcon("prodi")}
-                </div>
-              </TableHead>
-              
-              <TableHead 
-                onClick={() => handleSort("jenisRekognisi")} 
-                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
-              >
-                <div className="flex items-center gap-1.5">
-                  Jenis Rekognisi
-                  {renderSortIcon("jenisRekognisi")}
-                </div>
-              </TableHead>
-              
-              <TableHead 
-                onClick={() => handleSort("tahun")} 
-                className="px-4 py-3 font-semibold cursor-pointer hover:bg-muted/50 transition-colors group border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]"
-              >
-                <div className="flex items-center gap-1.5">
-                  Tahun
-                  {renderSortIcon("tahun")}
-                </div>
-              </TableHead>
-              
-              <TableHead className="px-4 py-3 font-semibold border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Deskripsi</TableHead>
-              {showActions && <TableHead className="px-4 py-3 font-semibold text-right border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">Aksi</TableHead>}
-            </TableRow>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="bg-muted/30 text-xs font-bold text-muted-foreground uppercase">
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="px-4 py-3 border-b border-border shadow-[inset_0_-1px_0_0_var(--border)]">
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {sortedData.length > 0 ? (
-              sortedData.map((dosen, i) => (
-                <TableRow 
-                  key={dosen.id || i} 
-                  onClick={() => router.push(`/dashboard/rekognisi-dosen/${dosen.id}`)}
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  onClick={() => router.push(`/dashboard/rekognisi-dosen/${row.original.id}`)}
                   className="border-b border-border last:border-0 hover:bg-muted/10 text-xs text-foreground transition-colors cursor-pointer"
                 >
-                  <TableCell className="px-4 py-3.5 font-medium text-muted-foreground">{dosen.nip}</TableCell>
-                  <TableCell className="px-4 py-3.5 font-semibold">{dosen.nama}</TableCell>
-                  <TableCell className="px-4 py-3.5">{dosen.prodi}</TableCell>
-                  <TableCell className="px-4 py-3.5">
-                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary capitalize">
-                      {dosen.jenisRekognisi}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-4 py-3.5 font-semibold text-muted-foreground">{dosen.tahun}</TableCell>
-                  <TableCell className="px-4 py-3.5 text-muted-foreground leading-relaxed font-semibold" title={dosen.deskripsi}>
-                    {dosen.deskripsi}
-                  </TableCell>
-                  {showActions && (
-                    <TableCell className="px-4 py-3.5 text-right">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={(e) => handleOpenEdit(e, dosen)}
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
-                        title="Edit Data"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="px-4 py-3.5">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
-                  )}
+                  ))}
                 </TableRow>
               ))
             ) : (
@@ -204,9 +261,52 @@ export function RekognisiTable({ data, showActions = false }: RekognisiTableProp
         </Table>
       </div>
 
-      {/* Table Footer Actions */}
-      <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider pt-2">
-        <span>Menampilkan {sortedData.length} baris data</span>
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between px-4 py-3 border border-border rounded-lg bg-muted/10 text-xs text-muted-foreground select-none">
+        <div>
+          Menampilkan <span className="font-semibold text-foreground">{startItem}</span> - <span className="font-semibold text-foreground">{endItem}</span> dari <span className="font-semibold text-foreground">{totalItems}</span> data
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => onPageChange(1)}
+            disabled={page === 1}
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => onPageChange(page - 1)}
+            disabled={page === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="px-2 text-xs font-medium text-foreground">
+            Halaman {page} dari {totalPages || 1}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => onPageChange(page + 1)}
+            disabled={page === totalPages || totalPages === 0}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => onPageChange(totalPages)}
+            disabled={page === totalPages || totalPages === 0}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Submission Edit Dialog */}

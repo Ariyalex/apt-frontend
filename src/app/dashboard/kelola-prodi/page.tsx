@@ -67,9 +67,17 @@ export default function KelolaProdiPage(): React.JSX.Element {
     return () => clearTimeout(handler);
   }, [searchKeyword]);
 
+  const [page, setPage] = useState<number>(1);
+  const limit = 10;
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [debouncedSearch]);
+
   // RTK Query calls
   const { data: prodiResponse, isLoading: isProdiLoading } =
-    useGetStudyProgramsQuery({ name: debouncedSearch });
+    useGetStudyProgramsQuery({ name: debouncedSearch, page, limit });
   const [createProdi, { isLoading: isCreateLoading }] =
     useCreateStudyProgramMutation();
   const [updateProdi, { isLoading: isUpdateLoading }] =
@@ -243,6 +251,10 @@ export default function KelolaProdiPage(): React.JSX.Element {
 
       <ProdiTable
         prodiList={prodiList}
+        page={page}
+        totalPages={prodiResponse?.meta?.total_pages || 1}
+        totalItems={prodiResponse?.meta?.total_items || 0}
+        onPageChange={(p) => setPage(p)}
         onEdit={handleEditProdi}
         onDelete={handleDeleteProdi}
       />

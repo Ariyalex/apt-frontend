@@ -1,11 +1,11 @@
 import { apiSlice } from "./apiSlice";
 import type { ApiResponse } from "@/types/auth";
-import type { RecognitionModel, SaveRecognitionRequest } from "@/types/recognition";
+import type { RecognitionModel, SaveRecognitionRequest, PaginatedRecognitionResponse } from "@/types/recognition";
 
 export const recognitionApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getRecognitionList: builder.query<
-      ApiResponse<RecognitionModel[]>,
+      PaginatedRecognitionResponse,
       {
         study_program?: string;
         institute?: string;
