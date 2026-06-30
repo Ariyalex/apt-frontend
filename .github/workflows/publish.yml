@@ -48,8 +48,8 @@ jobs:
 
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # build-args: | # aktifkan baris ini jika Next.js butuh ENV variabel saat build-time
-          #   NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          build-args: | # aktifkan baris ini jika Next.js butuh ENV variabel saat build-time
+            NEXT_PUBLIC_BASE_API=${{ secrets.NEXT_PUBLIC_API_URL }}
 
       - name: Update Image Tag in GitOps Repository
         uses: actions/checkout@v4
