@@ -104,26 +104,26 @@ const formatFriendlyFormula = (
   if (!expression) return "";
   let formatted = expression;
 
-  // 1. Convert "Input-Numerator-[suffix] / Denominator-Percentage" -> "[value]%"
+  // 1. Convert "Input_Numerator_[suffix] / Denominator_Percentage" -> "[value]%"
   const percentageNumerators = variables.filter(
     (v) =>
-      v.name.startsWith("Input-Numerator-") &&
-      variables.some((d) => d.name === "Denominator-Percentage"),
+      v.name.startsWith("Input_Numerator_") &&
+      variables.some((d) => d.name === "Denominator_Percentage"),
   );
   percentageNumerators.forEach((num) => {
-    const targetExpr = `${num.name} / Denominator-Percentage`;
+    const targetExpr = `${num.name} / Denominator_Percentage`;
     if (formatted.includes(targetExpr)) {
       formatted = formatted.replaceAll(targetExpr, `${num.value}%`);
     }
   });
 
-  // 2. Convert "Input-Numerator-[suffix] / Input-Denomerator-[suffix]" -> "[num_val]/[denom_val]"
+  // 2. Convert "Input_Numerator_[suffix] / Input_Denomerator_[suffix]" -> "[num_val]/[denom_val]"
   const fractionNumerators = variables.filter((v) =>
-    v.name.startsWith("Input-Numerator-"),
+    v.name.startsWith("Input_Numerator_"),
   );
   fractionNumerators.forEach((num) => {
-    const suffix = num.name.replace("Input-Numerator-", "");
-    const denomName = `Input-Denomerator-${suffix}`;
+    const suffix = num.name.replace("Input_Numerator_", "");
+    const denomName = `Input_Denomerator_${suffix}`;
     const denom = variables.find((v) => v.name === denomName);
     if (denom) {
       const targetExpr = `${num.name} / ${denomName}`;
@@ -136,9 +136,9 @@ const formatFriendlyFormula = (
     }
   });
 
-  // 3. Convert "Input-Constant-[suffix]" -> "[value]"
+  // 3. Convert "Input_Constant_[suffix]" -> "[value]"
   const constants = variables.filter((v) =>
-    v.name.startsWith("Input-Constant-"),
+    v.name.startsWith("Input_Constant_"),
   );
   constants.forEach((c) => {
     formatted = formatted.replaceAll(c.name, String(c.value));

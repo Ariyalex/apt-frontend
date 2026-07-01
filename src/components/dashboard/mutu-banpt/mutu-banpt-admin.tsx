@@ -84,26 +84,26 @@ const formatFriendlyFormula = (
   if (!expression) return "";
   let formatted = expression;
 
-  // 1. Convert "Input-Numerator-[suffix] / Denominator-Percentage" -> "[value]%"
+  // 1. Convert "Input_Numerator_[suffix] / Denominator_Percentage" -> "[value]%"
   const percentageNumerators = variables.filter(
     (v) =>
-      v.name.startsWith("Input-Numerator-") &&
-      variables.some((d) => d.name === "Denominator-Percentage"),
+      v.name.startsWith("Input_Numerator_") &&
+      variables.some((d) => d.name === "Denominator_Percentage"),
   );
   percentageNumerators.forEach((num) => {
-    const targetExpr = `${num.name} / Denominator-Percentage`;
+    const targetExpr = `${num.name} / Denominator_Percentage`;
     if (formatted.includes(targetExpr)) {
       formatted = formatted.replaceAll(targetExpr, `${num.value}%`);
     }
   });
 
-  // 2. Convert "Input-Numerator-[suffix] / Input-Denomerator-[suffix]" -> "[num_val]/[denom_val]"
+  // 2. Convert "Input_Numerator_[suffix] / Input_Denomerator_[suffix]" -> "[num_val]/[denom_val]"
   const fractionNumerators = variables.filter((v) =>
-    v.name.startsWith("Input-Numerator-"),
+    v.name.startsWith("Input_Numerator_"),
   );
   fractionNumerators.forEach((num) => {
-    const suffix = num.name.replace("Input-Numerator-", "");
-    const denomName = `Input-Denomerator-${suffix}`;
+    const suffix = num.name.replace("Input_Numerator_", "");
+    const denomName = `Input_Denomerator_${suffix}`;
     const denom = variables.find((v) => v.name === denomName);
     if (denom) {
       const targetExpr = `${num.name} / ${denomName}`;
@@ -116,9 +116,9 @@ const formatFriendlyFormula = (
     }
   });
 
-  // 3. Convert "Input-Constant-[suffix]" -> "[value]"
+  // 3. Convert "Input_Constant_[suffix]" -> "[value]"
   const constants = variables.filter((v) =>
-    v.name.startsWith("Input-Constant-"),
+    v.name.startsWith("Input_Constant_"),
   );
   constants.forEach((c) => {
     formatted = formatted.replaceAll(c.name, String(c.value));
@@ -241,16 +241,16 @@ export default function MutuBanptAdminPage({
       const initial: LocalConstant[] = [
         {
           label: "100%",
-          expression: "Input-Numerator-100Percent / Denominator-Percentage",
+          expression: "Input_Numerator_100Percent / Denominator_Percentage",
           variables: [
             {
-              name: "Input-Numerator-100Percent",
+              name: "Input_Numerator_100Percent",
               label: "Konstanta Persen 100%",
               type: "static",
               value: 100,
             },
             {
-              name: "Denominator-Percentage",
+              name: "Denominator_Percentage",
               label: "Denominator Persen (Default 100)",
               type: "static",
               value: 100,
@@ -657,7 +657,7 @@ export default function MutuBanptAdminPage({
       let charCode = 65; // 'A'
       while (true) {
         const suffix = String.fromCharCode(charCode);
-        const name = `${base}-${suffix}`;
+        const name = `${base}_${suffix}`;
         const collision = existing.some((c) =>
           c.variables.some((v) => v.name === name),
         );
@@ -679,9 +679,9 @@ export default function MutuBanptAdminPage({
         return;
       }
 
-      const denomName = "Denominator-Percentage";
-      const suffix = getNextLocalSuffix("Input-Numerator", localConstants);
-      const numName = `Input-Numerator-${suffix}`;
+      const denomName = "Denominator_Percentage";
+      const suffix = getNextLocalSuffix("Input_Numerator", localConstants);
+      const numName = `Input_Numerator_${suffix}`;
 
       const variables: FormulaVariable[] = [
         {
@@ -716,9 +716,9 @@ export default function MutuBanptAdminPage({
         return;
       }
 
-      const suffix = getNextLocalSuffix("Input-Numerator", localConstants);
-      const numName = `Input-Numerator-${suffix}`;
-      const denomName = `Input-Denomerator-${suffix}`;
+      const suffix = getNextLocalSuffix("Input_Numerator", localConstants);
+      const numName = `Input_Numerator_${suffix}`;
+      const denomName = `Input_Denomerator_${suffix}`;
 
       const variables: FormulaVariable[] = [
         {
@@ -747,8 +747,8 @@ export default function MutuBanptAdminPage({
         return;
       }
 
-      const suffix = getNextLocalSuffix("Input-Constant", localConstants);
-      const constName = `Input-Constant-${suffix}`;
+      const suffix = getNextLocalSuffix("Input_Constant", localConstants);
+      const constName = `Input_Constant_${suffix}`;
 
       newConst = {
         label: input,
