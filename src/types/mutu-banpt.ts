@@ -35,19 +35,10 @@ export interface AssessmentAspect {
   isSubmitted?: boolean; // Track submission status
 }
 
-export interface IndicatorTab {
-  id: number; // 1 - 4
-  title: string; // e.g. "Indikator 1"
-  status: "selesai" | "belum";
-  justifikasi: string;
-  indikatorDescription: string;
-  aspects: AssessmentAspect[];
-}
-
 export interface MutuBanptData {
   category: string;
   stage: string;
-  indicators: IndicatorTab[];
+  indicators: IndicatorModel[];
 }
 
 export interface Accreditation {
@@ -102,6 +93,8 @@ export interface IndicatorModel {
   target: `input` | `process` | `output` | `impact` | string;
   updated_at: string;
   created_at: string;
+  status?: "selesai" | "belum";
+  aspects?: AssessmentAspect[];
 }
 
 export interface SaveIndicatorRequest {

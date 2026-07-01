@@ -31,7 +31,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { formatCategoryName, formatStageName } from "@/lib/utils";
 import {
-  IndicatorTab,
+  IndicatorModel,
   AssessmentAspect,
   FormulaVariable,
   RadioVariable,
@@ -240,8 +240,8 @@ export default function MutuBanptClientPage({
     }
   }, []);
 
-  const [indicatorsState, setIndicatorsState] = useState<IndicatorTab[]>([]);
-  const [selectedIndicatorId, setSelectedIndicatorId] = useState<number>(1);
+  const [indicatorsState, setIndicatorsState] = useState<IndicatorModel[]>([]);
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>("");
   const [savingAspectId, setSavingAspectId] = useState<string | null>(null);
 
   const isQuerySkipped = !activeAkredId || !currentUserId;
@@ -309,8 +309,8 @@ export default function MutuBanptClientPage({
         }
       });
 
-      // Map to IndicatorTab[]
-      const mapped: IndicatorTab[] = apiIndicators.map((ind, index) => {
+      // Map to IndicatorModel[]
+      const mapped: IndicatorModel[] = apiIndicators.map((ind, index) => {
         const indRules = rulesMap[ind.id] || [];
         const aspects: AssessmentAspect[] = indRules.map((rule) => {
           const evalItem = evalsMap[rule.id];
@@ -391,11 +391,9 @@ export default function MutuBanptClientPage({
           });
 
         return {
-          id: index + 1, // local selection index
-          title: ind.number,
+          ...ind,
+          id: ind.id,
           status: allCompleted ? ("selesai" as const) : ("belum" as const),
-          justifikasi: ind.justification,
-          indikatorDescription: ind.name,
           aspects,
         };
       });
@@ -455,7 +453,7 @@ export default function MutuBanptClientPage({
 
         return {
           ...ind,
-          aspects: ind.aspects.map((asp) => {
+          aspects: (ind.aspects || []).map((asp) => {
             if (asp.id !== aspectId || !asp.radioVariables) return asp;
 
             const selectedChoice = asp.radioVariables[choiceIndex];
@@ -497,7 +495,7 @@ export default function MutuBanptClientPage({
     setIndicatorsState((prev) =>
       prev.map((ind) => ({
         ...ind,
-        aspects: ind.aspects.map((asp) => {
+        aspects: (ind.aspects || []).map((asp) => {
           if (asp.id !== aspectId || !asp.formula) return asp;
           return {
             ...asp,
@@ -561,7 +559,7 @@ export default function MutuBanptClientPage({
       setIndicatorsState((prev) =>
         prev.map((ind) => ({
           ...ind,
-          aspects: ind.aspects.map((asp) =>
+          aspects: (ind.aspects || []).map((asp) =>
             asp.id === aspectId ? { ...asp, proofFileName: file.name } : asp,
           ),
         })),
@@ -579,7 +577,7 @@ export default function MutuBanptClientPage({
       setIndicatorsState((prev) =>
         prev.map((ind) => ({
           ...ind,
-          aspects: ind.aspects.map((asp) =>
+          aspects: (ind.aspects || []).map((asp) =>
             asp.id === aspectId ? { ...asp, proofFileName: file.name } : asp,
           ),
         })),
@@ -596,7 +594,7 @@ export default function MutuBanptClientPage({
     setIndicatorsState((prev) =>
       prev.map((ind) => ({
         ...ind,
-        aspects: ind.aspects.map((asp) =>
+        aspects: (ind.aspects || []).map((asp) =>
           asp.id === aspectId
             ? { ...asp, proofUrl: undefined, proofFileName: undefined }
             : asp,
@@ -608,7 +606,7 @@ export default function MutuBanptClientPage({
   const handleSaveEvaluation = async (aspectId: string) => {
     setSavingAspectId(aspectId);
     try {
-      const aspect = activeIndicator?.aspects.find(
+      const aspect = (activeIndicator?.aspects || []).find(
         (asp) => asp.id === aspectId,
       );
       if (!aspect) return;
@@ -715,7 +713,7 @@ export default function MutuBanptClientPage({
       setIndicatorsState((prev) =>
         prev.map((ind) => ({
           ...ind,
-          aspects: ind.aspects.map((a) => (a.id === aspectId ? backup : a)),
+          aspects: (ind.aspects || []).map((a) => (a.id === aspectId ? backup : a)),
         })),
       );
     }
@@ -779,7 +777,11 @@ export default function MutuBanptClientPage({
                         : "bg-card text-foreground border-border hover:bg-muted/40"
                     }`}
                   >
-                    <span>{ind.title}</span>
+                    <span>
+                      {ind.number.toLowerCase().includes("indikator")
+                        ? ind.number
+                        : `Indikator ${ind.number}`}
+                    </span>
                     {ind.status === "selesai" && (
                       <CheckCircle2
                         className={`h-4 w-4 ${
@@ -796,7 +798,7 @@ export default function MutuBanptClientPage({
                     Deskripsi Indikator:
                   </p>
                   <p className="text-muted-foreground">
-                    {ind.indikatorDescription}
+                    {ind.name}
                   </p>
                 </HoverCardContent>
               </HoverCard>
@@ -811,7 +813,7 @@ export default function MutuBanptClientPage({
                   Justifikasi :
                 </span>
                 <p className="text-foreground font-semibold mt-0.5 whitespace-pre-line">
-                  {activeIndicator.justifikasi}
+                  {activeIndicator.justification}
                 </p>
               </div>
               <div>
@@ -819,7 +821,7 @@ export default function MutuBanptClientPage({
                   Indikator :
                 </span>
                 <p className="text-muted-foreground mt-0.5 whitespace-pre-line">
-                  {activeIndicator.indikatorDescription}
+                  {activeIndicator.name}
                 </p>
               </div>
             </div>
@@ -835,13 +837,13 @@ export default function MutuBanptClientPage({
                 </h2>
               </div>
 
-              {activeIndicator.aspects.length === 0 ? (
+              {(activeIndicator.aspects || []).length === 0 ? (
                 <div className="text-center p-8 border border-dashed border-border rounded-xl text-muted-foreground text-xs">
                   Belum ada kriteria penilaian aspek untuk indikator ini.
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {activeIndicator.aspects.map((asp) => {
+                  {(activeIndicator.aspects || []).map((asp) => {
                     // Compute formula calculation values
                     let formulaVal = 0;
                     let isFulfilled = false;

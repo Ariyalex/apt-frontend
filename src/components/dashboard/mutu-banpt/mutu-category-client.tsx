@@ -29,7 +29,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { formatCategoryName, formatStageName } from "@/lib/utils";
-import type { IndicatorTab, AssessmentAspect } from "@/types/mutu-banpt";
+import type { IndicatorModel, AssessmentAspect } from "@/types/mutu-banpt";
 import { useGetAssessmentEvaluationListQuery } from "@/store/services/assessmentEvaluationApi";
 import { useGetAccreditationIndicatorStatsQuery } from "@/store/services/accreditationApi";
 import { useGetIndicatorListQuery } from "@/store/services/indicatorApi";
@@ -61,7 +61,7 @@ interface MutuCategoryClientProps {
 
 interface StageData {
   stage: string;
-  indicators: IndicatorTab[];
+  indicators: IndicatorModel[];
 }
 
 export default function MutuCategoryClientPage({
@@ -217,7 +217,7 @@ export default function MutuCategoryClientPage({
             indicatorIdSet.has(item.indicator_id),
         );
 
-        const mappedIndicators: IndicatorTab[] = stageItems.map(
+        const mappedIndicators: IndicatorModel[] = stageItems.map(
           (item, index) => {
             const aspects: AssessmentAspect[] = [
               {
@@ -236,11 +236,16 @@ export default function MutuCategoryClientPage({
             ];
 
             return {
-              id: index + 1,
-              title: item.number,
+              id: item.indicator_id,
+              accreditation: { id: activeAkredId, name: "" },
+              number: item.number,
+              name: item.name,
+              justification: "",
+              criteria: mapCriteria(category),
+              target: backendTarget,
+              updated_at: "",
+              created_at: "",
               status: "selesai" as const,
-              justifikasi: "",
-              indikatorDescription: item.name,
               aspects,
             };
           },
@@ -378,9 +383,11 @@ export default function MutuCategoryClientPage({
           {stageDataList.map((stageData) => {
             const stageTitle = `${formatStageName(stageData.stage)} ${catLabel}`;
             const allAspects = stageData.indicators.flatMap((ind) =>
-              ind.aspects.map((asp) => ({
+              (ind.aspects || []).map((asp) => ({
                 ...asp,
-                indicatorTitle: ind.title,
+                indicatorTitle: ind.number.toLowerCase().includes("indikator")
+                  ? ind.number
+                  : `Indikator ${ind.number}`,
               })),
             );
 
