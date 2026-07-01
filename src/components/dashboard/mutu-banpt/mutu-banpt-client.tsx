@@ -87,15 +87,6 @@ const mapTarget = (target: string): string => {
   }
 };
 
-const isInternalConstant = (name: string): boolean => {
-  const lower = name.toLowerCase();
-  return (
-    lower.includes("numerator") ||
-    lower.includes("denominator") ||
-    lower.includes("denomerator") ||
-    lower.includes("constant")
-  );
-};
 
 const formatFriendlyFormula = (
   expression: string,
@@ -162,6 +153,9 @@ export default function MutuBanptClientPage({
   // Active accreditation filter state
   const [activeAkredId, setActiveAkredId] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [indicatorsState, setIndicatorsState] = useState<IndicatorModel[]>([]);
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>("");
+  const [savingAspectId, setSavingAspectId] = useState<string | null>(null);
 
   // RTK Query API Hooks
   const {
@@ -181,7 +175,10 @@ export default function MutuBanptClientPage({
     data: rulesRes,
     isFetching: isRulesFetching,
     refetch: refetchRules,
-  } = useGetAssessmentRuleListQuery();
+  } = useGetAssessmentRuleListQuery(
+    { indicator_id: selectedIndicatorId },
+    { skip: !selectedIndicatorId },
+  );
 
   const {
     data: evalsRes,
@@ -240,9 +237,6 @@ export default function MutuBanptClientPage({
     }
   }, []);
 
-  const [indicatorsState, setIndicatorsState] = useState<IndicatorModel[]>([]);
-  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>("");
-  const [savingAspectId, setSavingAspectId] = useState<string | null>(null);
 
   const isQuerySkipped = !activeAkredId || !currentUserId;
   const isLoading =
@@ -252,9 +246,7 @@ export default function MutuBanptClientPage({
     isEvalsFetching;
 
   // File upload state per aspect
-  const [uploadingAspectId, _setUploadingAspectId] = useState<string | null>(
-    null,
-  );
+  const [uploadingAspectId] = useState<string | null>(null);
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
   const [localFiles, setLocalFiles] = useState<Record<string, File>>({});
 
@@ -287,12 +279,27 @@ export default function MutuBanptClientPage({
       );
   }, []);
 
+  // Sync default selectedIndicatorId based on loaded indicatorsRes data
+  useEffect(() => {
+    if (indicatorsRes?.data && indicatorsRes.data.length > 0) {
+      if (!selectedIndicatorId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSelectedIndicatorId(indicatorsRes.data[0].id);
+      } else {
+        const valid = indicatorsRes.data.some((ind) => ind.id === selectedIndicatorId);
+        if (!valid) {
+          setSelectedIndicatorId(indicatorsRes.data[0].id);
+        }
+      }
+    }
+  }, [indicatorsRes, selectedIndicatorId]);
+
   // Map API response models to UI Component states (IndicatorTab / AssessmentAspect)
   useEffect(() => {
-    if (indicatorsRes?.data && rulesRes?.data && evalsRes?.data) {
+    if (indicatorsRes?.data) {
       const apiIndicators = indicatorsRes.data;
-      const apiRules = rulesRes.data;
-      const apiEvals = evalsRes.data;
+      const apiRules = rulesRes?.data || [];
+      const apiEvals = evalsRes?.data || [];
 
       // Group rules by indicator_id
       const rulesMap: Record<string, AssessmentRule[]> = {};
@@ -313,7 +320,7 @@ export default function MutuBanptClientPage({
       });
 
       // Map to IndicatorModel[]
-      const mapped: IndicatorModel[] = apiIndicators.map((ind, index) => {
+      const mapped: IndicatorModel[] = apiIndicators.map((ind) => {
         const indRules = rulesMap[ind.id] || [];
         const aspects: AssessmentAspect[] = indRules.map((rule) => {
           const evalItem = evalsMap[rule.id];
@@ -341,8 +348,8 @@ export default function MutuBanptClientPage({
               : [];
 
           // Determine selected radio index if evaluated
-          let selectedRadioIdx: number | undefined = undefined;
-          if (rule.type === "points" && evalItem) {
+          let selectedRadioIdx = -1;
+          if (rule.type === "points" && evalItem && evalItem.input_variables) {
             const filledVar = evalItem.input_variables.find(
               (v) => Number(v.val) > 0,
             );
@@ -371,7 +378,7 @@ export default function MutuBanptClientPage({
             expectationFormat:
               (rule.result_format as "decimal" | "percentage") || "decimal",
             score: evalItem ? Number(evalItem.calculated_result) : undefined,
-            selectedRadioIndex: selectedRadioIdx,
+            selectedRadioIndex: selectedRadioIdx >= 0 ? selectedRadioIdx : undefined,
             radioVariables: radioVars,
             formula: rule.formula
               ? {
@@ -403,13 +410,8 @@ export default function MutuBanptClientPage({
 
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIndicatorsState(mapped);
-      if (mapped.length > 0) {
-        const valid = mapped.some((ind) => ind.id === selectedIndicatorId);
-
-        setSelectedIndicatorId(valid ? selectedIndicatorId : mapped[0].id);
-      }
     }
-  }, [indicatorsRes, rulesRes, evalsRes, selectedIndicatorId, currentUserId]);
+  }, [indicatorsRes, rulesRes, evalsRes, currentUserId]);
 
   // Sync state event listener
   useEffect(() => {

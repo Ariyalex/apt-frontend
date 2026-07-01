@@ -218,7 +218,7 @@ export default function MutuCategoryClientPage({
         );
 
         const mappedIndicators: IndicatorModel[] = stageItems.map(
-          (item, index) => {
+          (item) => {
             const aspects: AssessmentAspect[] = [
               {
                 id: item.indicator_id,
@@ -260,7 +260,7 @@ export default function MutuCategoryClientPage({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setStageDataList(mappedList);
     }
-  }, [statsRes, indicatorsRes, category]);
+  }, [statsRes, indicatorsRes, category, activeAkredId]);
 
   // Role permissions
   const isAssessor = userRole === "Assessor";

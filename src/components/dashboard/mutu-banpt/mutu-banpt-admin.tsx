@@ -278,7 +278,10 @@ export default function MutuBanptAdminPage({
     );
 
   const { data: rulesRes, refetch: refetchRules } =
-    useGetAssessmentRuleListQuery();
+    useGetAssessmentRuleListQuery(
+      { indicator_id: selectedId },
+      { skip: !selectedId },
+    );
 
   const [createIndicator] = useCreateIndicatorMutation();
   const [updateIndicator] = useUpdateIndicatorMutation();
@@ -311,11 +314,26 @@ export default function MutuBanptAdminPage({
       );
   }, []);
 
+  // Sync default selectedId based on loaded indicatorsRes data
+  useEffect(() => {
+    if (indicatorsRes?.data && indicatorsRes.data.length > 0) {
+      if (!selectedId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSelectedId(indicatorsRes.data[0].id);
+      } else {
+        const valid = indicatorsRes.data.some((ind) => ind.id === selectedId);
+        if (!valid) {
+          setSelectedId(indicatorsRes.data[0].id);
+        }
+      }
+    }
+  }, [indicatorsRes, selectedId]);
+
   // Map API responses to state
   useEffect(() => {
-    if (indicatorsRes?.data && rulesRes?.data) {
+    if (indicatorsRes?.data) {
       const apiIndicators = indicatorsRes.data;
-      const apiRules = rulesRes.data;
+      const apiRules = rulesRes?.data || [];
 
       // Group rules by indicator_id
       const rulesMap: Record<string, AssessmentRule[]> = {};
@@ -328,7 +346,7 @@ export default function MutuBanptAdminPage({
       });
 
       // Map to IndicatorTab[]
-      const mapped: AdminIndicatorTab[] = apiIndicators.map((ind, index) => {
+      const mapped: AdminIndicatorTab[] = apiIndicators.map((ind) => {
         const indRules = rulesMap[ind.id] || [];
         const aspects: AssessmentAspect[] = indRules.map((rule) => {
           const formulaVars: FormulaVariable[] = rule.input_rules.map((v) => ({
@@ -380,13 +398,8 @@ export default function MutuBanptAdminPage({
 
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIndicators(mapped);
-      if (mapped.length > 0) {
-        const valid = mapped.some((ind) => ind.id === selectedId);
-
-        setSelectedId(valid ? selectedId : mapped[0].id);
-      }
     }
-  }, [indicatorsRes, rulesRes, selectedId]);
+  }, [indicatorsRes, rulesRes]);
 
   // Sync state event listener
   useEffect(() => {

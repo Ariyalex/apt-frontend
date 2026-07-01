@@ -94,6 +94,7 @@ export function ProdiTable({
     [page, onEdit, onDelete]
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: prodiList,
     columns,

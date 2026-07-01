@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Award, Users, FileCheck2 } from "lucide-react";
 import { RekognisiChart } from "@/components/dashboard/rekognisi/rekognisi-chart";
 import { RekognisiPieChart } from "@/components/dashboard/rekognisi/rekognisi-pie-chart";
@@ -108,7 +108,7 @@ export default function Dashboard(): React.JSX.Element {
 
   // Fetch real institutes list from API
   const { data: institutesResponse, isLoading: isInstitutesLoading } = useGetInstitutesQuery();
-  const institutes = institutesResponse?.data || [];
+  const institutes = useMemo(() => institutesResponse?.data || [], [institutesResponse]);
 
   const recognitionList = recognitionResponse?.data || [];
 
@@ -125,13 +125,11 @@ export default function Dashboard(): React.JSX.Element {
           setUserLembaga(matched.name);
           // For regular auditees, lock selectedLembaga to their own institute
           if (uSession.role === "Auditee") {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedLembaga(matched.name);
           }
         }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, institutes]);
 
   // Map API models to components compatibility layout
