@@ -243,7 +243,9 @@ export default function MutuBanptClientPage({
   const [indicatorsState, setIndicatorsState] = useState<IndicatorTab[]>([]);
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<number>(1);
   const [savingAspectId, setSavingAspectId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const isQuerySkipped = !activeAkredId || !currentUserId;
+  const isLoading = isQuerySkipped || isIndicatorsFetching || isRulesFetching || isEvalsFetching;
 
   // File upload state per aspect
   const [uploadingAspectId, _setUploadingAspectId] = useState<string | null>(
@@ -258,13 +260,6 @@ export default function MutuBanptClientPage({
     Record<string, AssessmentAspect>
   >({});
 
-  // Sync loading state
-  useEffect(() => {
-    const isFetching =
-      isIndicatorsFetching || isRulesFetching || isEvalsFetching;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsLoading(isFetching);
-  }, [isIndicatorsFetching, isRulesFetching, isEvalsFetching]);
 
   // Sync active accreditation from local storage
   useEffect(() => {
@@ -429,7 +424,13 @@ export default function MutuBanptClientPage({
   }, [refetchIndicators, refetchRules, refetchEvals]);
 
   if (isAdmin) {
-    return <MutuBanptAdminPage criteria={criteria} target={target} />;
+    return (
+      <MutuBanptAdminPage
+        criteria={criteria}
+        target={target}
+        isLoading={isLoading}
+      />
+    );
   }
 
   if (userRole && userRole !== "Auditor" && userRole !== "Assessor") {

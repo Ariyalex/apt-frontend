@@ -402,13 +402,8 @@ function RenderMenuItem({
   }, [pathname, item.children]);
 
   if (hasChildren) {
-
     const buttonContent = item.href ? (
-      <SidebarMenuButton
-        isActive={isActive}
-        asChild
-        className="w-full"
-      >
+      <SidebarMenuButton isActive={isActive} asChild className="w-full">
         <Link href={item.href} onClick={() => setIsOpen(true)}>
           {Icon && <Icon />}
           <span className="flex-1">{item.title}</span>
@@ -554,6 +549,7 @@ export function Sidebar(): React.JSX.Element {
   if (!isAdmin) {
     const hasMutuAccess = userRole === "Auditor" || userRole === "Assessor";
     const isAssessor = userRole === "Assessor";
+    const isAuditor = userRole === "Auditor";
 
     activeMenuItems = menuItems
       .filter((item) => {
@@ -572,6 +568,27 @@ export function Sidebar(): React.JSX.Element {
               href: c.href, // category href (no further children)
             })),
           };
+        }
+
+        // Filter Rekognisi Dosen submenus based on role
+        if (item.title === "Rekognisi Dosen" && item.children) {
+          if (isAuditor) {
+            // Auditor only sees "Kategori Rekognisi"
+            return {
+              ...item,
+              children: item.children.filter(
+                (c) => c.title === "Kategori Rekognisi",
+              ),
+            };
+          } else {
+            // Default/Auditee/others see all except "Kategori Rekognisi"
+            return {
+              ...item,
+              children: item.children.filter(
+                (c) => c.title !== "Kategori Rekognisi",
+              ),
+            };
+          }
         }
         return item;
       });
@@ -612,9 +629,6 @@ export function Sidebar(): React.JSX.Element {
           <div className="rounded-lg bg-muted/30 p-2.5 text-center">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               Aplikasi Penjamin Mutu
-            </p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground/60">
-              v1.0.0-beta
             </p>
           </div>
         </ShadcnSidebarFooter>

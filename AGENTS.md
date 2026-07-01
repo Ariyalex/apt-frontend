@@ -1,7 +1,9 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
 <!-- END:nextjs-agent-rules -->
 
 # Agent Guidelines & Repository Constraints
@@ -11,72 +13,86 @@ This document outlines the architectural standards, code style, UI constraints, 
 ---
 
 ## 1. UI Theme & Colors
-* **Theme Identity**: Always use standard Tailwind CSS semantic color tokens mapped to the theme variables (e.g., `bg-primary`, `bg-card`, `border-border`, `bg-muted`, `text-foreground`, `text-muted-foreground`).
-* **No Ad-hoc Colors**: Do not hardcode specific custom color hex/rgb/hsl values (e.g., red, green, or rose border outlines) from mockups. Let elements adapt automatically to standard project colors.
-* **Success & Error Semantic Colors**: For success, confirmation, and approved actions/badges, always use `success` semantic classes (e.g., `bg-success/10`, `text-success`, `hover:bg-success/20`). For error, validation, declination, deletion, and required asterisks, always use `error` semantic classes (e.g., `bg-error/10`, `text-error`, `hover:bg-error/20`). Avoid using ad-hoc classes like `emerald-*`, `green-*`, `rose-*`, or `red-*`.
+
+- **Theme Identity**: Always use standard Tailwind CSS semantic color tokens mapped to the theme variables (e.g., `bg-primary`, `bg-card`, `border-border`, `bg-muted`, `text-foreground`, `text-muted-foreground`).
+- **No Ad-hoc Colors**: Do not hardcode specific custom color hex/rgb/hsl values (e.g., red, green, or rose border outlines) from mockups. Let elements adapt automatically to standard project colors.
+- **Success & Error Semantic Colors**: For success, confirmation, and approved actions/badges, always use `success` semantic classes (e.g., `bg-success/10`, `text-success`, `hover:bg-success/20`). For error, validation, declination, deletion, and required asterisks, always use `error` semantic classes (e.g., `bg-error/10`, `text-error`, `hover:bg-error/20`). Avoid using ad-hoc classes like `emerald-*`, `green-*`, `rose-*`, or `red-*`.
 
 ## 2. Typography & Font Sizes
-* **Standard Utility Classes Only**: All font sizing must strictly use standard Tailwind CSS sizing classes (e.g., `text-xs`, `text-sm`, `text-base`, `text-lg`, `text-xl`, `text-2xl`, etc.).
-* **No Arbitrary Sizes**: Never use arbitrary font sizes like `text-[9px]`, `text-[10px]`, `text-[11px]`, or `text-[12px]`.
-* **Global Font Scaling**: Note that font sizes have been scaled up by 2 levels globally in `src/app/globals.css` (e.g., `text-xs` maps to `1rem`/16px, `text-sm` maps to `1.125rem`/18px, etc.). All UI elements will naturally look larger; do not try to shrink them using arbitrary pixel overrides.
+
+- **Standard Utility Classes Only**: All font sizing must strictly use standard Tailwind CSS sizing classes (e.g., `text-xs`, `text-sm`, `text-base`, `text-lg`, `text-xl`, `text-2xl`, etc.).
+- **No Arbitrary Sizes**: Never use arbitrary font sizes like `text-[9px]`, `text-[10px]`, `text-[11px]`, or `text-[12px]`.
+- **Global Font Scaling**: Note that font sizes have been scaled up by 2 levels globally in `src/app/globals.css` (e.g., `text-xs` maps to `1rem`/16px, `text-sm` maps to `1.125rem`/18px, etc.). All UI elements will naturally look larger; do not try to shrink them using arbitrary pixel overrides.
 
 ## 3. Form Input Constraints
-* **Lecturer Name Lookup**: Lecturer names must not be text input fields. They must be read-only displays (auto-filled text info) dynamically derived from the selected NIP (using a Search Combobox).
-* **Proof Files**: Always use textareas for URLs/Links to documents instead of file uploader components.
+
+- **Lecturer Name Lookup**: Lecturer names must not be text input fields. They must be read-only displays (auto-filled text info) dynamically derived from the selected NIP (using a Search Combobox).
+- **Proof Files**: Always use textareas for URLs/Links to documents instead of file uploader components.
 
 ## 4. Code Modularization & Folder Structure
-* **Separation of Concerns**: Keep components and pages separate and clean.
-* **Shared Types**: Place global model definitions in `src/types/` (e.g., [rekognisi.ts](file:///D:/code/project/next/apt/src/types/rekognisi.ts)).
-* **Shared Mock Data**: Place initial data structures and arrays in `src/dummy-data/` (e.g., [rekognisi.ts](file:///D:/code/project/next/apt/src/dummy-data/rekognisi.ts), [bagikan-form.ts](file:///D:/code/project/next/apt/src/dummy-data/bagikan-form.ts)).
-* **Page-Specific Components**: Extract form layouts, cards, and tables into `src/components/dashboard/rekognisi/` (e.g., charts, main tables, sharing cards, dialogs).
+
+- **Separation of Concerns**: Keep components and pages separate and clean.
+- **Shared Types**: Place global model definitions in `src/types/` (e.g., [rekognisi.ts](file:///D:/code/project/next/apt/src/types/rekognisi.ts)).
+- **Shared Mock Data**: Place initial data structures and arrays in `src/dummy-data/` (e.g., [rekognisi.ts](file:///D:/code/project/next/apt/src/dummy-data/rekognisi.ts), [bagikan-form.ts](file:///D:/code/project/next/apt/src/dummy-data/bagikan-form.ts)).
+- **Page-Specific Components**: Extract form layouts, cards, and tables into `src/components/dashboard/rekognisi/` (e.g., charts, main tables, sharing cards, dialogs).
 
 ## 5. Sharing Links & Submissions ("Bagikan Form")
-* **Base URL**: The default base URL for generated sharing forms is `http://localhost:3000/form/rekognisi/`.
-* **Link Visual Contrast**: Display generated link URLs by splitting the style: the base URL in muted gray (`text-muted-foreground`) and the kustom identifier in primary bold underlined text (`text-primary underline font-bold`).
-* **Click-to-Copy Links**: Ensure the main link URL text on cards is clickable, trigger copying to clipboard immediately on click, and provide temporary visual feedback (e.g., "Tersalin").
-* **Cell Button stopPropagation**: In table rows that support detail navigation on row click (e.g., visiting dynamic detail page), all interactive elements in cells (external visit links, copy buttons, Accept/Decline buttons, Edit buttons) must call `e.stopPropagation()` to prevent accidental parent row click events.
-* **Form Dialog Width**: Use `sm:max-w-lg` (`32rem`/512px) for popup dialog contents to accommodate custom form fields and calendars without causing horizontal overflow.
+
+- **Base URL**: The default base URL for generated sharing forms is `http://localhost:3000/`.
+- **Link Visual Contrast**: Display generated link URLs by splitting the style: the base URL in muted gray (`text-muted-foreground`) and the kustom identifier in primary bold underlined text (`text-primary underline font-bold`).
+- **Click-to-Copy Links**: Ensure the main link URL text on cards is clickable, trigger copying to clipboard immediately on click, and provide temporary visual feedback (e.g., "Tersalin").
+- **Cell Button stopPropagation**: In table rows that support detail navigation on row click (e.g., visiting dynamic detail page), all interactive elements in cells (external visit links, copy buttons, Accept/Decline buttons, Edit buttons) must call `e.stopPropagation()` to prevent accidental parent row click events.
+- **Form Dialog Width**: Use `sm:max-w-lg` (`32rem`/512px) for popup dialog contents to accommodate custom form fields and calendars without causing horizontal overflow.
 
 ## 6. Layout Width
-* **Full-Width Pages**: Avoid wrapping content in fixed max-width containers (like `max-w-2xl` on the page wrapper level) for tabular and grid-based dashboards. Utilize `w-full` (fill parent) so that tables, charts, and link cards render across the maximum available screen width.
+
+- **Full-Width Pages**: Avoid wrapping content in fixed max-width containers (like `max-w-2xl` on the page wrapper level) for tabular and grid-based dashboards. Utilize `w-full` (fill parent) so that tables, charts, and link cards render across the maximum available screen width.
 
 ## 7. Sonner Notification
-* **Sonner Notification for Mutative Actions**: Always trigger a `toast.success` or `toast.error` notification (using shadcn's Sonner UI) for mutative operations such as form submissions, deleting records, accepting/declining requests, or saving settings to provide direct feedback to the user.
+
+- **Sonner Notification for Mutative Actions**: Always trigger a `toast.success` or `toast.error` notification (using shadcn's Sonner UI) for mutative operations such as form submissions, deleting records, accepting/declining requests, or saving settings to provide direct feedback to the user.
 
 ## 8. Confirmation for Crucial Actions
-* **Alert Dialog for Crucial Operations**: Always prompt the user with a confirmation popup (`AlertDialog` component) before executing crucial or destructive actions, such as deleting data records, saving changes/updates, or performing other mutative operations, to prevent accidental actions.
+
+- **Alert Dialog for Crucial Operations**: Always prompt the user with a confirmation popup (`AlertDialog` component) before executing crucial or destructive actions, such as deleting data records, saving changes/updates, or performing other mutative operations, to prevent accidental actions.
 
 ## 9. Skeleton Loader for Async Data
-* **Simulated Loading State**: Always implement a simulated loading state (using an `isLoading` state hook set with a short `setTimeout` duration of 600ms - 800ms) on dashboard pages and tab contents that display data fetched dynamically (such as tables, cards, charts, and lists).
-* **Skeleton Placeholders**: During the loading state, render matching shadcn `Skeleton` placeholders that mimic the size, shape, and structure of the actual loaded components (e.g. table rows, card headers, or bar charts) to ensure a smooth layout transition.
+
+- **Simulated Loading State**: Always implement a simulated loading state (using an `isLoading` state hook set with a short `setTimeout` duration of 600ms - 800ms) on dashboard pages and tab contents that display data fetched dynamically (such as tables, cards, charts, and lists).
+- **Skeleton Placeholders**: During the loading state, render matching shadcn `Skeleton` placeholders that mimic the size, shape, and structure of the actual loaded components (e.g. table rows, card headers, or bar charts) to ensure a smooth layout transition.
 
 ## 10. Redux Toolkit & Mock API (RTK Query)
-* **Store vs Hooks Separation**: Custom React-Redux hooks (`useAppDispatch` / `useAppSelector`) must only be placed in `src/store/hooks.ts`. The `src/store/index.ts` file must only contain store configurations (`makeStore`) and TypeScript type definitions.
-* **No Global Store Singleton**: Always use the store generator function `makeStore()` and wrap it inside a React ref in the `StoreProvider` component to prevent state pollution across user requests on the server.
-* **Client Context Boundary**: Redux hooks can only be imported and called inside Client Components containing the `"use client"` directive at the top.
-* **State Co-location**: Only globally shared data (e.g., login session details, shared filters) should be kept in Redux. Local UI states like open/close states or form buffers must remain in React's local state.
-* **Mock API via queryFn & delay**: Until backend services are ready, all RTK Query operations must use `fakeBaseQuery()` and return mock data via `queryFn` directly in-memory, simulating a network delay of `600ms - 1000ms`.
-* **Standard UI States Representation**: Component layers must cleanly handle RTK Query states:
-  * **Loading**: Render matching shadcn `<Skeleton />` loaders (never generic loading text).
-  * **Empty**: Display a styled Empty State component with supportive icon and text if data length is 0.
-  * **Error**: Render a semantic error banner (`bg-error/10`, `text-error`) with a retry call trigger.
+
+- **Store vs Hooks Separation**: Custom React-Redux hooks (`useAppDispatch` / `useAppSelector`) must only be placed in `src/store/hooks.ts`. The `src/store/index.ts` file must only contain store configurations (`makeStore`) and TypeScript type definitions.
+- **No Global Store Singleton**: Always use the store generator function `makeStore()` and wrap it inside a React ref in the `StoreProvider` component to prevent state pollution across user requests on the server.
+- **Client Context Boundary**: Redux hooks can only be imported and called inside Client Components containing the `"use client"` directive at the top.
+- **State Co-location**: Only globally shared data (e.g., login session details, shared filters) should be kept in Redux. Local UI states like open/close states or form buffers must remain in React's local state.
+- **Mock API via queryFn & delay**: Until backend services are ready, all RTK Query operations must use `fakeBaseQuery()` and return mock data via `queryFn` directly in-memory, simulating a network delay of `600ms - 1000ms`.
+- **Standard UI States Representation**: Component layers must cleanly handle RTK Query states:
+  - **Loading**: Render matching shadcn `<Skeleton />` loaders (never generic loading text).
+  - **Empty**: Display a styled Empty State component with supportive icon and text if data length is 0.
+  - **Error**: Render a semantic error banner (`bg-error/10`, `text-error`) with a retry call trigger.
 
 ## 11. TypeScript Strictness & Type Specifications
-* **Explicit Type Declarations**: Always specify data types explicitly for all variable definitions, function parameters, component props, and API response models. Avoid using implicit `any` at all costs.
-* **Strict TypeScript & ESLint Compliance**:
-  * All functions and methods must explicitly declare their return types (e.g., `const handleSave = (): void => { ... }`, `async queryFn(): Promise<{ data: Dosen[] } | { error: CustomApiError }>`).
-  * Unsafe assertions like `as any` are strictly forbidden. Use custom type guards, type narrowing, or exact interfaces.
-  * Always use `import type` syntax for type-only imports to clarify compile-time dependencies.
-  * Resolve all ESLint errors and warnings. Ensure no unused variables, correctly escaped JSX quotes, and full compliance with React Hook rules (e.g., avoid impure renders and synchronous state updates inside `useEffect`).
+
+- **Explicit Type Declarations**: Always specify data types explicitly for all variable definitions, function parameters, component props, and API response models. Avoid using implicit `any` at all costs.
+- **Strict TypeScript & ESLint Compliance**:
+  - All functions and methods must explicitly declare their return types (e.g., `const handleSave = (): void => { ... }`, `async queryFn(): Promise<{ data: Dosen[] } | { error: CustomApiError }>`).
+  - Unsafe assertions like `as any` are strictly forbidden. Use custom type guards, type narrowing, or exact interfaces.
+  - Always use `import type` syntax for type-only imports to clarify compile-time dependencies.
+  - Resolve all ESLint errors and warnings. Ensure no unused variables, correctly escaped JSX quotes, and full compliance with React Hook rules (e.g., avoid impure renders and synchronous state updates inside `useEffect`).
 
 ## 12. API Call Loading States
-* **Jangan Confidence dengan Aksi API (Selalu Tampilkan Loading)**: Jangan berasumsi/optimis bahwa aksi yang berkaitan dengan API akan langsung berhasil tanpa loading. Selalu tampilkan state loading terlebih dahulu ketika melakukan `await response API`. Selama proses loading, semua field input, dropdown select, tombol aksi (Submit/Save/Reset/Hapus), dan tombol batal harus dinonaktifkan (`disabled`), serta tampilkan spinner indikator loading pada tombol aksi utama.
-* **No Optimistic/Confident Actions Without Loading State**: Never perform actions interacting with APIs without showing a loading state. Always display a loading state (e.g., disable input fields and action buttons, show spinners or loading indicators) while awaiting API responses. This prevents double submissions, accidental clicks, and provides positive user feedback.
+
+- **Jangan Confidence dengan Aksi API (Selalu Tampilkan Loading)**: Jangan berasumsi/optimis bahwa aksi yang berkaitan dengan API akan langsung berhasil tanpa loading. Selalu tampilkan state loading terlebih dahulu ketika melakukan `await response API`. Selama proses loading, semua field input, dropdown select, tombol aksi (Submit/Save/Reset/Hapus), dan tombol batal harus dinonaktifkan (`disabled`), serta tampilkan spinner indikator loading pada tombol aksi utama.
+- **No Optimistic/Confident Actions Without Loading State**: Never perform actions interacting with APIs without showing a loading state. Always display a loading state (e.g., disable input fields and action buttons, show spinners or loading indicators) while awaiting API responses. This prevents double submissions, accidental clicks, and provides positive user feedback.
 
 ## 13. Form Input Field Wrappers (Field, FieldLabel, FieldDescription)
-* **Wrap Form Inputs**: Always wrap text inputs, number inputs, textareas, and other input fields inside the `<Field>` component from `@/components/ui/field`.
-* **FieldLabel & FieldDescription**: Use `<FieldLabel>` for input labels and `<FieldDescription>` for helper text/descriptions rather than generic native tags. This guarantees consistent spacing, typography scale, and automated ARIA descriptor bindings.
-* **Radix Input Standard Usage**:
+
+- **Wrap Form Inputs**: Always wrap text inputs, number inputs, textareas, and other input fields inside the `<Field>` component from `@/components/ui/field`.
+- **FieldLabel & FieldDescription**: Use `<FieldLabel>` for input labels and `<FieldDescription>` for helper text/descriptions rather than generic native tags. This guarantees consistent spacing, typography scale, and automated ARIA descriptor bindings.
+- **Radix Input Standard Usage**:
+
   ```tsx
   import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
   import { Input } from "@/components/ui/input";
@@ -86,15 +102,18 @@ This document outlines the architectural standards, code style, UI constraints, 
       <Field>
         <FieldLabel htmlFor="username">Username</FieldLabel>
         <Input id="username" type="text" placeholder="Enter your username" />
-        <FieldDescription>Choose a unique username for your account.</FieldDescription>
+        <FieldDescription>
+          Choose a unique username for your account.
+        </FieldDescription>
       </Field>
     );
   }
   ```
 
 ## 14. Table Component Usage (Table, TableHeader, TableRow, TableHead, TableBody, TableCell)
-* **Standard Table Components**: Always use the shadcn Table components instead of native HTML `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>`, and `<td>` elements.
-* **Component Imports**:
+
+- **Standard Table Components**: Always use the shadcn Table components instead of native HTML `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>`, and `<td>` elements.
+- **Component Imports**:
   ```tsx
   import {
     Table,
@@ -105,9 +124,9 @@ This document outlines the architectural standards, code style, UI constraints, 
     TableRow,
     TableCaption,
     TableFooter,
-  } from "@/components/ui/table"
+  } from "@/components/ui/table";
   ```
-* **Dropdown Actions in Cells**: When adding dropdown actions inside table cells, use the following layout format:
+- **Dropdown Actions in Cells**: When adding dropdown actions inside table cells, use the following layout format:
   ```tsx
   <TableCell className="text-right">
     <DropdownMenu>
@@ -120,15 +139,8 @@ This document outlines the architectural standards, code style, UI constraints, 
       <DropdownMenuContent align="end">
         <DropdownMenuItem>Edit</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive">
-          Delete
-        </DropdownMenuItem>
+        <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   </TableCell>
   ```
-
-
-
-
-

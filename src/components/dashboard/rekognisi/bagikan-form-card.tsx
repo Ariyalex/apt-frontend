@@ -3,7 +3,15 @@
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { MoreVertical, Calendar, Check, Copy, Settings2, Trash2, Loader2 } from "lucide-react";
+import {
+  MoreVertical,
+  Calendar,
+  Check,
+  Copy,
+  Settings2,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,8 +33,16 @@ import { BagikanFormSubmissionsTable } from "./bagikan-form-submissions-table";
 import { EditLinkDialog } from "./edit-link-dialog";
 import { SubmissionEditDialog } from "./submission-edit-dialog";
 import { LinkModel } from "@/types/link";
-import { useGetRecognitionListQuery, useApproveSubmissionMutation, useRejectSubmissionMutation, useUpdateRecognitionMutation } from "@/store/services/recognitionApi";
-import { useUpdateLinkMutation, useDeleteLinkMutation } from "@/store/services/linkApi";
+import {
+  useGetRecognitionListQuery,
+  useApproveSubmissionMutation,
+  useRejectSubmissionMutation,
+  useUpdateRecognitionMutation,
+} from "@/store/services/recognitionApi";
+import {
+  useUpdateLinkMutation,
+  useDeleteLinkMutation,
+} from "@/store/services/linkApi";
 import { useGetRecognitionCategoriesQuery } from "@/store/services/recognitionCategoryApi";
 import { toast } from "sonner";
 import { Submission } from "@/types/bagikan-form";
@@ -35,37 +51,43 @@ interface BagikanFormCardProps {
   link: LinkModel;
 }
 
-export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Element {
+export function BagikanFormCard({
+  link,
+}: BagikanFormCardProps): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   const [editLinkOpen, setEditLinkOpen] = useState(false);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
-  
+
   // Submission editing states
   const [editSubOpen, setEditSubOpen] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
 
-  const [baseUrl, setBaseUrl] = useState("http://localhost:3000/form/rekognisi/");
+  const [baseUrl, setBaseUrl] = useState("http://localhost:3000/");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBaseUrl(`${window.location.origin}/form/rekognisi/`);
+      setBaseUrl(`${window.location.origin}/`);
     }
   }, []);
 
   const fullUrl = `${baseUrl}${link.slug}`;
 
   // Fetch submissions for this link
-  const { data: recognitionResponse, isLoading: isSubmissionsLoading } = useGetRecognitionListQuery({ link_id: link.id });
+  const { data: recognitionResponse, isLoading: isSubmissionsLoading } =
+    useGetRecognitionListQuery({ link_id: link.id });
   const { data: categoriesResponse } = useGetRecognitionCategoriesQuery();
   const categoryList = categoriesResponse?.data || [];
 
   // Mutations
   const [updateLink, { isLoading: isUpdatingLink }] = useUpdateLinkMutation();
   const [deleteLink, { isLoading: isDeletingLink }] = useDeleteLinkMutation();
-  const [approveSubmission, { isLoading: isApproving }] = useApproveSubmissionMutation();
-  const [rejectSubmission, { isLoading: isRejecting }] = useRejectSubmissionMutation();
-  const [updateRecognition, { isLoading: isUpdatingRec }] = useUpdateRecognitionMutation();
+  const [approveSubmission, { isLoading: isApproving }] =
+    useApproveSubmissionMutation();
+  const [rejectSubmission, { isLoading: isRejecting }] =
+    useRejectSubmissionMutation();
+  const [updateRecognition, { isLoading: isUpdatingRec }] =
+    useUpdateRecognitionMutation();
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(fullUrl);
@@ -80,18 +102,27 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
     description: string,
     isActive: boolean,
     startedAt: string,
-    endedAt: string
+    endedAt: string,
   ) => {
     try {
       await updateLink({
         id,
-        body: { name, slug, description, is_active: isActive, started_at: startedAt, ended_at: endedAt },
+        body: {
+          name,
+          slug,
+          description,
+          is_active: isActive,
+          started_at: startedAt,
+          ended_at: endedAt,
+        },
       }).unwrap();
       toast.success("Link shared form berhasil diperbarui!");
       setEditLinkOpen(false);
     } catch (err: unknown) {
       const customErr = err as { data?: { message?: string } };
-      toast.error(customErr?.data?.message || "Gagal memperbarui link shared form");
+      toast.error(
+        customErr?.data?.message || "Gagal memperbarui link shared form",
+      );
     }
   };
 
@@ -102,7 +133,9 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
       setDeleteAlertOpen(false);
     } catch (err: unknown) {
       const customErr = err as { data?: { message?: string } };
-      toast.error(customErr?.data?.message || "Gagal menghapus link shared form");
+      toast.error(
+        customErr?.data?.message || "Gagal menghapus link shared form",
+      );
     }
   };
 
@@ -131,15 +164,20 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
     setEditSubOpen(true);
   };
 
-  const handleSaveSubmission = async (updated: Submission, lecturerId?: string) => {
+  const handleSaveSubmission = async (
+    updated: Submission,
+    lecturerId?: string,
+  ) => {
     const matchedCategory = categoryList.find(
-      (c) => c.name.toLowerCase() === updated.jenisRekognisi.toLowerCase()
+      (c) => c.name.toLowerCase() === updated.jenisRekognisi.toLowerCase(),
     );
     const category_id = matchedCategory ? matchedCategory.id : 1;
 
     let resolvedLecturerId = lecturerId;
     if (!resolvedLecturerId) {
-      const originalRec = (recognitionResponse?.data || []).find(r => r.id === updated.id);
+      const originalRec = (recognitionResponse?.data || []).find(
+        (r) => r.id === updated.id,
+      );
       resolvedLecturerId = originalRec?.lecturer?.id || "";
     }
 
@@ -151,7 +189,9 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
           category_id,
           obtained_at: `${updated.tahun}-01-01T00:00:00Z`,
           description: updated.deskripsi,
-          proof_links: updated.linkBukti ? updated.linkBukti.split(",").filter(Boolean) : [],
+          proof_links: updated.linkBukti
+            ? updated.linkBukti.split(",").filter(Boolean)
+            : [],
           link_id: link.id,
         },
       }).unwrap();
@@ -159,7 +199,9 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
       setEditSubOpen(false);
     } catch (err: unknown) {
       const customErr = err as { data?: { message?: string } };
-      toast.error(customErr?.data?.message || "Gagal memperbarui data pengajuan");
+      toast.error(
+        customErr?.data?.message || "Gagal memperbarui data pengajuan",
+      );
     }
   };
 
@@ -170,23 +212,29 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
   const displayStatus = !link.is_active
     ? "closed"
     : isExpired
-    ? "expired"
-    : !isStarted
-    ? "upcoming"
-    : "active";
+      ? "expired"
+      : !isStarted
+        ? "upcoming"
+        : "active";
 
   // Map recognition list to submission interface
-  const submissions: Submission[] = (recognitionResponse?.data || []).map((rec) => ({
-    id: rec.id,
-    nip: rec.lecturer?.nip || "",
-    nama: rec.lecturer?.name || "",
-    prodi: rec.lecturer?.study_program?.name || "",
-    jenisRekognisi: rec.category?.name || "",
-    tahun: rec.obtained_at ? new Date(rec.obtained_at).getFullYear().toString() : "",
-    deskripsi: rec.description,
-    linkBukti: (rec.proof_links || []).join(","),
-    status: (rec.status === "rejected" ? "declined" : rec.status || "pending") as "pending" | "approved" | "declined",
-  }));
+  const submissions: Submission[] = (recognitionResponse?.data || []).map(
+    (rec) => ({
+      id: rec.id,
+      nip: rec.lecturer?.nip || "",
+      nama: rec.lecturer?.name || "",
+      prodi: rec.lecturer?.study_program?.name || "",
+      jenisRekognisi: rec.category?.name || "",
+      tahun: rec.obtained_at
+        ? new Date(rec.obtained_at).getFullYear().toString()
+        : "",
+      deskripsi: rec.description,
+      linkBukti: (rec.proof_links || []).join(","),
+      status: (rec.status === "rejected"
+        ? "declined"
+        : rec.status || "pending") as "pending" | "approved" | "declined",
+    }),
+  );
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-md overflow-hidden flex flex-col">
@@ -195,9 +243,14 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
         <div className="flex items-center justify-between gap-4">
           {/* Link Title and Details */}
           <div className="min-w-0">
-            <h4 className="text-sm font-bold text-foreground truncate">{link.name}</h4>
+            <h4 className="text-sm font-bold text-foreground truncate">
+              {link.name}
+            </h4>
             {link.description && (
-              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1" title={link.description}>
+              <p
+                className="text-xs text-muted-foreground mt-0.5 line-clamp-1"
+                title={link.description}
+              >
                 {link.description}
               </p>
             )}
@@ -239,7 +292,10 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-card border border-border rounded-lg shadow-md p-1 min-w-[170px]">
+              <DropdownMenuContent
+                align="end"
+                className="bg-card border border-border rounded-lg shadow-md p-1 min-w-[170px]"
+              >
                 <DropdownMenuItem
                   onClick={() => setEditLinkOpen(true)}
                   className="cursor-pointer text-xs font-semibold px-3 py-2 hover:bg-muted flex items-center gap-2"
@@ -288,11 +344,17 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold text-muted-foreground">
             <span className="flex items-center gap-1 shrink-0">
               <Calendar className="h-3.5 w-3.5 opacity-60" />
-              Mulai: {format(new Date(link.started_at), "d MMMM yyyy HH:mm", { locale: id })}
+              Mulai:{" "}
+              {format(new Date(link.started_at), "d MMMM yyyy HH:mm", {
+                locale: id,
+              })}
             </span>
             <span className="flex items-center gap-1 shrink-0">
               <Calendar className="h-3.5 w-3.5 opacity-60" />
-              Selesai: {format(new Date(link.ended_at), "d MMMM yyyy HH:mm", { locale: id })}
+              Selesai:{" "}
+              {format(new Date(link.ended_at), "d MMMM yyyy HH:mm", {
+                locale: id,
+              })}
             </span>
           </div>
         </div>
@@ -327,13 +389,20 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
               Hapus Link Shared Form
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed mt-2">
-              Apakah Anda yakin ingin menghapus link shared form <strong>&quot;{link.name}&quot;</strong>?
-              Tindakan ini bersifat merusak, permanen, dan tidak dapat dibatalkan. Semua data rekognisi yang telah dikirim melalui link ini juga akan kehilangan relasi datanya.
+              Apakah Anda yakin ingin menghapus link shared form{" "}
+              <strong>&quot;{link.name}&quot;</strong>? Tindakan ini bersifat
+              merusak, permanen, dan tidak dapat dibatalkan. Semua data
+              rekognisi yang telah dikirim melalui link ini juga akan kehilangan
+              relasi datanya.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2 pt-2">
             <AlertDialogCancel asChild>
-              <Button variant="outline" disabled={isDeletingLink} className="text-xs font-semibold h-9 rounded-lg">
+              <Button
+                variant="outline"
+                disabled={isDeletingLink}
+                className="text-xs font-semibold h-9 rounded-lg"
+              >
                 Batal
               </Button>
             </AlertDialogCancel>

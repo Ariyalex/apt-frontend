@@ -37,6 +37,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   IndicatorTab,
   AssessmentAspect,
@@ -150,11 +151,13 @@ const mapTarget = (target: string): string => {
 interface MutuBanptAdminProps {
   criteria: string;
   target: string;
+  isLoading?: boolean;
 }
 
 export default function MutuBanptAdminPage({
   criteria: category,
   target: stage,
+  isLoading,
 }: MutuBanptAdminProps): React.JSX.Element {
   const catLabel = formatCategoryName(category);
   const stageLabel = formatStageName(stage);
@@ -871,6 +874,26 @@ export default function MutuBanptAdminPage({
 
   // Math operators catalog
   const operators = ["(", ")", "+", "-", "*", "/"];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fadeIn">
+        <div className="border-b border-border/40 pb-4">
+          <Skeleton className="h-8 w-64 rounded-lg" />
+          <Skeleton className="h-4 w-96 rounded-lg mt-2" />
+        </div>
+        <div className="space-y-6">
+          <div className="flex gap-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-10 w-24 rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn">
