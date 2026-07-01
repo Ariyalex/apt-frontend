@@ -136,7 +136,7 @@ const mapCriteria = (criteria: string): string => {
     case "relevansi-penelitian":
       return "research_relevance";
     case "relevansi-pkm":
-      return "comunity_service_relevance";
+      return "community_service_relevance";
     case "akuntabilitas":
       return "accountability";
     case "diferensiasi-misi":
@@ -1025,7 +1025,7 @@ export default function MutuBanptAdminPage({
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-primary" />
                   <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                    Aspek Penilaian (Indikator {activeIndicator.number})
+                    Aspek Penilaian ({activeIndicator.number})
                   </h2>
                 </div>
 
@@ -1805,7 +1805,7 @@ export default function MutuBanptAdminPage({
         <AlertDialogContent className="bg-card border border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-bold text-foreground">
-              Hapus Indikator {editingIndicator?.id}?
+              Hapus Indikator {editingIndicator?.number}?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground leading-normal">
               Aksi ini bersifat destruktif. Menghapus indikator akan

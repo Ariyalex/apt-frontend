@@ -87,7 +87,7 @@ export interface IndicatorModel {
     | `quality_culture`
     | `education_relevance`
     | `research_relevance`
-    | `comunity_service_relevance`
+    | `community_service_relevance`
     | `accountability`
     | string;
   target: `input` | `process` | `output` | `impact` | string;
@@ -106,7 +106,7 @@ export interface SaveIndicatorRequest {
     | `quality_culture`
     | `education_relevance`
     | `research_relevance`
-    | `comunity_service_relevance`
+    | `community_service_relevance`
     | `accountability`
     | string;
   target: `input` | `process` | `output` | `impact` | string;
@@ -227,7 +227,7 @@ export interface IndicatorStatItem {
     | "quality_culture"
     | "education_relevance"
     | "research_relevance"
-    | "comunity_service_relevance"
+    | "community_service_relevance"
     | "accountability"
     | "mission_differentiation";
   target: "input" | "process" | "output" | "impact";

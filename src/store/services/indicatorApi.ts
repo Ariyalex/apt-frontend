@@ -12,7 +12,7 @@ export const indicatorApi = apiSlice.injectEndpoints({
           | `quality_culture`
           | `education_relevance`
           | `research_relevance`
-          | `comunity_service_relevance`
+          | `community_service_relevance`
           | `accountability`
           | string;
         target: `input` | `process` | `output` | `impact` | string;

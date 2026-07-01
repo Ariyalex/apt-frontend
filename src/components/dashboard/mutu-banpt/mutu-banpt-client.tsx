@@ -62,7 +62,7 @@ const mapCriteria = (criteria: string): string => {
     case "relevansi-penelitian":
       return "research_relevance";
     case "relevansi-pkm":
-      return "comunity_service_relevance";
+      return "community_service_relevance";
     case "akuntabilitas":
       return "accountability";
     case "diferensiasi-misi":
@@ -245,7 +245,11 @@ export default function MutuBanptClientPage({
   const [savingAspectId, setSavingAspectId] = useState<string | null>(null);
 
   const isQuerySkipped = !activeAkredId || !currentUserId;
-  const isLoading = isQuerySkipped || isIndicatorsFetching || isRulesFetching || isEvalsFetching;
+  const isLoading =
+    isQuerySkipped ||
+    isIndicatorsFetching ||
+    isRulesFetching ||
+    isEvalsFetching;
 
   // File upload state per aspect
   const [uploadingAspectId, _setUploadingAspectId] = useState<string | null>(
@@ -259,7 +263,6 @@ export default function MutuBanptClientPage({
   const [backupAspects, setBackupAspects] = useState<
     Record<string, AssessmentAspect>
   >({});
-
 
   // Sync active accreditation from local storage
   useEffect(() => {
@@ -713,7 +716,9 @@ export default function MutuBanptClientPage({
       setIndicatorsState((prev) =>
         prev.map((ind) => ({
           ...ind,
-          aspects: (ind.aspects || []).map((a) => (a.id === aspectId ? backup : a)),
+          aspects: (ind.aspects || []).map((a) =>
+            a.id === aspectId ? backup : a,
+          ),
         })),
       );
     }
@@ -797,9 +802,7 @@ export default function MutuBanptClientPage({
                   <p className="font-bold text-primary mb-1 uppercase tracking-wider text-[10px]">
                     Deskripsi Indikator:
                   </p>
-                  <p className="text-muted-foreground">
-                    {ind.name}
-                  </p>
+                  <p className="text-muted-foreground">{ind.name}</p>
                 </HoverCardContent>
               </HoverCard>
             ))}

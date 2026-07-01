@@ -45,7 +45,7 @@ const mapCriteria = (criteria: string): string => {
     case "relevansi-penelitian":
       return "research_relevance";
     case "relevansi-pkm":
-      return "comunity_service_relevance";
+      return "community_service_relevance";
     case "akuntabilitas":
       return "accountability";
     case "diferensiasi-misi":
