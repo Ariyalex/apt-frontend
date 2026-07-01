@@ -20,3 +20,40 @@ export function getFileCategory(extension: string): string | null {
 
   return null;
 }
+
+export function formatCategoryName(criteria: string): string {
+  switch (criteria) {
+    case "budaya-mutu":
+      return "Budaya Mutu";
+    case "relevansi-pendidikan":
+      return "Relevansi Pendidikan";
+    case "relevansi-penelitian":
+      return "Relevansi Penelitian";
+    case "relevansi-pkm":
+      return "Relevansi PKM";
+    case "akuntabilitas":
+      return "Akuntabilitas";
+    case "diferensiasi-misi":
+      return "Diferensiasi Misi";
+    default:
+      return criteria
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+  }
+}
+
+export function formatStageName(stage: string): string {
+  switch (stage) {
+    case "masukan":
+      return "Masukan";
+    case "proses":
+      return "Proses";
+    case "luaran":
+      return "Luaran";
+    case "dampak":
+      return "Dampak";
+    default:
+      return stage.charAt(0).toUpperCase() + stage.slice(1);
+  }
+}

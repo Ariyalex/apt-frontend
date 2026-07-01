@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, Copy, Check, Edit2, CheckCircle2, XCircle, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Submission } from "@/dummy-data/bagikan-form";
+import { Submission } from "@/types/bagikan-form";
 import {
   Table,
   TableBody,

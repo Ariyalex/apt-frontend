@@ -60,11 +60,58 @@ import {
   useUpdateAssessmentRuleMutation,
   useDeleteAssessmentRuleMutation,
 } from "@/store/services/assessmentRuleApi";
-import { formatCategoryName, formatStageName } from "@/dummy-data/mutu-banpt";
+import { formatCategoryName, formatStageName } from "@/lib/utils";
 
 interface AdminIndicatorTab extends IndicatorTab {
   apiId?: string;
 }
+
+const isInternalConstant = (name: string): boolean => {
+  const lower = name.toLowerCase();
+  return (
+    lower.includes("numerator") ||
+    lower.includes("denominator") ||
+    lower.includes("denomerator") ||
+    lower.includes("constant")
+  );
+};
+
+const formatFriendlyFormula = (expression: string, variables: FormulaVariable[]): string => {
+  if (!expression) return "";
+  let formatted = expression;
+
+  // 1. Convert "Input-Numerator-[suffix] / Denominator-Percentage" -> "[value]%"
+  const percentageNumerators = variables.filter(v => v.name.startsWith("Input-Numerator-") && variables.some(d => d.name === "Denominator-Percentage"));
+  percentageNumerators.forEach(num => {
+    const targetExpr = `${num.name} / Denominator-Percentage`;
+    if (formatted.includes(targetExpr)) {
+      formatted = formatted.replaceAll(targetExpr, `${num.value}%`);
+    }
+  });
+
+  // 2. Convert "Input-Numerator-[suffix] / Input-Denomerator-[suffix]" -> "[num_val]/[denom_val]"
+  const fractionNumerators = variables.filter(v => v.name.startsWith("Input-Numerator-"));
+  fractionNumerators.forEach(num => {
+    const suffix = num.name.replace("Input-Numerator-", "");
+    const denomName = `Input-Denomerator-${suffix}`;
+    const denom = variables.find(v => v.name === denomName);
+    if (denom) {
+      const targetExpr = `${num.name} / ${denomName}`;
+      if (formatted.includes(targetExpr)) {
+        formatted = formatted.replaceAll(targetExpr, `${num.value}/${denom.value}`);
+      }
+    }
+  });
+
+  // 3. Convert "Input-Constant-[suffix]" -> "[value]"
+  const constants = variables.filter(v => v.name.startsWith("Input-Constant-"));
+  constants.forEach(c => {
+    formatted = formatted.replaceAll(c.name, String(c.value));
+  });
+
+  return formatted;
+};
+
 
 const mapCriteria = (criteria: string): string => {
   switch (criteria) {
@@ -150,7 +197,6 @@ export default function MutuBanptAdminPage({
     [],
   );
   const [newVarName, setNewVarName] = useState<string>("");
-  const [newVarLabel, setNewVarLabel] = useState<string>("");
   const [newVarType, setNewVarType] = useState<"input" | "static">("input");
   const [newVarValue, setNewVarValue] = useState<string>("0");
 
@@ -485,8 +531,8 @@ export default function MutuBanptAdminPage({
 
   // Variables list helpers
   const handleAddFormulaVariable = () => {
-    if (!newVarName.trim() || !newVarLabel.trim()) {
-      toast.error("Nama dan deskripsi variabel tidak boleh kosong!");
+    if (!newVarName.trim()) {
+      toast.error("Nama variabel tidak boleh kosong!");
       return;
     }
     // Only letters & numbers
@@ -501,14 +547,13 @@ export default function MutuBanptAdminPage({
 
     const newItem: FormulaVariable = {
       name: newVarName.trim(),
-      label: newVarLabel.trim(),
+      label: newVarName.trim(),
       type: newVarType,
       value: newVarType === "static" ? parseFloat(newVarValue) || 0 : 0,
     };
 
     setFormulaVariables([...formulaVariables, newItem]);
     setNewVarName("");
-    setNewVarLabel("");
     setNewVarValue("0");
   };
 
@@ -1049,9 +1094,9 @@ export default function MutuBanptAdminPage({
                               <span className="font-bold text-[9px] text-primary uppercase block">
                                 Rumus Perhitungan
                               </span>
-                              <code className="font-mono text-foreground font-bold">
-                                {asp.formula?.expression}
-                              </code>
+                              <div className="bg-card border border-border px-3 py-1.5 rounded-lg font-mono text-foreground font-semibold text-xs mt-1 min-w-[200px]">
+                                {formatFriendlyFormula(asp.formula?.expression || "", asp.formula?.variables || []) || "Rumus Kosong"}
+                              </div>
                             </div>
                           ) : null}
                         </div>
@@ -1397,13 +1442,13 @@ export default function MutuBanptAdminPage({
                   </span>
 
                   {/* Dynamic formula variables list */}
-                  {formulaVariables.length === 0 ? (
+                  {formulaVariables.filter((v) => !isInternalConstant(v.name)).length === 0 ? (
                     <p className="text-muted-foreground italic text-[11px] py-1">
                       Belum ada variabel rumus. Tambahkan variabel baru.
                     </p>
                   ) : (
                     <div className="flex flex-wrap gap-2 py-1">
-                      {formulaVariables.map((v) => (
+                      {formulaVariables.filter((v) => !isInternalConstant(v.name)).map((v) => (
                         <div
                           key={v.name}
                           className="flex items-center gap-1.5 bg-card border border-border px-2 py-1 rounded"
@@ -1429,33 +1474,18 @@ export default function MutuBanptAdminPage({
 
                   {/* Add formula variable sub-form */}
                   <div className="flex flex-wrap gap-3 items-end pt-1">
-                    <Field className="w-28">
+                    <Field className="flex-1 min-w-[150px]">
                       <FieldLabel
                         htmlFor="new-var-name"
                         className="text-[10px] font-bold text-muted-foreground uppercase"
                       >
-                        Kode Variabel
+                        Nama Variabel
                       </FieldLabel>
                       <Input
                         id="new-var-name"
                         value={newVarName}
                         onChange={(e) => setNewVarName(e.target.value)}
                         placeholder="Contoh: NDT, NDS3"
-                        className="bg-card text-xs h-8 border-border text-foreground"
-                      />
-                    </Field>
-                    <Field className="flex-1 min-w-[150px]">
-                      <FieldLabel
-                        htmlFor="new-var-label"
-                        className="text-[10px] font-bold text-muted-foreground uppercase"
-                      >
-                        Keterangan / Label
-                      </FieldLabel>
-                      <Input
-                        id="new-var-label"
-                        value={newVarLabel}
-                        onChange={(e) => setNewVarLabel(e.target.value)}
-                        placeholder="Contoh: Total Dosen Tetap"
                         className="bg-card text-xs h-8 border-border text-foreground"
                       />
                     </Field>
@@ -1593,30 +1623,34 @@ export default function MutuBanptAdminPage({
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {aspectType === "formula"
-                      ? formulaVariables.map((v) => (
-                          <button
-                            key={v.name}
-                            type="button"
-                            onClick={() => appendFormulaToken(v.name)}
-                            className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
-                          >
-                            {v.name}
-                          </button>
-                        ))
-                      : radioVariables.map((v) => (
-                          <button
-                            key={v.name}
-                            type="button"
-                            onClick={() => appendFormulaToken(v.name)}
-                            className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
-                          >
-                            {v.name}
-                          </button>
-                        ))}
+                      ? formulaVariables
+                          .filter((v) => !isInternalConstant(v.name))
+                          .map((v) => (
+                            <button
+                              key={v.name}
+                              type="button"
+                              onClick={() => appendFormulaToken(v.name)}
+                              className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
+                            >
+                              {v.name}
+                            </button>
+                          ))
+                      : radioVariables
+                          .filter((v) => !isInternalConstant(v.name))
+                          .map((v) => (
+                            <button
+                              key={v.name}
+                              type="button"
+                              onClick={() => appendFormulaToken(v.name)}
+                              className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
+                            >
+                              {v.name}
+                            </button>
+                          ))}
                     {((aspectType === "formula" &&
-                      formulaVariables.length === 0) ||
+                      formulaVariables.filter((v) => !isInternalConstant(v.name)).length === 0) ||
                       (aspectType === "radio" &&
-                        radioVariables.length === 0)) && (
+                        radioVariables.filter((v) => !isInternalConstant(v.name)).length === 0)) && (
                       <span className="text-[11px] text-muted-foreground/60 italic">
                         Definisikan variabel di atas terlebih dahulu.
                       </span>
@@ -1631,7 +1665,7 @@ export default function MutuBanptAdminPage({
                   </span>
                   <div className="flex gap-2 items-center">
                     <div className="bg-card border border-border p-2.5 rounded-lg font-mono text-foreground font-semibold flex-1 text-xs select-none">
-                      {formulaExpression || (
+                      {formatFriendlyFormula(formulaExpression, formulaVariables) || (
                         <span className="text-muted-foreground/50">
                           Rumus kosong...
                         </span>

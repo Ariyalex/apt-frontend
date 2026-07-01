@@ -29,7 +29,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCategoryName } from "@/dummy-data/mutu-banpt";
+import { formatCategoryName } from "@/lib/utils";
 import {
   Select,
   SelectTrigger,

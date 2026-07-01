@@ -24,7 +24,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { DosenSearchDialog } from "./dosen-search-dialog";
 import { useGetLecturerByNipQuery } from "@/store/services/dosenApi";
 import { useGetRecognitionCategoriesQuery } from "@/store/services/recognitionCategoryApi";
-import { Submission } from "@/dummy-data/bagikan-form";
+import { Submission } from "@/types/bagikan-form";
 
 interface SubmissionEditDialogProps {
   open: boolean;

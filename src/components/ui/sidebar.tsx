@@ -185,7 +185,7 @@ export const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-72 bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className="w-72 h-full bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             side={side}
           >
             <div className="flex h-full w-full flex-col">{children}</div>
@@ -309,7 +309,7 @@ export const SidebarInset = React.forwardRef<
     <main
       ref={ref}
       className={cn(
-        "relative flex min-h-svh flex-1 flex-col bg-background",
+        "relative flex min-h-svh flex-1 flex-col bg-background transition-all ease-in-out duration-200",
         "peer-data-[variant=sidebar-inset]:min-h-[calc(100svh-var(--spacing-4))]",
         "peer-data-[variant=sidebar-inset]:m-2 peer-data-[variant=sidebar-inset]:peer-data-[state=collapsed]:w-[calc(100vw-var(--sidebar-width-icon)-_1.5rem)]",
         "peer-data-[variant=sidebar-inset]:peer-data-[state=expanded]:w-[calc(100vw-var(--sidebar-width)-_1.5rem)]",

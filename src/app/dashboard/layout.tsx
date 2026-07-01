@@ -18,7 +18,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         allocated height when children have min-h-svh.
       */}
       <div
-        className="flex-1 min-h-0"
+        className="flex-1 min-h-0 transition-all ease-in-out duration-200"
         style={{ transform: "translateZ(0)", overflow: "clip" }}
       >
         <SidebarProvider

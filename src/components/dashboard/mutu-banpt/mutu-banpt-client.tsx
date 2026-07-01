@@ -29,7 +29,7 @@ import {
   AttachmentAction,
 } from "@/components/ui/attachment";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { formatCategoryName, formatStageName } from "@/dummy-data/mutu-banpt";
+import { formatCategoryName, formatStageName } from "@/lib/utils";
 import {
   IndicatorTab,
   AssessmentAspect,
@@ -48,7 +48,10 @@ import {
   useCreateAssessmentEvaluationMutation,
   useUpdateAssessmentEvaluationMutation,
 } from "@/store/services/assessmentEvaluationApi";
-import { useUploadFileMutation, useGetFileMutation } from "@/store/services/fileApi";
+import {
+  useUploadFileMutation,
+  useGetFileMutation,
+} from "@/store/services/fileApi";
 
 const mapCriteria = (criteria: string): string => {
   switch (criteria) {
@@ -82,6 +85,66 @@ const mapTarget = (target: string): string => {
     default:
       return target;
   }
+};
+
+const isInternalConstant = (name: string): boolean => {
+  const lower = name.toLowerCase();
+  return (
+    lower.includes("numerator") ||
+    lower.includes("denominator") ||
+    lower.includes("denomerator") ||
+    lower.includes("constant")
+  );
+};
+
+const formatFriendlyFormula = (
+  expression: string,
+  variables: FormulaVariable[],
+): string => {
+  if (!expression) return "";
+  let formatted = expression;
+
+  // 1. Convert "Input-Numerator-[suffix] / Denominator-Percentage" -> "[value]%"
+  const percentageNumerators = variables.filter(
+    (v) =>
+      v.name.startsWith("Input-Numerator-") &&
+      variables.some((d) => d.name === "Denominator-Percentage"),
+  );
+  percentageNumerators.forEach((num) => {
+    const targetExpr = `${num.name} / Denominator-Percentage`;
+    if (formatted.includes(targetExpr)) {
+      formatted = formatted.replaceAll(targetExpr, `${num.value}%`);
+    }
+  });
+
+  // 2. Convert "Input-Numerator-[suffix] / Input-Denomerator-[suffix]" -> "[num_val]/[denom_val]"
+  const fractionNumerators = variables.filter((v) =>
+    v.name.startsWith("Input-Numerator-"),
+  );
+  fractionNumerators.forEach((num) => {
+    const suffix = num.name.replace("Input-Numerator-", "");
+    const denomName = `Input-Denomerator-${suffix}`;
+    const denom = variables.find((v) => v.name === denomName);
+    if (denom) {
+      const targetExpr = `${num.name} / ${denomName}`;
+      if (formatted.includes(targetExpr)) {
+        formatted = formatted.replaceAll(
+          targetExpr,
+          `${num.value}/${denom.value}`,
+        );
+      }
+    }
+  });
+
+  // 3. Convert "Input-Constant-[suffix]" -> "[value]"
+  const constants = variables.filter((v) =>
+    v.name.startsWith("Input-Constant-"),
+  );
+  constants.forEach((c) => {
+    formatted = formatted.replaceAll(c.name, String(c.value));
+  });
+
+  return formatted;
 };
 
 interface MutuBanptClientProps {
@@ -136,10 +199,12 @@ export default function MutuBanptClientPage({
 
   const handleViewProof = (proofUrl: string) => {
     if (!proofUrl) return;
-    const promise = getFile(proofUrl).unwrap().then((objectUrl) => {
-      window.open(objectUrl, "_blank");
-      return objectUrl;
-    });
+    const promise = getFile(proofUrl)
+      .unwrap()
+      .then((objectUrl) => {
+        window.open(objectUrl, "_blank");
+        return objectUrl;
+      });
 
     toast.promise(promise, {
       loading: "Mengunduh file bukti...",
@@ -164,10 +229,9 @@ export default function MutuBanptClientPage({
           // eslint-disable-next-line react-hooks/set-state-in-effect
           setIsAdmin(true);
         }
-         
+
         setUserRole(session.role || "");
         if (session.id) {
-           
           setCurrentUserId(session.id);
         }
       } catch {
@@ -182,17 +246,22 @@ export default function MutuBanptClientPage({
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // File upload state per aspect
-  const [uploadingAspectId, _setUploadingAspectId] = useState<string | null>(null);
+  const [uploadingAspectId, _setUploadingAspectId] = useState<string | null>(
+    null,
+  );
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
   const [localFiles, setLocalFiles] = useState<Record<string, File>>({});
 
   // Edit Mode states
   const [editModes, setEditModes] = useState<Record<string, boolean>>({});
-  const [backupAspects, setBackupAspects] = useState<Record<string, AssessmentAspect>>({});
+  const [backupAspects, setBackupAspects] = useState<
+    Record<string, AssessmentAspect>
+  >({});
 
   // Sync loading state
   useEffect(() => {
-    const isFetching = isIndicatorsFetching || isRulesFetching || isEvalsFetching;
+    const isFetching =
+      isIndicatorsFetching || isRulesFetching || isEvalsFetching;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(isFetching);
   }, [isIndicatorsFetching, isRulesFetching, isEvalsFetching]);
@@ -340,7 +409,7 @@ export default function MutuBanptClientPage({
       setIndicatorsState(mapped);
       if (mapped.length > 0) {
         const valid = mapped.some((ind) => ind.id === selectedIndicatorId);
-         
+
         setSelectedIndicatorId(valid ? selectedIndicatorId : mapped[0].id);
       }
     }
@@ -386,8 +455,7 @@ export default function MutuBanptClientPage({
         return {
           ...ind,
           aspects: ind.aspects.map((asp) => {
-            if (asp.id !== aspectId || !asp.radioVariables)
-              return asp;
+            if (asp.id !== aspectId || !asp.radioVariables) return asp;
 
             const selectedChoice = asp.radioVariables[choiceIndex];
             const score = selectedChoice.value;
@@ -852,11 +920,23 @@ export default function MutuBanptClientPage({
                                   Pilih Penilaian Skor
                                 </span>
                                 <div className="flex flex-col gap-2.5">
-                                  {asp.radioVariables && asp.radioVariables.length > 0 ? (
+                                  {asp.radioVariables &&
+                                  asp.radioVariables.length > 0 ? (
                                     <RadioGroup
-                                      value={asp.selectedRadioIndex !== undefined ? String(asp.selectedRadioIndex) : undefined}
-                                      onValueChange={(val) => handleRadioChoiceSelect(asp.id, Number(val))}
-                                      disabled={isReadOnly || savingAspectId === asp.id}
+                                      value={
+                                        asp.selectedRadioIndex !== undefined
+                                          ? String(asp.selectedRadioIndex)
+                                          : undefined
+                                      }
+                                      onValueChange={(val) =>
+                                        handleRadioChoiceSelect(
+                                          asp.id,
+                                          Number(val),
+                                        )
+                                      }
+                                      disabled={
+                                        isReadOnly || savingAspectId === asp.id
+                                      }
                                       className="flex flex-col gap-2.5"
                                     >
                                       {asp.radioVariables.map((v, idx) => (
@@ -877,7 +957,8 @@ export default function MutuBanptClientPage({
                                             htmlFor={`choice-${asp.id}-${idx}`}
                                             className="flex-1 cursor-pointer select-none text-foreground py-0.5 leading-none"
                                           >
-                                            {v.name.replace(/_/g, " ")} ({v.value})
+                                            {v.name.replace(/_/g, " ")} (
+                                            {v.value})
                                           </label>
                                         </div>
                                       ))}
@@ -1092,13 +1173,16 @@ export default function MutuBanptClientPage({
                             <div className="flex flex-col lg:flex-row gap-5 items-stretch w-full">
                               {/* Formula Preview & Inputs */}
                               <div className="space-y-3 flex-1 min-w-0">
-                                <div className="p-2.5 bg-muted/40 border border-border rounded-lg text-xs">
-                                  <span className="font-bold text-[10px] text-primary uppercase block mb-1">
+                                <div className="space-y-1">
+                                  <span className="font-bold text-[10px] text-primary uppercase block">
                                     Rumus Evaluasi
                                   </span>
-                                  <code className="font-mono text-foreground font-semibold">
-                                    {asp.formula?.expression}
-                                  </code>
+                                  <div className="bg-card border border-border p-2.5 rounded-lg font-mono text-foreground font-semibold text-xs select-none">
+                                    {formatFriendlyFormula(
+                                      asp.formula?.expression || "",
+                                      asp.formula?.variables || [],
+                                    ) || "Rumus Kosong"}
+                                  </div>
                                 </div>
 
                                 <div className="space-y-2 w-full">
@@ -1106,35 +1190,38 @@ export default function MutuBanptClientPage({
                                     Input Variabel
                                   </span>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full">
-                                    {asp.formula?.variables.map((v) => (
-                                      <div
-                                        key={v.name}
-                                        className="flex items-center justify-between gap-3 text-xs bg-card border border-border p-2 rounded-lg"
-                                      >
-                                        <span
-                                          className="font-semibold text-muted-foreground pr-2"
-                                          title={v.label}
+                                    {asp.formula?.variables
+                                      .filter((v) => v.type === "input")
+                                      .map((v) => (
+                                        <div
+                                          key={v.name}
+                                          className="flex items-center justify-between gap-3 text-xs bg-card border border-border p-2 rounded-lg"
                                         >
-                                          {v.label} ({v.name}):
-                                        </span>
-                                        <Input
-                                          type="number"
-                                          value={v.value}
-                                          disabled={
-                                            isReadOnly ||
-                                            savingAspectId === asp.id
-                                          }
-                                          onChange={(e) =>
-                                            handleVariableChange(
-                                              asp.id,
-                                              v.name,
-                                              parseFloat(e.target.value) || 0,
-                                            )
-                                          }
-                                          className="w-24 bg-card border border-border rounded px-2.5 py-1 text-xs focus:outline-none focus:border-primary text-foreground text-right shrink-0 disabled:opacity-75 disabled:cursor-not-allowed"
-                                        />
-                                      </div>
-                                    ))}
+                                          <span
+                                            className="font-semibold text-muted-foreground pr-2"
+                                            title={v.name}
+                                          >
+                                            {v.name}:
+                                          </span>
+                                          <Input
+                                            type="number"
+                                            value={v.value === 0 ? "" : v.value}
+                                            placeholder="0"
+                                            disabled={
+                                              isReadOnly ||
+                                              savingAspectId === asp.id
+                                            }
+                                            onChange={(e) =>
+                                              handleVariableChange(
+                                                asp.id,
+                                                v.name,
+                                                parseFloat(e.target.value) || 0,
+                                              )
+                                            }
+                                            className="w-24 bg-card border border-border rounded px-2.5 py-1 text-xs focus:outline-none focus:border-primary text-foreground text-right shrink-0 disabled:opacity-75 disabled:cursor-not-allowed"
+                                          />
+                                        </div>
+                                      ))}
                                   </div>
                                 </div>
                               </div>

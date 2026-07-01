@@ -29,7 +29,7 @@ import { useGetRecognitionListQuery, useApproveSubmissionMutation, useRejectSubm
 import { useUpdateLinkMutation, useDeleteLinkMutation } from "@/store/services/linkApi";
 import { useGetRecognitionCategoriesQuery } from "@/store/services/recognitionCategoryApi";
 import { toast } from "sonner";
-import { Submission } from "@/dummy-data/bagikan-form";
+import { Submission } from "@/types/bagikan-form";
 
 interface BagikanFormCardProps {
   link: LinkModel;

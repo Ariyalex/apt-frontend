@@ -1,6 +1,6 @@
 export interface FormulaVariable {
   name: string; // e.g. "NDS3"
-  label: string; // e.g. "Jumlah Dosen S3"
+  label?: string; // e.g. "Jumlah Dosen S3"
   type: "input" | "static";
   value: number;
 }
