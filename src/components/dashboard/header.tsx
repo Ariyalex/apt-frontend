@@ -53,7 +53,7 @@ export function Header(): React.JSX.Element {
     .slice(0, 2) || "AF";
 
   return (
-    <header className="flex h-16 w-full items-center justify-between border-b border-border bg-card px-6 z-20">
+    <header className="flex h-16 w-full shrink-0 items-center justify-between border-b border-border bg-card px-6 sticky top-0 z-50">
       {/* Kiri: Logo */}
       <div className="flex items-center gap-2.5">
         <Image

@@ -137,8 +137,8 @@ export function EditLinkDialog({
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                // Auto slugify if changed
-                setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
+                // Auto slugify if changed (allowing capitalization)
+                setSlug(e.target.value.replace(/[^a-zA-Z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
               }}
               className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
             />
@@ -156,7 +156,7 @@ export function EditLinkDialog({
                 disabled={isSaving}
                 placeholder="beasiswa-unggulan-2026"
                 value={slug}
-                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
+                onChange={(e) => setSlug(e.target.value.replace(/\s+/g, "-"))}
                 className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono flex-1"
               />
             </div>

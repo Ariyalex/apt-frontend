@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "APT",
   description: "Apt ini sementara",
+  icons: {
+    icon: "/uin.PNG",
+  },
 };
 
 import { Toaster } from "@/components/ui/sonner";

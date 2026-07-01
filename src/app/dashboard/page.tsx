@@ -65,11 +65,12 @@ export default function Dashboard(): React.JSX.Element {
   const [selectedFaculty, setSelectedFaculty] = useState("Semua Fakultas");
   const [selectedLembaga, setSelectedLembaga] = useState("Semua Lembaga");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userLembaga, setUserLembaga] = useState("");
 
   // Load session from localStorage
   useEffect(() => {
     const raw = localStorage.getItem("userSession");
-    let sessionData: UserSession | null = null;
+    let sessionData: UserSession & { institute_id?: string | null } | null = null;
     if (raw) {
       try {
         sessionData = JSON.parse(raw);
@@ -85,6 +86,7 @@ export default function Dashboard(): React.JSX.Element {
     const timer = setTimeout(() => {
       if (sessionData) {
         setSession(sessionData);
+        // Default locked Auditee FST or other
         if (sessionData.role === "Auditee") {
           setSelectedFaculty("Fakultas Sains dan Teknologi");
         } else {
@@ -110,6 +112,28 @@ export default function Dashboard(): React.JSX.Element {
 
   const recognitionList = recognitionResponse?.data || [];
 
+  // Update dynamic userLembaga matching once institutes list is loaded
+  useEffect(() => {
+    if (session && institutes.length > 0) {
+      const uSession = session as UserSession & { institute_id?: string | null };
+      if (uSession.institute_id) {
+        const matched = institutes.find(
+          (inst) => inst.id.toString() === uSession.institute_id?.toString()
+        );
+        if (matched) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setUserLembaga(matched.name);
+          // For regular auditees, lock selectedLembaga to their own institute
+          if (uSession.role === "Auditee") {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setSelectedLembaga(matched.name);
+          }
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, institutes]);
+
   // Map API models to components compatibility layout
   const initialData = recognitionList.map((rec) => ({
     id: rec.id,
@@ -123,7 +147,8 @@ export default function Dashboard(): React.JSX.Element {
     instituteName: rec.lecturer?.institute?.name || "",
   }));
 
-  const isLoading = isSessionLoading || isApiLoading || (isAdmin && isInstitutesLoading);
+  const isRoleWithLembagaFilter = isAdmin || (session && (session.role === "Auditor" || session.role === "Assessor"));
+  const isLoading = isSessionLoading || isApiLoading || (isRoleWithLembagaFilter && isInstitutesLoading);
 
   const handleFacultyChange = (val: string) => {
     setSelectedFaculty(val);
@@ -133,8 +158,8 @@ export default function Dashboard(): React.JSX.Element {
     setSelectedLembaga(val);
   };
 
-  // Filter data based on Admin role (Lembaga) vs non-Admin role (Fakultas)
-  const facultyData = isAdmin
+  // Filter data based on Admin/Auditor/Assessor role (Lembaga) vs regular Auditee (Fakultas or locked Auditee FST prodis)
+  const facultyData = isRoleWithLembagaFilter
     ? (selectedLembaga === "Semua Lembaga"
       ? initialData
       : initialData.filter((item) => item.instituteName === selectedLembaga))
@@ -167,9 +192,9 @@ export default function Dashboard(): React.JSX.Element {
     {
       title: "Total Rekognisi",
       value: `${totalRecognition} Rekognisi`,
-      description: isAdmin 
+      description: isRoleWithLembagaFilter 
         ? `Rekognisi aktif di ${selectedLembaga}` 
-        : `Rekognisi aktif di ${selectedFaculty}`,
+        : `Rekognisi aktif di ${userLembaga || selectedFaculty}`,
       icon: Award,
       color: "text-primary",
     },
@@ -198,19 +223,17 @@ export default function Dashboard(): React.JSX.Element {
             Dashboard Rekognisi Dosen
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            {isAdmin
+            {isRoleWithLembagaFilter
               ? `Pantau data statistik dan grafik rekognisi dosen di seluruh lembaga.`
-              : session?.role !== "Auditee"
-                ? "Pantau data statistik dan grafik rekognisi dosen di seluruh fakultas."
-                : `Statistik dan grafik rekognisi dosen untuk ${selectedFaculty}.`}
+              : `Statistik dan grafik rekognisi dosen untuk ${userLembaga || selectedFaculty}.`}
           </p>
         </div>
 
         {/* Dynamic Selector based on User Role */}
         {!isLoading && (
           <div className="w-full sm:w-70">
-            {isAdmin ? (
-              /* Admin sees real Institutes */
+            {isRoleWithLembagaFilter ? (
+              /* Admin, Auditor, and Assessor see real Institutes */
               <Select value={selectedLembaga} onValueChange={handleLembagaChange}>
                 <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
                   <SelectValue placeholder="Pilih Lembaga" />
@@ -231,7 +254,7 @@ export default function Dashboard(): React.JSX.Element {
                 </SelectContent>
               </Select>
             ) : (
-              /* Non-Admin (except locked Auditee) sees Faculty filter */
+              /* Regular Auditee sees Faculty filter */
               session?.role !== "Auditee" && (
                 <Select value={selectedFaculty} onValueChange={handleFacultyChange}>
                   <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">

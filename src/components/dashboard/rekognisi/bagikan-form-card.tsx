@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { MoreVertical, Calendar, Check, Copy, Settings2, Trash2, Loader2 } from "lucide-react";
@@ -44,7 +44,15 @@ export function BagikanFormCard({ link }: BagikanFormCardProps): React.JSX.Eleme
   const [editSubOpen, setEditSubOpen] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
 
-  const baseUrl = `http://localhost:3000/`;
+  const [baseUrl, setBaseUrl] = useState("http://localhost:3000/form/rekognisi/");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBaseUrl(`${window.location.origin}/form/rekognisi/`);
+    }
+  }, []);
+
   const fullUrl = `${baseUrl}${link.slug}`;
 
   // Fetch submissions for this link
