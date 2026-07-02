@@ -87,7 +87,6 @@ const mapTarget = (target: string): string => {
   }
 };
 
-
 const formatFriendlyFormula = (
   expression: string,
   variables: FormulaVariable[],
@@ -176,7 +175,7 @@ export default function MutuBanptClientPage({
     isFetching: isRulesFetching,
     refetch: refetchRules,
   } = useGetAssessmentRuleListQuery(
-    { indicator_id: selectedIndicatorId },
+    { indicator_id: selectedIndicatorId, limit: 999999999999 },
     { skip: !selectedIndicatorId },
   );
 
@@ -185,7 +184,11 @@ export default function MutuBanptClientPage({
     isFetching: isEvalsFetching,
     refetch: refetchEvals,
   } = useGetAssessmentEvaluationListQuery(
-    { accreditation_id: activeAkredId, user_id: currentUserId },
+    {
+      accreditation_id: activeAkredId,
+      user_id: currentUserId,
+      limit: 999999999999,
+    },
     { skip: !activeAkredId || !currentUserId },
   );
 
@@ -237,7 +240,6 @@ export default function MutuBanptClientPage({
     }
   }, []);
 
-
   const isQuerySkipped = !activeAkredId || !currentUserId;
   const isLoading =
     isQuerySkipped ||
@@ -286,7 +288,9 @@ export default function MutuBanptClientPage({
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedIndicatorId(indicatorsRes.data[0].id);
       } else {
-        const valid = indicatorsRes.data.some((ind) => ind.id === selectedIndicatorId);
+        const valid = indicatorsRes.data.some(
+          (ind) => ind.id === selectedIndicatorId,
+        );
         if (!valid) {
           setSelectedIndicatorId(indicatorsRes.data[0].id);
         }
@@ -378,7 +382,8 @@ export default function MutuBanptClientPage({
             expectationFormat:
               (rule.result_format as "decimal" | "percentage") || "decimal",
             score: evalItem ? Number(evalItem.calculated_result) : undefined,
-            selectedRadioIndex: selectedRadioIdx >= 0 ? selectedRadioIdx : undefined,
+            selectedRadioIndex:
+              selectedRadioIdx >= 0 ? selectedRadioIdx : undefined,
             radioVariables: radioVars,
             formula: rule.formula
               ? {
@@ -734,6 +739,8 @@ export default function MutuBanptClientPage({
   const handleSaveAspect = async (aspectId: string) => {
     await handleSaveEvaluation(aspectId);
   };
+
+  console.log(indicatorsState);
 
   return (
     <div className="space-y-6 animate-fadeIn">
