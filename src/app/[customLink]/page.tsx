@@ -580,7 +580,6 @@ export default function PublicFormPage({ params }: PublicFormPageProps) {
           setSelectedNip(nip);
         }}
         userRole="Guest"
-        defaultFaculty="Fakultas Sains dan Teknologi"
       />
 
       {/* Dialog Tambah Link */}
