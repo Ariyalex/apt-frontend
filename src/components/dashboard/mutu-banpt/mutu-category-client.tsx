@@ -182,7 +182,7 @@ export default function MutuCategoryClientPage({
   // Fetch evaluations for the selected indicator (used in the drawer)
   const { data: drawerEvalsRes, isFetching: isDrawerEvalsFetching } =
     useGetAssessmentEvaluationListQuery(
-      { accreditation_id: activeAkredId, indicator_id: selectedAspect?.id },
+      { accreditation_id: activeAkredId, rule_id: selectedAspect?.id },
       { skip: !selectedAspect },
     );
 
@@ -217,39 +217,37 @@ export default function MutuCategoryClientPage({
             indicatorIdSet.has(item.indicator_id),
         );
 
-        const mappedIndicators: IndicatorModel[] = stageItems.map(
-          (item) => {
-            const aspects: AssessmentAspect[] = [
-              {
-                id: item.indicator_id,
-                type: "formula",
-                description: item.assessment,
-                complianceDescription: item.fulfillment,
-                dataSource: "-",
-                proofUrl: undefined,
-                buktiRequired: false,
-                expectationResult: 0,
-                expectationFormat: "decimal",
-                score: Number(item.score || 0),
-                isSubmitted: true,
-              },
-            ];
+        const mappedIndicators: IndicatorModel[] = stageItems.map((item) => {
+          const aspects: AssessmentAspect[] = [
+            {
+              id: item.rule_id,
+              type: "formula",
+              description: item.assessment,
+              complianceDescription: item.fulfillment,
+              dataSource: "-",
+              proofUrl: undefined,
+              buktiRequired: false,
+              expectationResult: 0,
+              expectationFormat: "decimal",
+              score: Number(item.score || 0),
+              isSubmitted: true,
+            },
+          ];
 
-            return {
-              id: item.indicator_id,
-              accreditation: { id: activeAkredId, name: "" },
-              number: item.number,
-              name: item.name,
-              justification: "",
-              criteria: mapCriteria(category),
-              target: backendTarget,
-              updated_at: "",
-              created_at: "",
-              status: "selesai" as const,
-              aspects,
-            };
-          },
-        );
+          return {
+            id: item.indicator_id,
+            accreditation: { id: activeAkredId, name: "" },
+            number: item.number,
+            name: item.name,
+            justification: "",
+            criteria: mapCriteria(category),
+            target: backendTarget,
+            updated_at: "",
+            created_at: "",
+            status: "selesai" as const,
+            aspects,
+          };
+        });
 
         return {
           stage: stg,
@@ -326,7 +324,8 @@ export default function MutuCategoryClientPage({
           Evaluasi {catLabel}
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Rangkuman capaian indikator mutu masukan, proses, luaran, dan dampak.
+          Respons evaluasi capaian indikator mutu masukan, proses, luaran, dan
+          dampak.
         </p>
       </div>
 

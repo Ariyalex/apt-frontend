@@ -221,6 +221,7 @@ export interface AccreditationStats {
 export interface IndicatorStatItem {
   accreditation_id: string;
   indicator_id: string;
+  rule_id: string;
   number: string;
   name: string;
   criteria:
