@@ -37,60 +37,7 @@ interface DosenSearchDialogProps {
   defaultFaculty?: string;
 }
 
-const faculties = [
-  "Fakultas Sains dan Teknologi",
-  "Fakultas Ilmu Tarbiyah dan Keguruan",
-  "Fakultas Ekonomi dan Bisnis Islam",
-  "Fakultas Dakwah dan Komunikasi",
-  "Fakultas Adab dan Ilmu Budaya",
-  "Fakultas Syariah dan Hukum",
-];
 
-const prodis = [
-  "Teknik Informatika",
-  "Pendidikan Agama Islam",
-  "Perbankan Syariah",
-  "PGMI",
-  "MPI",
-  "Komunikasi Penyiaran Islam",
-  "Bahasa dan Sastra Arab",
-  "Hukum Ekonomi Syariah",
-  "Tadris Bahasa Inggris",
-  "Hukum Keluarga Islam",
-  "Matematika",
-  "Kimia",
-  "Fisika",
-  "Biologi",
-];
-
-const facultyProdiMap: Record<string, string[]> = {
-  "Fakultas Sains dan Teknologi": [
-    "Teknik Informatika",
-    "Matematika",
-    "Kimia",
-    "Fisika",
-    "Biologi",
-  ],
-  "Fakultas Ilmu Tarbiyah dan Keguruan": [
-    "Pendidikan Agama Islam",
-    "PGMI",
-    "MPI",
-    "Tadris Bahasa Inggris",
-  ],
-  "Fakultas Ekonomi dan Bisnis Islam": [
-    "Perbankan Syariah",
-  ],
-  "Fakultas Dakwah dan Komunikasi": [
-    "Komunikasi Penyiaran Islam",
-  ],
-  "Fakultas Adab dan Ilmu Budaya": [
-    "Bahasa dan Sastra Arab",
-  ],
-  "Fakultas Syariah dan Hukum": [
-    "Hukum Ekonomi Syariah",
-    "Hukum Keluarga Islam",
-  ],
-};
 
 interface CustomErrorObject {
   data?: {
@@ -118,7 +65,7 @@ export function DosenSearchDialog({
   onOpenChange,
   onSelect,
   userRole,
-  defaultFaculty = "Fakultas Sains dan Teknologi",
+  defaultFaculty = "",
 }: DosenSearchDialogProps): React.JSX.Element {
   const [searchNip, setSearchNip] = useState("");
   const [searchResults, setSearchResults] = useState<Dosen[]>([]);
@@ -143,11 +90,9 @@ export function DosenSearchDialog({
   const studyProgramList = React.useMemo(() => studyProgramsResponse?.data || [], [studyProgramsResponse]);
   const instituteList = React.useMemo(() => institutesResponse?.data || [], [institutesResponse]);
 
-  const realFaculties = React.useMemo(() => instituteList.length > 0 ? instituteList.map((inst) => inst.name) : faculties, [instituteList]);
+  const realFaculties = React.useMemo(() => instituteList.map((inst) => inst.name), [instituteList]);
 
-  const addProdiList = studyProgramList.length > 0
-    ? studyProgramList.filter((p) => !newFaculty || p.institute?.name === newFaculty)
-    : (newFaculty ? (facultyProdiMap[newFaculty] || prodis) : prodis).map((p) => ({ name: p }));
+  const addProdiList = studyProgramList.filter((p) => !newFaculty || p.institute?.name === newFaculty);
 
   // Reset dialog state when opened
   useEffect(() => {

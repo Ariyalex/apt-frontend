@@ -1,37 +1,47 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { AktivitasTable } from "@/components/dashboard/admin/aktivitas-table";
-import { AdminAktivitas, initialAdminAktivitas } from "@/dummy-data/admin";
+import { useCleanOlderLogsMutation } from "@/store/services/logApi";
+import { toast } from "sonner";
 
-export default function AktivitasUserPage() {
-  const [logs, setLogs] = useState<AdminAktivitas[]>([]);
+export default function AktivitasUserPage(): React.JSX.Element {
+  const [cleanOlderLogs] = useCleanOlderLogsMutation();
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
-  const loadLogs = () => {
-    const storedLogs = localStorage.getItem("adminAktivitas");
-    if (storedLogs) {
-      try {
-        setLogs(JSON.parse(storedLogs));
-      } catch {
-        setLogs(initialAdminAktivitas);
-      }
-    } else {
-      setLogs(initialAdminAktivitas);
-      localStorage.setItem("adminAktivitas", JSON.stringify(initialAdminAktivitas));
-    }
-  };
-
+  // Detect admin role and trigger clean log older than 100 days
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadLogs();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
+    const raw = localStorage.getItem("userSession");
+    if (raw) {
+      try {
+        const session = JSON.parse(raw);
+        if (session.username === "admin" || session.role === "Administrator") {
+          // Trigger pembersihan log otomatis 100 hari
+          cleanOlderLogs(100)
+            .unwrap()
+            .then((res) => {
+              if (res.success && res.message) {
+                toast.success(`Pembersihan Log: ${res.message}`);
+              }
+            })
+            .catch(() => {
+              // Silently ignore or show minimal warning
+            });
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [cleanOlderLogs]);
+
+  const handleRefresh = (): void => {
+    setRefreshTrigger((prev) => prev + 1);
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-border/40 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
             Aktivitas User
@@ -41,7 +51,8 @@ export default function AktivitasUserPage() {
           </p>
         </div>
         <button
-          onClick={loadLogs}
+          onClick={handleRefresh}
+          type="button"
           title="Segarkan Log"
           className="p-2 border border-border bg-card hover:bg-muted/50 rounded-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center"
         >
@@ -49,7 +60,7 @@ export default function AktivitasUserPage() {
         </button>
       </div>
 
-      <AktivitasTable logs={logs} />
+      <AktivitasTable refreshTrigger={refreshTrigger} />
     </div>
   );
 }

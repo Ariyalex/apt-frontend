@@ -1,6 +1,6 @@
 export interface FormulaVariable {
   name: string; // e.g. "NDS3"
-  label: string; // e.g. "Jumlah Dosen S3"
+  label?: string; // e.g. "Jumlah Dosen S3"
   type: "input" | "static";
   value: number;
 }
@@ -35,19 +35,10 @@ export interface AssessmentAspect {
   isSubmitted?: boolean; // Track submission status
 }
 
-export interface IndicatorTab {
-  id: number; // 1 - 4
-  title: string; // e.g. "Indikator 1"
-  status: "selesai" | "belum";
-  justifikasi: string;
-  indikatorDescription: string;
-  aspects: AssessmentAspect[];
-}
-
 export interface MutuBanptData {
   category: string;
   stage: string;
-  indicators: IndicatorTab[];
+  indicators: IndicatorModel[];
 }
 
 export interface Accreditation {
@@ -96,12 +87,14 @@ export interface IndicatorModel {
     | `quality_culture`
     | `education_relevance`
     | `research_relevance`
-    | `comunity_service_relevance`
+    | `community_service_relevance`
     | `accountability`
     | string;
   target: `input` | `process` | `output` | `impact` | string;
   updated_at: string;
   created_at: string;
+  status?: "selesai" | "belum";
+  aspects?: AssessmentAspect[];
 }
 
 export interface SaveIndicatorRequest {
@@ -113,7 +106,7 @@ export interface SaveIndicatorRequest {
     | `quality_culture`
     | `education_relevance`
     | `research_relevance`
-    | `comunity_service_relevance`
+    | `community_service_relevance`
     | `accountability`
     | string;
   target: `input` | `process` | `output` | `impact` | string;
@@ -228,13 +221,14 @@ export interface AccreditationStats {
 export interface IndicatorStatItem {
   accreditation_id: string;
   indicator_id: string;
+  rule_id: string;
   number: string;
   name: string;
   criteria:
     | "quality_culture"
     | "education_relevance"
     | "research_relevance"
-    | "comunity_service_relevance"
+    | "community_service_relevance"
     | "accountability"
     | "mission_differentiation";
   target: "input" | "process" | "output" | "impact";

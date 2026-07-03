@@ -11,6 +11,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useGetAccreditationListQuery } from "@/store/services/accreditationApi";
 
 export function DashboardBreadcrumb() {
@@ -68,8 +70,15 @@ export function DashboardBreadcrumb() {
   if (segments.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-between px-6 py-2.5 border-b border-border bg-card">
-      <Breadcrumb className="border-0 p-0 bg-transparent">
+    <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-card">
+      {/* Left: Sidebar trigger + separator + breadcrumb */}
+      <div className="flex items-center gap-2">
+        <SidebarTrigger className="-ml-1" />
+        <Separator
+          orientation="vertical"
+          className="mr-1 data-[orientation=vertical]:h-5"
+        />
+        <Breadcrumb className="border-0 p-0 bg-transparent">
         <BreadcrumbList>
           {segments.map((segment, index) => {
             const href = "/" + segments.slice(0, index + 1).join("/");
@@ -101,7 +110,8 @@ export function DashboardBreadcrumb() {
             );
           })}
         </BreadcrumbList>
-      </Breadcrumb>
+        </Breadcrumb>
+      </div>
 
       {/* Global Accreditation Selector (Mutu BANPT routes only) */}
       {isMutuBanpt && akredList.length > 0 && (

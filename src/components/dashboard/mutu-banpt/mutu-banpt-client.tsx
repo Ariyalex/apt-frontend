@@ -29,9 +29,9 @@ import {
   AttachmentAction,
 } from "@/components/ui/attachment";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { formatCategoryName, formatStageName } from "@/dummy-data/mutu-banpt";
+import { formatCategoryName, formatStageName } from "@/lib/utils";
 import {
-  IndicatorTab,
+  IndicatorModel,
   AssessmentAspect,
   FormulaVariable,
   RadioVariable,
@@ -48,7 +48,10 @@ import {
   useCreateAssessmentEvaluationMutation,
   useUpdateAssessmentEvaluationMutation,
 } from "@/store/services/assessmentEvaluationApi";
-import { useUploadFileMutation, useGetFileMutation } from "@/store/services/fileApi";
+import {
+  useUploadFileMutation,
+  useGetFileMutation,
+} from "@/store/services/fileApi";
 
 const mapCriteria = (criteria: string): string => {
   switch (criteria) {
@@ -59,7 +62,7 @@ const mapCriteria = (criteria: string): string => {
     case "relevansi-penelitian":
       return "research_relevance";
     case "relevansi-pkm":
-      return "comunity_service_relevance";
+      return "community_service_relevance";
     case "akuntabilitas":
       return "accountability";
     case "diferensiasi-misi":
@@ -84,6 +87,56 @@ const mapTarget = (target: string): string => {
   }
 };
 
+const formatFriendlyFormula = (
+  expression: string,
+  variables: FormulaVariable[],
+): string => {
+  if (!expression) return "";
+  let formatted = expression;
+
+  // 1. Convert "Input_Numerator_[suffix] / Denominator_Percentage" -> "[value]%"
+  const percentageNumerators = variables.filter(
+    (v) =>
+      v.name.startsWith("Input_Numerator_") &&
+      variables.some((d) => d.name === "Denominator_Percentage"),
+  );
+  percentageNumerators.forEach((num) => {
+    const targetExpr = `${num.name} / Denominator_Percentage`;
+    if (formatted.includes(targetExpr)) {
+      formatted = formatted.replaceAll(targetExpr, `${num.value}%`);
+    }
+  });
+
+  // 2. Convert "Input_Numerator_[suffix] / Input_Denomerator_[suffix]" -> "[num_val]/[denom_val]"
+  const fractionNumerators = variables.filter((v) =>
+    v.name.startsWith("Input_Numerator_"),
+  );
+  fractionNumerators.forEach((num) => {
+    const suffix = num.name.replace("Input_Numerator_", "");
+    const denomName = `Input_Denomerator_${suffix}`;
+    const denom = variables.find((v) => v.name === denomName);
+    if (denom) {
+      const targetExpr = `${num.name} / ${denomName}`;
+      if (formatted.includes(targetExpr)) {
+        formatted = formatted.replaceAll(
+          targetExpr,
+          `${num.value}/${denom.value}`,
+        );
+      }
+    }
+  });
+
+  // 3. Convert "Input_Constant_[suffix]" -> "[value]"
+  const constants = variables.filter((v) =>
+    v.name.startsWith("Input_Constant_"),
+  );
+  constants.forEach((c) => {
+    formatted = formatted.replaceAll(c.name, String(c.value));
+  });
+
+  return formatted;
+};
+
 interface MutuBanptClientProps {
   criteria: string;
   target: string;
@@ -99,6 +152,9 @@ export default function MutuBanptClientPage({
   // Active accreditation filter state
   const [activeAkredId, setActiveAkredId] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [indicatorsState, setIndicatorsState] = useState<IndicatorModel[]>([]);
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>("");
+  const [savingAspectId, setSavingAspectId] = useState<string | null>(null);
 
   // RTK Query API Hooks
   const {
@@ -118,14 +174,21 @@ export default function MutuBanptClientPage({
     data: rulesRes,
     isFetching: isRulesFetching,
     refetch: refetchRules,
-  } = useGetAssessmentRuleListQuery();
+  } = useGetAssessmentRuleListQuery(
+    { indicator_id: selectedIndicatorId, limit: 999999999999 },
+    { skip: !selectedIndicatorId },
+  );
 
   const {
     data: evalsRes,
     isFetching: isEvalsFetching,
     refetch: refetchEvals,
   } = useGetAssessmentEvaluationListQuery(
-    { accreditation_id: activeAkredId, user_id: currentUserId },
+    {
+      accreditation_id: activeAkredId,
+      user_id: currentUserId,
+      limit: 999999999999,
+    },
     { skip: !activeAkredId || !currentUserId },
   );
 
@@ -136,10 +199,12 @@ export default function MutuBanptClientPage({
 
   const handleViewProof = (proofUrl: string) => {
     if (!proofUrl) return;
-    const promise = getFile(proofUrl).unwrap().then((objectUrl) => {
-      window.open(objectUrl, "_blank");
-      return objectUrl;
-    });
+    const promise = getFile(proofUrl)
+      .unwrap()
+      .then((objectUrl) => {
+        window.open(objectUrl, "_blank");
+        return objectUrl;
+      });
 
     toast.promise(promise, {
       loading: "Mengunduh file bukti...",
@@ -164,10 +229,9 @@ export default function MutuBanptClientPage({
           // eslint-disable-next-line react-hooks/set-state-in-effect
           setIsAdmin(true);
         }
-         
+
         setUserRole(session.role || "");
         if (session.id) {
-           
           setCurrentUserId(session.id);
         }
       } catch {
@@ -176,26 +240,23 @@ export default function MutuBanptClientPage({
     }
   }, []);
 
-  const [indicatorsState, setIndicatorsState] = useState<IndicatorTab[]>([]);
-  const [selectedIndicatorId, setSelectedIndicatorId] = useState<number>(1);
-  const [savingAspectId, setSavingAspectId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const isQuerySkipped = !activeAkredId || !currentUserId;
+  const isLoading =
+    isQuerySkipped ||
+    isIndicatorsFetching ||
+    isRulesFetching ||
+    isEvalsFetching;
 
   // File upload state per aspect
-  const [uploadingAspectId, _setUploadingAspectId] = useState<string | null>(null);
+  const [uploadingAspectId] = useState<string | null>(null);
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
   const [localFiles, setLocalFiles] = useState<Record<string, File>>({});
 
   // Edit Mode states
   const [editModes, setEditModes] = useState<Record<string, boolean>>({});
-  const [backupAspects, setBackupAspects] = useState<Record<string, AssessmentAspect>>({});
-
-  // Sync loading state
-  useEffect(() => {
-    const isFetching = isIndicatorsFetching || isRulesFetching || isEvalsFetching;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsLoading(isFetching);
-  }, [isIndicatorsFetching, isRulesFetching, isEvalsFetching]);
+  const [backupAspects, setBackupAspects] = useState<
+    Record<string, AssessmentAspect>
+  >({});
 
   // Sync active accreditation from local storage
   useEffect(() => {
@@ -220,12 +281,29 @@ export default function MutuBanptClientPage({
       );
   }, []);
 
+  // Sync default selectedIndicatorId based on loaded indicatorsRes data
+  useEffect(() => {
+    if (indicatorsRes?.data && indicatorsRes.data.length > 0) {
+      if (!selectedIndicatorId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSelectedIndicatorId(indicatorsRes.data[0].id);
+      } else {
+        const valid = indicatorsRes.data.some(
+          (ind) => ind.id === selectedIndicatorId,
+        );
+        if (!valid) {
+          setSelectedIndicatorId(indicatorsRes.data[0].id);
+        }
+      }
+    }
+  }, [indicatorsRes, selectedIndicatorId]);
+
   // Map API response models to UI Component states (IndicatorTab / AssessmentAspect)
   useEffect(() => {
-    if (indicatorsRes?.data && rulesRes?.data && evalsRes?.data) {
+    if (indicatorsRes?.data) {
       const apiIndicators = indicatorsRes.data;
-      const apiRules = rulesRes.data;
-      const apiEvals = evalsRes.data;
+      const apiRules = rulesRes?.data || [];
+      const apiEvals = evalsRes?.data || [];
 
       // Group rules by indicator_id
       const rulesMap: Record<string, AssessmentRule[]> = {};
@@ -245,8 +323,8 @@ export default function MutuBanptClientPage({
         }
       });
 
-      // Map to IndicatorTab[]
-      const mapped: IndicatorTab[] = apiIndicators.map((ind, index) => {
+      // Map to IndicatorModel[]
+      const mapped: IndicatorModel[] = apiIndicators.map((ind) => {
         const indRules = rulesMap[ind.id] || [];
         const aspects: AssessmentAspect[] = indRules.map((rule) => {
           const evalItem = evalsMap[rule.id];
@@ -274,8 +352,8 @@ export default function MutuBanptClientPage({
               : [];
 
           // Determine selected radio index if evaluated
-          let selectedRadioIdx: number | undefined = undefined;
-          if (rule.type === "points" && evalItem) {
+          let selectedRadioIdx = -1;
+          if (rule.type === "points" && evalItem && evalItem.input_variables) {
             const filledVar = evalItem.input_variables.find(
               (v) => Number(v.val) > 0,
             );
@@ -304,7 +382,8 @@ export default function MutuBanptClientPage({
             expectationFormat:
               (rule.result_format as "decimal" | "percentage") || "decimal",
             score: evalItem ? Number(evalItem.calculated_result) : undefined,
-            selectedRadioIndex: selectedRadioIdx,
+            selectedRadioIndex:
+              selectedRadioIdx >= 0 ? selectedRadioIdx : undefined,
             radioVariables: radioVars,
             formula: rule.formula
               ? {
@@ -327,24 +406,17 @@ export default function MutuBanptClientPage({
           });
 
         return {
-          id: index + 1, // local selection index
-          title: ind.number,
+          ...ind,
+          id: ind.id,
           status: allCompleted ? ("selesai" as const) : ("belum" as const),
-          justifikasi: ind.justification,
-          indikatorDescription: ind.name,
           aspects,
         };
       });
 
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIndicatorsState(mapped);
-      if (mapped.length > 0) {
-        const valid = mapped.some((ind) => ind.id === selectedIndicatorId);
-         
-        setSelectedIndicatorId(valid ? selectedIndicatorId : mapped[0].id);
-      }
     }
-  }, [indicatorsRes, rulesRes, evalsRes, selectedIndicatorId, currentUserId]);
+  }, [indicatorsRes, rulesRes, evalsRes, currentUserId]);
 
   // Sync state event listener
   useEffect(() => {
@@ -360,7 +432,13 @@ export default function MutuBanptClientPage({
   }, [refetchIndicators, refetchRules, refetchEvals]);
 
   if (isAdmin) {
-    return <MutuBanptAdminPage criteria={criteria} target={target} />;
+    return (
+      <MutuBanptAdminPage
+        criteria={criteria}
+        target={target}
+        isLoading={isLoading}
+      />
+    );
   }
 
   if (userRole && userRole !== "Auditor" && userRole !== "Assessor") {
@@ -385,9 +463,8 @@ export default function MutuBanptClientPage({
 
         return {
           ...ind,
-          aspects: ind.aspects.map((asp) => {
-            if (asp.id !== aspectId || !asp.radioVariables)
-              return asp;
+          aspects: (ind.aspects || []).map((asp) => {
+            if (asp.id !== aspectId || !asp.radioVariables) return asp;
 
             const selectedChoice = asp.radioVariables[choiceIndex];
             const score = selectedChoice.value;
@@ -428,7 +505,7 @@ export default function MutuBanptClientPage({
     setIndicatorsState((prev) =>
       prev.map((ind) => ({
         ...ind,
-        aspects: ind.aspects.map((asp) => {
+        aspects: (ind.aspects || []).map((asp) => {
           if (asp.id !== aspectId || !asp.formula) return asp;
           return {
             ...asp,
@@ -492,7 +569,7 @@ export default function MutuBanptClientPage({
       setIndicatorsState((prev) =>
         prev.map((ind) => ({
           ...ind,
-          aspects: ind.aspects.map((asp) =>
+          aspects: (ind.aspects || []).map((asp) =>
             asp.id === aspectId ? { ...asp, proofFileName: file.name } : asp,
           ),
         })),
@@ -510,7 +587,7 @@ export default function MutuBanptClientPage({
       setIndicatorsState((prev) =>
         prev.map((ind) => ({
           ...ind,
-          aspects: ind.aspects.map((asp) =>
+          aspects: (ind.aspects || []).map((asp) =>
             asp.id === aspectId ? { ...asp, proofFileName: file.name } : asp,
           ),
         })),
@@ -527,7 +604,7 @@ export default function MutuBanptClientPage({
     setIndicatorsState((prev) =>
       prev.map((ind) => ({
         ...ind,
-        aspects: ind.aspects.map((asp) =>
+        aspects: (ind.aspects || []).map((asp) =>
           asp.id === aspectId
             ? { ...asp, proofUrl: undefined, proofFileName: undefined }
             : asp,
@@ -539,7 +616,7 @@ export default function MutuBanptClientPage({
   const handleSaveEvaluation = async (aspectId: string) => {
     setSavingAspectId(aspectId);
     try {
-      const aspect = activeIndicator?.aspects.find(
+      const aspect = (activeIndicator?.aspects || []).find(
         (asp) => asp.id === aspectId,
       );
       if (!aspect) return;
@@ -646,7 +723,9 @@ export default function MutuBanptClientPage({
       setIndicatorsState((prev) =>
         prev.map((ind) => ({
           ...ind,
-          aspects: ind.aspects.map((a) => (a.id === aspectId ? backup : a)),
+          aspects: (ind.aspects || []).map((a) =>
+            a.id === aspectId ? backup : a,
+          ),
         })),
       );
     }
@@ -660,6 +739,8 @@ export default function MutuBanptClientPage({
   const handleSaveAspect = async (aspectId: string) => {
     await handleSaveEvaluation(aspectId);
   };
+
+  console.log(indicatorsState);
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -710,7 +791,11 @@ export default function MutuBanptClientPage({
                         : "bg-card text-foreground border-border hover:bg-muted/40"
                     }`}
                   >
-                    <span>{ind.title}</span>
+                    <span>
+                      {ind.number.toLowerCase().includes("indikator")
+                        ? ind.number
+                        : `Indikator ${ind.number}`}
+                    </span>
                     {ind.status === "selesai" && (
                       <CheckCircle2
                         className={`h-4 w-4 ${
@@ -726,9 +811,7 @@ export default function MutuBanptClientPage({
                   <p className="font-bold text-primary mb-1 uppercase tracking-wider text-[10px]">
                     Deskripsi Indikator:
                   </p>
-                  <p className="text-muted-foreground">
-                    {ind.indikatorDescription}
-                  </p>
+                  <p className="text-muted-foreground">{ind.name}</p>
                 </HoverCardContent>
               </HoverCard>
             ))}
@@ -742,7 +825,7 @@ export default function MutuBanptClientPage({
                   Justifikasi :
                 </span>
                 <p className="text-foreground font-semibold mt-0.5 whitespace-pre-line">
-                  {activeIndicator.justifikasi}
+                  {activeIndicator.justification}
                 </p>
               </div>
               <div>
@@ -750,7 +833,7 @@ export default function MutuBanptClientPage({
                   Indikator :
                 </span>
                 <p className="text-muted-foreground mt-0.5 whitespace-pre-line">
-                  {activeIndicator.indikatorDescription}
+                  {activeIndicator.name}
                 </p>
               </div>
             </div>
@@ -766,13 +849,13 @@ export default function MutuBanptClientPage({
                 </h2>
               </div>
 
-              {activeIndicator.aspects.length === 0 ? (
+              {(activeIndicator.aspects || []).length === 0 ? (
                 <div className="text-center p-8 border border-dashed border-border rounded-xl text-muted-foreground text-xs">
                   Belum ada kriteria penilaian aspek untuk indikator ini.
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {activeIndicator.aspects.map((asp) => {
+                  {(activeIndicator.aspects || []).map((asp) => {
                     // Compute formula calculation values
                     let formulaVal = 0;
                     let isFulfilled = false;
@@ -852,11 +935,23 @@ export default function MutuBanptClientPage({
                                   Pilih Penilaian Skor
                                 </span>
                                 <div className="flex flex-col gap-2.5">
-                                  {asp.radioVariables && asp.radioVariables.length > 0 ? (
+                                  {asp.radioVariables &&
+                                  asp.radioVariables.length > 0 ? (
                                     <RadioGroup
-                                      value={asp.selectedRadioIndex !== undefined ? String(asp.selectedRadioIndex) : undefined}
-                                      onValueChange={(val) => handleRadioChoiceSelect(asp.id, Number(val))}
-                                      disabled={isReadOnly || savingAspectId === asp.id}
+                                      value={
+                                        asp.selectedRadioIndex !== undefined
+                                          ? String(asp.selectedRadioIndex)
+                                          : undefined
+                                      }
+                                      onValueChange={(val) =>
+                                        handleRadioChoiceSelect(
+                                          asp.id,
+                                          Number(val),
+                                        )
+                                      }
+                                      disabled={
+                                        isReadOnly || savingAspectId === asp.id
+                                      }
                                       className="flex flex-col gap-2.5"
                                     >
                                       {asp.radioVariables.map((v, idx) => (
@@ -877,7 +972,8 @@ export default function MutuBanptClientPage({
                                             htmlFor={`choice-${asp.id}-${idx}`}
                                             className="flex-1 cursor-pointer select-none text-foreground py-0.5 leading-none"
                                           >
-                                            {v.name.replace(/_/g, " ")} ({v.value})
+                                            {v.name.replace(/_/g, " ")} (
+                                            {v.value})
                                           </label>
                                         </div>
                                       ))}
@@ -1092,13 +1188,16 @@ export default function MutuBanptClientPage({
                             <div className="flex flex-col lg:flex-row gap-5 items-stretch w-full">
                               {/* Formula Preview & Inputs */}
                               <div className="space-y-3 flex-1 min-w-0">
-                                <div className="p-2.5 bg-muted/40 border border-border rounded-lg text-xs">
-                                  <span className="font-bold text-[10px] text-primary uppercase block mb-1">
+                                <div className="space-y-1">
+                                  <span className="font-bold text-[10px] text-primary uppercase block">
                                     Rumus Evaluasi
                                   </span>
-                                  <code className="font-mono text-foreground font-semibold">
-                                    {asp.formula?.expression}
-                                  </code>
+                                  <div className="bg-card border border-border p-2.5 rounded-lg font-mono text-foreground font-semibold text-xs select-none">
+                                    {formatFriendlyFormula(
+                                      asp.formula?.expression || "",
+                                      asp.formula?.variables || [],
+                                    ) || "Rumus Kosong"}
+                                  </div>
                                 </div>
 
                                 <div className="space-y-2 w-full">
@@ -1106,35 +1205,38 @@ export default function MutuBanptClientPage({
                                     Input Variabel
                                   </span>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full">
-                                    {asp.formula?.variables.map((v) => (
-                                      <div
-                                        key={v.name}
-                                        className="flex items-center justify-between gap-3 text-xs bg-card border border-border p-2 rounded-lg"
-                                      >
-                                        <span
-                                          className="font-semibold text-muted-foreground pr-2"
-                                          title={v.label}
+                                    {asp.formula?.variables
+                                      .filter((v) => v.type === "input")
+                                      .map((v) => (
+                                        <div
+                                          key={v.name}
+                                          className="flex items-center justify-between gap-3 text-xs bg-card border border-border p-2 rounded-lg"
                                         >
-                                          {v.label} ({v.name}):
-                                        </span>
-                                        <Input
-                                          type="number"
-                                          value={v.value}
-                                          disabled={
-                                            isReadOnly ||
-                                            savingAspectId === asp.id
-                                          }
-                                          onChange={(e) =>
-                                            handleVariableChange(
-                                              asp.id,
-                                              v.name,
-                                              parseFloat(e.target.value) || 0,
-                                            )
-                                          }
-                                          className="w-24 bg-card border border-border rounded px-2.5 py-1 text-xs focus:outline-none focus:border-primary text-foreground text-right shrink-0 disabled:opacity-75 disabled:cursor-not-allowed"
-                                        />
-                                      </div>
-                                    ))}
+                                          <span
+                                            className="font-semibold text-muted-foreground pr-2"
+                                            title={v.name}
+                                          >
+                                            {v.name}:
+                                          </span>
+                                          <Input
+                                            type="number"
+                                            value={v.value === 0 ? "" : v.value}
+                                            placeholder="0"
+                                            disabled={
+                                              isReadOnly ||
+                                              savingAspectId === asp.id
+                                            }
+                                            onChange={(e) =>
+                                              handleVariableChange(
+                                                asp.id,
+                                                v.name,
+                                                parseFloat(e.target.value) || 0,
+                                              )
+                                            }
+                                            className="w-24 bg-card border border-border rounded px-2.5 py-1 text-xs focus:outline-none focus:border-primary text-foreground text-right shrink-0 disabled:opacity-75 disabled:cursor-not-allowed"
+                                          />
+                                        </div>
+                                      ))}
                                   </div>
                                 </div>
                               </div>

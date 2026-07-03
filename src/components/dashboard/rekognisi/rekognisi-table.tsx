@@ -4,7 +4,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, ChevronLeft, ChevronRight, Chev
 import { DosenData } from "@/types/rekognisi";
 import { Button } from "@/components/ui/button";
 import { SubmissionEditDialog } from "./submission-edit-dialog";
-import { Submission } from "@/dummy-data/bagikan-form";
+import { Submission } from "@/types/bagikan-form";
 import { useUpdateRecognitionMutation } from "@/store/services/recognitionApi";
 import { useGetRecognitionCategoriesQuery } from "@/store/services/recognitionCategoryApi";
 import { toast } from "sonner";
@@ -207,6 +207,7 @@ export function RekognisiTable({
     [sortField, sortDirection, showActions]
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: sortedData,
     columns,

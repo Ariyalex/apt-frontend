@@ -24,7 +24,13 @@ import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 interface BagikanFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (name: string, slug: string, description: string, startedAt: string, endedAt: string) => void;
+  onSave: (
+    name: string,
+    slug: string,
+    description: string,
+    startedAt: string,
+    endedAt: string,
+  ) => void;
   isSaving?: boolean;
 }
 
@@ -55,11 +61,11 @@ export function BagikanFormDialog({
         setName("");
         setSlug("");
         setDescription("");
-        
+
         const now = new Date();
         setStartDate(now);
         setStartTime("08:00");
-        
+
         const future = new Date();
         future.setDate(future.getDate() + 7);
         setEndDate(future);
@@ -69,7 +75,14 @@ export function BagikanFormDialog({
     }
   }, [open]);
 
-  const baseUrl = `http://localhost:3000/`;
+  const [baseUrl, setBaseUrl] = useState("http://localhost:3000/");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBaseUrl(`${window.location.origin}/`);
+    }
+  }, []);
 
   const handleSave = () => {
     if (!name.trim() || !slug.trim() || !startDate || !endDate) return;
@@ -95,7 +108,7 @@ export function BagikanFormDialog({
       slug.trim(),
       description.trim(),
       combinedStart.toISOString(),
-      combinedEnd.toISOString()
+      combinedEnd.toISOString(),
     );
   };
 
@@ -121,8 +134,12 @@ export function BagikanFormDialog({
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                // Auto-slugify
-                setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
+                // Auto-slugify (allowing capitalization)
+                setSlug(
+                  e.target.value
+                    .replace(/[^a-zA-Z0-9]+/g, "-")
+                    .replace(/(^-|-$)/g, ""),
+                );
               }}
               className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground"
             />
@@ -138,7 +155,7 @@ export function BagikanFormDialog({
               disabled={isSaving}
               placeholder="beasiswa-unggulan-2026"
               value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
+              onChange={(e) => setSlug(e.target.value.replace(/\s+/g, "-"))}
               className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono"
             />
           </Field>
@@ -180,18 +197,30 @@ export function BagikanFormDialog({
               <FieldLabel>
                 <FieldTitle>Tanggal Mulai</FieldTitle>
               </FieldLabel>
-              <Popover open={startPopoverOpen} onOpenChange={setStartPopoverOpen}>
+              <Popover
+                open={startPopoverOpen}
+                onOpenChange={setStartPopoverOpen}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     disabled={isSaving}
                     className="w-full justify-between text-xs font-semibold hover:bg-muted/80 cursor-pointer h-10 border border-border rounded-lg px-3 disabled:opacity-50"
                   >
-                    {startDate ? format(startDate, "PPP", { locale: id }) : <span className="text-muted-foreground">Pilih Tanggal</span>}
+                    {startDate ? (
+                      format(startDate, "PPP", { locale: id })
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Pilih Tanggal
+                      </span>
+                    )}
                     <CalendarIcon className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 border border-border bg-card shadow-md rounded-lg" align="start">
+                <PopoverContent
+                  className="w-auto p-0 border border-border bg-card shadow-md rounded-lg"
+                  align="start"
+                >
                   <Calendar
                     mode="single"
                     selected={startDate}
@@ -232,11 +261,20 @@ export function BagikanFormDialog({
                     disabled={isSaving}
                     className="w-full justify-between text-xs font-semibold hover:bg-muted/80 cursor-pointer h-10 border border-border rounded-lg px-3 disabled:opacity-50"
                   >
-                    {endDate ? format(endDate, "PPP", { locale: id }) : <span className="text-muted-foreground">Pilih Tanggal</span>}
+                    {endDate ? (
+                      format(endDate, "PPP", { locale: id })
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Pilih Tanggal
+                      </span>
+                    )}
                     <CalendarIcon className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 border border-border bg-card shadow-md rounded-lg" align="start">
+                <PopoverContent
+                  className="w-auto p-0 border border-border bg-card shadow-md rounded-lg"
+                  align="start"
+                >
                   <Calendar
                     mode="single"
                     selected={endDate}
@@ -276,7 +314,9 @@ export function BagikanFormDialog({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isSaving || !name.trim() || !slug.trim() || !startDate || !endDate}
+            disabled={
+              isSaving || !name.trim() || !slug.trim() || !startDate || !endDate
+            }
             className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer disabled:opacity-50"
           >
             {isSaving ? "Membuat..." : "Simpan & Buat"}

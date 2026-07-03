@@ -228,3 +228,15 @@
 .react-datepicker-wrapper {
   width: 100% !important;
 }
+
+/*
+ * Sidebar layout corrections.
+ * The shadcn sidebar spacer div uses h-svh (100dvh) which causes
+ * overflow when the sidebar is contained inside the below-header div
+ * (via the transform trick in layout.tsx). Override to h-full so the
+ * spacer matches the actual container height.
+ */
+.group.peer.hidden.md\:block > div:first-child {
+  height: 100% !important;
+}
+

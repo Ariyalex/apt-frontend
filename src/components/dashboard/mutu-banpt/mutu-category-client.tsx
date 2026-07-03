@@ -28,11 +28,8 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { formatCategoryName, formatStageName } from "@/dummy-data/mutu-banpt";
-import type {
-  IndicatorTab,
-  AssessmentAspect,
-} from "@/types/mutu-banpt";
+import { formatCategoryName, formatStageName } from "@/lib/utils";
+import type { IndicatorModel, AssessmentAspect } from "@/types/mutu-banpt";
 import { useGetAssessmentEvaluationListQuery } from "@/store/services/assessmentEvaluationApi";
 import { useGetAccreditationIndicatorStatsQuery } from "@/store/services/accreditationApi";
 import { useGetIndicatorListQuery } from "@/store/services/indicatorApi";
@@ -48,7 +45,7 @@ const mapCriteria = (criteria: string): string => {
     case "relevansi-penelitian":
       return "research_relevance";
     case "relevansi-pkm":
-      return "comunity_service_relevance";
+      return "community_service_relevance";
     case "akuntabilitas":
       return "accountability";
     case "diferensiasi-misi":
@@ -64,7 +61,7 @@ interface MutuCategoryClientProps {
 
 interface StageData {
   stage: string;
-  indicators: IndicatorTab[];
+  indicators: IndicatorModel[];
 }
 
 export default function MutuCategoryClientPage({
@@ -95,10 +92,12 @@ export default function MutuCategoryClientPage({
 
   const handleViewProof = (proofUrl: string) => {
     if (!proofUrl) return;
-    const promise = getFile(proofUrl).unwrap().then((objectUrl) => {
-      window.open(objectUrl, "_blank");
-      return objectUrl;
-    });
+    const promise = getFile(proofUrl)
+      .unwrap()
+      .then((objectUrl) => {
+        window.open(objectUrl, "_blank");
+        return objectUrl;
+      });
 
     toast.promise(promise, {
       loading: "Mengunduh file bukti...",
@@ -155,41 +154,42 @@ export default function MutuCategoryClientPage({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setStageDataList([]);
     // Reset selected stage label for consistency
-     
+
     setSelectedStageLabel("");
   }, [activeAkredId]);
 
   // RTK Query API Hooks
-  const {
-    data: statsRes,
-    isFetching: isStatsFetching,
-  } = useGetAccreditationIndicatorStatsQuery(activeAkredId, {
-    skip: !activeAkredId,
-  });
+  const { data: statsRes, isFetching: isStatsFetching } =
+    useGetAccreditationIndicatorStatsQuery(activeAkredId, {
+      skip: !activeAkredId,
+    });
 
   // Search indicators by criteria for the current category
-  const {
-    data: indicatorsRes,
-    isFetching: isIndicatorsFetching,
-  } = useGetIndicatorListQuery({
-    accreditation_id: activeAkredId,
-    criteria: mapCriteria(category),
-    target: "input",
-  }, {
-    skip: !activeAkredId,
-  });
+  const { data: indicatorsRes, isFetching: isIndicatorsFetching } =
+    useGetIndicatorListQuery(
+      {
+        accreditation_id: activeAkredId,
+        criteria: mapCriteria(category),
+        target: "input",
+      },
+      {
+        skip: !activeAkredId,
+      },
+    );
 
   // (Removed unused all evaluations query)
 
   // Fetch evaluations for the selected indicator (used in the drawer)
-  const { data: drawerEvalsRes, isFetching: isDrawerEvalsFetching } = useGetAssessmentEvaluationListQuery(
-    { accreditation_id: activeAkredId, indicator_id: selectedAspect?.id },
-    { skip: !selectedAspect },
-  );
+  const { data: drawerEvalsRes, isFetching: isDrawerEvalsFetching } =
+    useGetAssessmentEvaluationListQuery(
+      { accreditation_id: activeAkredId, rule_id: selectedAspect?.id },
+      { skip: !selectedAspect },
+    );
 
   // Sync loading state
   useEffect(() => {
-    const isFetching = isStatsFetching || isDrawerEvalsFetching || isIndicatorsFetching;
+    const isFetching =
+      isStatsFetching || isDrawerEvalsFetching || isIndicatorsFetching;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(isFetching);
   }, [isStatsFetching, isDrawerEvalsFetching, isIndicatorsFetching]);
@@ -214,13 +214,13 @@ export default function MutuCategoryClientPage({
           (item) =>
             item.criteria === mapCriteria(category) &&
             item.target === backendTarget &&
-            indicatorIdSet.has(item.indicator_id)
+            indicatorIdSet.has(item.indicator_id),
         );
 
-        const mappedIndicators: IndicatorTab[] = stageItems.map((item, index) => {
+        const mappedIndicators: IndicatorModel[] = stageItems.map((item) => {
           const aspects: AssessmentAspect[] = [
             {
-              id: item.indicator_id,
+              id: item.rule_id,
               type: "formula",
               description: item.assessment,
               complianceDescription: item.fulfillment,
@@ -235,11 +235,16 @@ export default function MutuCategoryClientPage({
           ];
 
           return {
-            id: index + 1,
-            title: `Indikator ${item.number}`,
+            id: item.indicator_id,
+            accreditation: { id: activeAkredId, name: "" },
+            number: item.number,
+            name: item.name,
+            justification: "",
+            criteria: mapCriteria(category),
+            target: backendTarget,
+            updated_at: "",
+            created_at: "",
             status: "selesai" as const,
-            justifikasi: "",
-            indikatorDescription: item.name,
             aspects,
           };
         });
@@ -253,7 +258,7 @@ export default function MutuCategoryClientPage({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setStageDataList(mappedList);
     }
-  }, [statsRes, indicatorsRes, category]);
+  }, [statsRes, indicatorsRes, category, activeAkredId]);
 
   // Role permissions
   const isAssessor = userRole === "Assessor";
@@ -292,7 +297,8 @@ export default function MutuCategoryClientPage({
     expectationScore: Number(ev.calculation_rule.expectation_result || 0),
     score: Number(ev.calculated_result),
     status:
-      Number(ev.calculated_result) >= Number(ev.calculation_rule.expectation_result || 0)
+      Number(ev.calculated_result) >=
+      Number(ev.calculation_rule.expectation_result || 0)
         ? ("Memenuhi" as const)
         : ("Tidak Memenuhi" as const),
     createdAt: ev.created_at || new Date().toISOString(),
@@ -318,7 +324,8 @@ export default function MutuCategoryClientPage({
           Evaluasi {catLabel}
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Rangkuman capaian indikator mutu masukan, proses, luaran, dan dampak.
+          Respons evaluasi capaian indikator mutu masukan, proses, luaran, dan
+          dampak.
         </p>
       </div>
 
@@ -375,9 +382,11 @@ export default function MutuCategoryClientPage({
           {stageDataList.map((stageData) => {
             const stageTitle = `${formatStageName(stageData.stage)} ${catLabel}`;
             const allAspects = stageData.indicators.flatMap((ind) =>
-              ind.aspects.map((asp) => ({
+              (ind.aspects || []).map((asp) => ({
                 ...asp,
-                indicatorTitle: ind.title,
+                indicatorTitle: ind.number.toLowerCase().includes("indikator")
+                  ? ind.number
+                  : `Indikator ${ind.number}`,
               })),
             );
 
@@ -481,14 +490,30 @@ export default function MutuCategoryClientPage({
               <Table>
                 <TableHeader className="bg-muted/10">
                   <TableRow>
-                    <TableHead className="font-bold text-foreground">Nama</TableHead>
-                    <TableHead className="font-bold text-foreground">Institusi / Prodi</TableHead>
-                    <TableHead className="font-bold text-foreground">Bukti</TableHead>
-                    <TableHead className="w-32 text-center font-bold text-foreground">Expectation</TableHead>
-                    <TableHead className="w-20 text-center font-bold text-foreground">Skor</TableHead>
-                    <TableHead className="w-24 text-center font-bold text-foreground">Status</TableHead>
-                    <TableHead className="w-32 text-center font-bold text-foreground">Dibuat</TableHead>
-                    <TableHead className="w-32 text-center font-bold text-foreground">Diperbarui</TableHead>
+                    <TableHead className="font-bold text-foreground">
+                      Nama
+                    </TableHead>
+                    <TableHead className="font-bold text-foreground">
+                      Institusi / Prodi
+                    </TableHead>
+                    <TableHead className="font-bold text-foreground">
+                      Bukti
+                    </TableHead>
+                    <TableHead className="w-32 text-center font-bold text-foreground">
+                      Expectation
+                    </TableHead>
+                    <TableHead className="w-20 text-center font-bold text-foreground">
+                      Skor
+                    </TableHead>
+                    <TableHead className="w-24 text-center font-bold text-foreground">
+                      Status
+                    </TableHead>
+                    <TableHead className="w-32 text-center font-bold text-foreground">
+                      Dibuat
+                    </TableHead>
+                    <TableHead className="w-32 text-center font-bold text-foreground">
+                      Diperbarui
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -511,7 +536,9 @@ export default function MutuCategoryClientPage({
                       >
                         <div className="flex flex-col items-center gap-2">
                           <Loader2 className="h-6 w-6 text-muted-foreground/40" />
-                          <span>Belum ada data evaluasi untuk indikator ini.</span>
+                          <span>
+                            Belum ada data evaluasi untuk indikator ini.
+                          </span>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -523,7 +550,9 @@ export default function MutuCategoryClientPage({
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">
                           <div>{sub.institute}</div>
-                          <div className="text-primary/80 font-medium">{sub.studyProgram}</div>
+                          <div className="text-primary/80 font-medium">
+                            {sub.studyProgram}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {sub.bukti ? (
@@ -538,7 +567,9 @@ export default function MutuCategoryClientPage({
                               <ExternalLink className="h-3 w-3" />
                             </button>
                           ) : (
-                            <span className="text-muted-foreground italic">Tidak Ada</span>
+                            <span className="text-muted-foreground italic">
+                              Tidak Ada
+                            </span>
                           )}
                         </TableCell>
                         <TableCell className="text-center font-semibold text-muted-foreground">

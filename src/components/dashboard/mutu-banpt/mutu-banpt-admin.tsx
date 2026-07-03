@@ -37,8 +37,9 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  IndicatorTab,
+  IndicatorModel,
   AssessmentAspect,
   FormulaVariable,
   RadioVariable,
@@ -60,11 +61,71 @@ import {
   useUpdateAssessmentRuleMutation,
   useDeleteAssessmentRuleMutation,
 } from "@/store/services/assessmentRuleApi";
-import { formatCategoryName, formatStageName } from "@/dummy-data/mutu-banpt";
+import { formatCategoryName, formatStageName } from "@/lib/utils";
 
-interface AdminIndicatorTab extends IndicatorTab {
+interface AdminIndicatorTab extends IndicatorModel {
   apiId?: string;
 }
+
+const isInternalConstant = (name: string): boolean => {
+  const lower = name.toLowerCase();
+  return (
+    lower.includes("numerator") ||
+    lower.includes("denominator") ||
+    lower.includes("denomerator") ||
+    lower.includes("constant")
+  );
+};
+
+const formatFriendlyFormula = (
+  expression: string,
+  variables: FormulaVariable[],
+): string => {
+  if (!expression) return "";
+  let formatted = expression;
+
+  // 1. Convert "Input_Numerator_[suffix] / Denominator_Percentage" -> "[value]%"
+  const percentageNumerators = variables.filter(
+    (v) =>
+      v.name.startsWith("Input_Numerator_") &&
+      variables.some((d) => d.name === "Denominator_Percentage"),
+  );
+  percentageNumerators.forEach((num) => {
+    const targetExpr = `${num.name} / Denominator_Percentage`;
+    if (formatted.includes(targetExpr)) {
+      formatted = formatted.replaceAll(targetExpr, `${num.value}%`);
+    }
+  });
+
+  // 2. Convert "Input_Numerator_[suffix] / Input_Denomerator_[suffix]" -> "[num_val]/[denom_val]"
+  const fractionNumerators = variables.filter((v) =>
+    v.name.startsWith("Input_Numerator_"),
+  );
+  fractionNumerators.forEach((num) => {
+    const suffix = num.name.replace("Input_Numerator_", "");
+    const denomName = `Input_Denomerator_${suffix}`;
+    const denom = variables.find((v) => v.name === denomName);
+    if (denom) {
+      const targetExpr = `${num.name} / ${denomName}`;
+      if (formatted.includes(targetExpr)) {
+        formatted = formatted.replaceAll(
+          targetExpr,
+          `${num.value}/${denom.value}`,
+        );
+      }
+    }
+  });
+
+  // 3. Convert "Input_Constant_[suffix]" -> "[value]"
+  const constants = variables.filter((v) =>
+    v.name.startsWith("Input_Constant_"),
+  );
+  constants.forEach((c) => {
+    formatted = formatted.replaceAll(c.name, String(c.value));
+  });
+
+  return formatted;
+};
 
 const mapCriteria = (criteria: string): string => {
   switch (criteria) {
@@ -75,7 +136,7 @@ const mapCriteria = (criteria: string): string => {
     case "relevansi-penelitian":
       return "research_relevance";
     case "relevansi-pkm":
-      return "comunity_service_relevance";
+      return "community_service_relevance";
     case "akuntabilitas":
       return "accountability";
     case "diferensiasi-misi":
@@ -103,18 +164,20 @@ const mapTarget = (target: string): string => {
 interface MutuBanptAdminProps {
   criteria: string;
   target: string;
+  isLoading?: boolean;
 }
 
 export default function MutuBanptAdminPage({
   criteria: category,
   target: stage,
+  isLoading,
 }: MutuBanptAdminProps): React.JSX.Element {
   const catLabel = formatCategoryName(category);
   const stageLabel = formatStageName(stage);
 
   const [activeAkredId, setActiveAkredId] = useState<string>("");
   const [indicators, setIndicators] = useState<AdminIndicatorTab[]>([]);
-  const [selectedId, setSelectedId] = useState<number>(1);
+  const [selectedId, setSelectedId] = useState<string>("");
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Dialogs open state
@@ -150,7 +213,6 @@ export default function MutuBanptAdminPage({
     [],
   );
   const [newVarName, setNewVarName] = useState<string>("");
-  const [newVarLabel, setNewVarLabel] = useState<string>("");
   const [newVarType, setNewVarType] = useState<"input" | "static">("input");
   const [newVarValue, setNewVarValue] = useState<string>("0");
 
@@ -179,16 +241,16 @@ export default function MutuBanptAdminPage({
       const initial: LocalConstant[] = [
         {
           label: "100%",
-          expression: "Input-Numerator-100Percent / Denominator-Percentage",
+          expression: "Input_Numerator_100Percent / Denominator_Percentage",
           variables: [
             {
-              name: "Input-Numerator-100Percent",
+              name: "Input_Numerator_100Percent",
               label: "Konstanta Persen 100%",
               type: "static",
               value: 100,
             },
             {
-              name: "Denominator-Percentage",
+              name: "Denominator_Percentage",
               label: "Denominator Persen (Default 100)",
               type: "static",
               value: 100,
@@ -216,7 +278,10 @@ export default function MutuBanptAdminPage({
     );
 
   const { data: rulesRes, refetch: refetchRules } =
-    useGetAssessmentRuleListQuery();
+    useGetAssessmentRuleListQuery(
+      { indicator_id: selectedId },
+      { skip: !selectedId },
+    );
 
   const [createIndicator] = useCreateIndicatorMutation();
   const [updateIndicator] = useUpdateIndicatorMutation();
@@ -249,11 +314,26 @@ export default function MutuBanptAdminPage({
       );
   }, []);
 
+  // Sync default selectedId based on loaded indicatorsRes data
+  useEffect(() => {
+    if (indicatorsRes?.data && indicatorsRes.data.length > 0) {
+      if (!selectedId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSelectedId(indicatorsRes.data[0].id);
+      } else {
+        const valid = indicatorsRes.data.some((ind) => ind.id === selectedId);
+        if (!valid) {
+          setSelectedId(indicatorsRes.data[0].id);
+        }
+      }
+    }
+  }, [indicatorsRes, selectedId]);
+
   // Map API responses to state
   useEffect(() => {
-    if (indicatorsRes?.data && rulesRes?.data) {
+    if (indicatorsRes?.data) {
       const apiIndicators = indicatorsRes.data;
-      const apiRules = rulesRes.data;
+      const apiRules = rulesRes?.data || [];
 
       // Group rules by indicator_id
       const rulesMap: Record<string, AssessmentRule[]> = {};
@@ -266,7 +346,7 @@ export default function MutuBanptAdminPage({
       });
 
       // Map to IndicatorTab[]
-      const mapped: AdminIndicatorTab[] = apiIndicators.map((ind, index) => {
+      const mapped: AdminIndicatorTab[] = apiIndicators.map((ind) => {
         const indRules = rulesMap[ind.id] || [];
         const aspects: AssessmentAspect[] = indRules.map((rule) => {
           const formulaVars: FormulaVariable[] = rule.input_rules.map((v) => ({
@@ -308,25 +388,18 @@ export default function MutuBanptAdminPage({
         });
 
         return {
-          id: index + 1, // local id index
+          ...ind,
+          id: ind.id,
           apiId: ind.id, // KEEP the actual indicator uuid
-          title: ind.number,
           status: "belum" as const,
-          justifikasi: ind.justification,
-          indikatorDescription: ind.name,
           aspects,
         };
       });
 
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIndicators(mapped);
-      if (mapped.length > 0) {
-        const valid = mapped.some((ind) => ind.id === selectedId);
-         
-        setSelectedId(valid ? selectedId : mapped[0].id);
-      }
     }
-  }, [indicatorsRes, rulesRes, selectedId]);
+  }, [indicatorsRes, rulesRes]);
 
   // Sync state event listener
   useEffect(() => {
@@ -354,9 +427,10 @@ export default function MutuBanptAdminPage({
   const openEditIndicator = () => {
     if (!activeIndicator) return;
     setEditingIndicator(activeIndicator);
-    setIndNo(activeIndicator.id.toString());
-    setIndJustifikasi(activeIndicator.justifikasi);
-    setIndDeskripsi(activeIndicator.indikatorDescription);
+    const match = activeIndicator.number.match(/\d+/);
+    setIndNo(match ? match[0] : "");
+    setIndJustifikasi(activeIndicator.justification);
+    setIndDeskripsi(activeIndicator.name);
     setIsIndicatorDialogOpen(true);
   };
 
@@ -413,7 +487,7 @@ export default function MutuBanptAdminPage({
     try {
       await deleteIndicator(apiId).unwrap();
       refetchIndicators();
-      setSelectedId(1);
+      setSelectedId("");
       setIndDeleteConfirm(false);
       setIsIndicatorDialogOpen(false);
       toast.success("Indikator berhasil dihapus!");
@@ -485,8 +559,8 @@ export default function MutuBanptAdminPage({
 
   // Variables list helpers
   const handleAddFormulaVariable = () => {
-    if (!newVarName.trim() || !newVarLabel.trim()) {
-      toast.error("Nama dan deskripsi variabel tidak boleh kosong!");
+    if (!newVarName.trim()) {
+      toast.error("Nama variabel tidak boleh kosong!");
       return;
     }
     // Only letters & numbers
@@ -501,14 +575,13 @@ export default function MutuBanptAdminPage({
 
     const newItem: FormulaVariable = {
       name: newVarName.trim(),
-      label: newVarLabel.trim(),
+      label: newVarName.trim(),
       type: newVarType,
       value: newVarType === "static" ? parseFloat(newVarValue) || 0 : 0,
     };
 
     setFormulaVariables([...formulaVariables, newItem]);
     setNewVarName("");
-    setNewVarLabel("");
     setNewVarValue("0");
   };
 
@@ -597,7 +670,7 @@ export default function MutuBanptAdminPage({
       let charCode = 65; // 'A'
       while (true) {
         const suffix = String.fromCharCode(charCode);
-        const name = `${base}-${suffix}`;
+        const name = `${base}_${suffix}`;
         const collision = existing.some((c) =>
           c.variables.some((v) => v.name === name),
         );
@@ -619,9 +692,9 @@ export default function MutuBanptAdminPage({
         return;
       }
 
-      const denomName = "Denominator-Percentage";
-      const suffix = getNextLocalSuffix("Input-Numerator", localConstants);
-      const numName = `Input-Numerator-${suffix}`;
+      const denomName = "Denominator_Percentage";
+      const suffix = getNextLocalSuffix("Input_Numerator", localConstants);
+      const numName = `Input_Numerator_${suffix}`;
 
       const variables: FormulaVariable[] = [
         {
@@ -656,9 +729,9 @@ export default function MutuBanptAdminPage({
         return;
       }
 
-      const suffix = getNextLocalSuffix("Input-Numerator", localConstants);
-      const numName = `Input-Numerator-${suffix}`;
-      const denomName = `Input-Denomerator-${suffix}`;
+      const suffix = getNextLocalSuffix("Input_Numerator", localConstants);
+      const numName = `Input_Numerator_${suffix}`;
+      const denomName = `Input_Denomerator_${suffix}`;
 
       const variables: FormulaVariable[] = [
         {
@@ -687,8 +760,8 @@ export default function MutuBanptAdminPage({
         return;
       }
 
-      const suffix = getNextLocalSuffix("Input-Constant", localConstants);
-      const constName = `Input-Constant-${suffix}`;
+      const suffix = getNextLocalSuffix("Input_Constant", localConstants);
+      const constName = `Input_Constant_${suffix}`;
 
       newConst = {
         label: input,
@@ -827,6 +900,26 @@ export default function MutuBanptAdminPage({
   // Math operators catalog
   const operators = ["(", ")", "+", "-", "*", "/"];
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fadeIn">
+        <div className="border-b border-border/40 pb-4">
+          <Skeleton className="h-8 w-64 rounded-lg" />
+          <Skeleton className="h-4 w-96 rounded-lg mt-2" />
+        </div>
+        <div className="space-y-6">
+          <div className="flex gap-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-10 w-24 rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Title Header */}
@@ -890,16 +983,18 @@ export default function MutuBanptAdminPage({
                         : "bg-card text-foreground border-border hover:bg-muted/40"
                     }`}
                   >
-                    <span>Indikator {ind.id}</span>
+                    <span>
+                      {ind.number.toLowerCase().includes("indikator")
+                        ? ind.number
+                        : `Indikator ${ind.number}`}
+                    </span>
                   </button>
                 </HoverCardTrigger>
                 <HoverCardContent className="w-80 p-3 bg-card border border-border rounded-lg shadow-md text-xs leading-relaxed text-foreground z-50">
                   <p className="font-bold text-primary mb-1 uppercase tracking-wider text-[10px]">
                     Keterangan:
                   </p>
-                  <p className="text-muted-foreground">
-                    {ind.indikatorDescription}
-                  </p>
+                  <p className="text-muted-foreground">{ind.name}</p>
                 </HoverCardContent>
               </HoverCard>
             ))}
@@ -922,7 +1017,7 @@ export default function MutuBanptAdminPage({
                   Justifikasi :
                 </span>
                 <p className="text-foreground font-semibold mt-0.5 whitespace-pre-line">
-                  {activeIndicator.justifikasi || "-"}
+                  {activeIndicator.justification || "-"}
                 </p>
               </div>
               <div>
@@ -930,7 +1025,7 @@ export default function MutuBanptAdminPage({
                   Indikator :
                 </span>
                 <p className="text-muted-foreground mt-0.5 whitespace-pre-line">
-                  {activeIndicator.indikatorDescription}
+                  {activeIndicator.name}
                 </p>
               </div>
             </div>
@@ -943,7 +1038,7 @@ export default function MutuBanptAdminPage({
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-primary" />
                   <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                    Aspek Penilaian (Indikator {activeIndicator.id})
+                    Aspek Penilaian ({activeIndicator.number})
                   </h2>
                 </div>
 
@@ -968,14 +1063,14 @@ export default function MutuBanptAdminPage({
               </div>
 
               {/* Render aspects list */}
-              {activeIndicator.aspects.length === 0 ? (
+              {(activeIndicator.aspects || []).length === 0 ? (
                 <div className="text-center p-8 border border-dashed border-border rounded-xl text-muted-foreground text-xs">
                   Belum ada aspek penilaian untuk indikator ini. Silakan
                   tambahkan aspek biasa/rumus.
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {activeIndicator.aspects.map((asp) => (
+                  {(activeIndicator.aspects || []).map((asp) => (
                     <div
                       key={asp.id}
                       className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-sm animate-fadeIn"
@@ -1049,9 +1144,12 @@ export default function MutuBanptAdminPage({
                               <span className="font-bold text-[9px] text-primary uppercase block">
                                 Rumus Perhitungan
                               </span>
-                              <code className="font-mono text-foreground font-bold">
-                                {asp.formula?.expression}
-                              </code>
+                              <div className="bg-card border border-border px-3 py-1.5 rounded-lg font-mono text-foreground font-semibold text-xs mt-1 min-w-[200px]">
+                                {formatFriendlyFormula(
+                                  asp.formula?.expression || "",
+                                  asp.formula?.variables || [],
+                                ) || "Rumus Kosong"}
+                              </div>
                             </div>
                           ) : null}
                         </div>
@@ -1397,65 +1495,55 @@ export default function MutuBanptAdminPage({
                   </span>
 
                   {/* Dynamic formula variables list */}
-                  {formulaVariables.length === 0 ? (
+                  {formulaVariables.filter((v) => !isInternalConstant(v.name))
+                    .length === 0 ? (
                     <p className="text-muted-foreground italic text-[11px] py-1">
                       Belum ada variabel rumus. Tambahkan variabel baru.
                     </p>
                   ) : (
                     <div className="flex flex-wrap gap-2 py-1">
-                      {formulaVariables.map((v) => (
-                        <div
-                          key={v.name}
-                          className="flex items-center gap-1.5 bg-card border border-border px-2 py-1 rounded"
-                        >
-                          <span className="font-semibold text-foreground">
-                            {v.name} (
-                            {v.type === "static"
-                              ? `Static: ${v.value}`
-                              : "Input Auditor"}
-                            )
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveFormulaVariable(v.name)}
-                            className="text-error hover:bg-error/10 p-0.5 rounded cursor-pointer"
+                      {formulaVariables
+                        .filter((v) => !isInternalConstant(v.name))
+                        .map((v) => (
+                          <div
+                            key={v.name}
+                            className="flex items-center gap-1.5 bg-card border border-border px-2 py-1 rounded"
                           >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                            <span className="font-semibold text-foreground">
+                              {v.name} (
+                              {v.type === "static"
+                                ? `Static: ${v.value}`
+                                : "Input Auditor"}
+                              )
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleRemoveFormulaVariable(v.name)
+                              }
+                              className="text-error hover:bg-error/10 p-0.5 rounded cursor-pointer"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
                     </div>
                   )}
 
                   {/* Add formula variable sub-form */}
                   <div className="flex flex-wrap gap-3 items-end pt-1">
-                    <Field className="w-28">
+                    <Field className="flex-1 min-w-[150px]">
                       <FieldLabel
                         htmlFor="new-var-name"
                         className="text-[10px] font-bold text-muted-foreground uppercase"
                       >
-                        Kode Variabel
+                        Nama Variabel
                       </FieldLabel>
                       <Input
                         id="new-var-name"
                         value={newVarName}
                         onChange={(e) => setNewVarName(e.target.value)}
                         placeholder="Contoh: NDT, NDS3"
-                        className="bg-card text-xs h-8 border-border text-foreground"
-                      />
-                    </Field>
-                    <Field className="flex-1 min-w-[150px]">
-                      <FieldLabel
-                        htmlFor="new-var-label"
-                        className="text-[10px] font-bold text-muted-foreground uppercase"
-                      >
-                        Keterangan / Label
-                      </FieldLabel>
-                      <Input
-                        id="new-var-label"
-                        value={newVarLabel}
-                        onChange={(e) => setNewVarLabel(e.target.value)}
-                        placeholder="Contoh: Total Dosen Tetap"
                         className="bg-card text-xs h-8 border-border text-foreground"
                       />
                     </Field>
@@ -1593,30 +1681,38 @@ export default function MutuBanptAdminPage({
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {aspectType === "formula"
-                      ? formulaVariables.map((v) => (
-                          <button
-                            key={v.name}
-                            type="button"
-                            onClick={() => appendFormulaToken(v.name)}
-                            className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
-                          >
-                            {v.name}
-                          </button>
-                        ))
-                      : radioVariables.map((v) => (
-                          <button
-                            key={v.name}
-                            type="button"
-                            onClick={() => appendFormulaToken(v.name)}
-                            className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
-                          >
-                            {v.name}
-                          </button>
-                        ))}
+                      ? formulaVariables
+                          .filter((v) => !isInternalConstant(v.name))
+                          .map((v) => (
+                            <button
+                              key={v.name}
+                              type="button"
+                              onClick={() => appendFormulaToken(v.name)}
+                              className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
+                            >
+                              {v.name}
+                            </button>
+                          ))
+                      : radioVariables
+                          .filter((v) => !isInternalConstant(v.name))
+                          .map((v) => (
+                            <button
+                              key={v.name}
+                              type="button"
+                              onClick={() => appendFormulaToken(v.name)}
+                              className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
+                            >
+                              {v.name}
+                            </button>
+                          ))}
                     {((aspectType === "formula" &&
-                      formulaVariables.length === 0) ||
+                      formulaVariables.filter(
+                        (v) => !isInternalConstant(v.name),
+                      ).length === 0) ||
                       (aspectType === "radio" &&
-                        radioVariables.length === 0)) && (
+                        radioVariables.filter(
+                          (v) => !isInternalConstant(v.name),
+                        ).length === 0)) && (
                       <span className="text-[11px] text-muted-foreground/60 italic">
                         Definisikan variabel di atas terlebih dahulu.
                       </span>
@@ -1631,7 +1727,10 @@ export default function MutuBanptAdminPage({
                   </span>
                   <div className="flex gap-2 items-center">
                     <div className="bg-card border border-border p-2.5 rounded-lg font-mono text-foreground font-semibold flex-1 text-xs select-none">
-                      {formulaExpression || (
+                      {formatFriendlyFormula(
+                        formulaExpression,
+                        formulaVariables,
+                      ) || (
                         <span className="text-muted-foreground/50">
                           Rumus kosong...
                         </span>
@@ -1719,7 +1818,7 @@ export default function MutuBanptAdminPage({
         <AlertDialogContent className="bg-card border border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-bold text-foreground">
-              Hapus Indikator {editingIndicator?.id}?
+              Hapus Indikator {editingIndicator?.number}?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground leading-normal">
               Aksi ini bersifat destruktif. Menghapus indikator akan
