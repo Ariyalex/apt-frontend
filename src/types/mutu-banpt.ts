@@ -23,8 +23,7 @@ export interface AssessmentAspect {
   description: string; // assessment description
   complianceDescription: string; // compliance description
   dataSource: string; // data source
-  proofUrl?: string; // URL if uploaded/referenced (fallback)
-  proofFileName?: string; // Name of uploaded document
+  proofLinks?: string[]; // URL if uploaded/referenced (fallback)
   buktiRequired: boolean; // Whether proof document is mandatory
   expectationResult?: number; // Expectation target value
   expectationFormat?: "decimal" | "percentage"; // Format
@@ -168,7 +167,7 @@ export interface AssessmentEvaluation {
   input_variables: RuleVariable[];
   calculated_result: string;
   score: string;
-  proof: string | null;
+  proof: string[];
   updated_at: string | null;
   created_at: string | null;
 }
@@ -178,7 +177,7 @@ export interface SaveAssessmentEvaluationRequest {
   level: "university";
   institute_id: string | null;
   study_program_id: string | null;
-  proof: string;
+  proof: string[];
   input_variables: RuleVariable[];
 }
 

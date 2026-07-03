@@ -225,7 +225,7 @@ export default function MutuCategoryClientPage({
               description: item.assessment,
               complianceDescription: item.fulfillment,
               dataSource: "-",
-              proofUrl: undefined,
+              proofLinks: undefined,
               buktiRequired: false,
               expectationResult: 0,
               expectationFormat: "decimal",
@@ -293,7 +293,7 @@ export default function MutuCategoryClientPage({
     nama: ev.user?.name || "Program Studi/Unit",
     institute: ev.institute || "-",
     studyProgram: ev.study_program || "-",
-    bukti: ev.proof || "",
+    bukti: Array.isArray(ev.proof) ? ev.proof : ev.proof ? [ev.proof] : [],
     expectationScore: Number(ev.calculation_rule.expectation_result || 0),
     score: Number(ev.calculated_result),
     status:
@@ -554,7 +554,7 @@ export default function MutuCategoryClientPage({
                             {sub.studyProgram}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        {/* <TableCell>
                           {sub.bukti ? (
                             <button
                               onClick={(e): void => {
@@ -566,6 +566,32 @@ export default function MutuCategoryClientPage({
                               Kunjungi Bukti
                               <ExternalLink className="h-3 w-3" />
                             </button>
+                          ) : (
+                            <span className="text-muted-foreground italic">
+                              Tidak Ada
+                            </span>
+                          )}
+                        </TableCell> */}
+                        <TableCell>
+                          {sub.bukti.length > 0 ? (
+                            <div className="flex flex-col gap-1.5">
+                              {sub.bukti.map((link, i) => (
+                                <a
+                                  key={i}
+                                  href={
+                                    link.startsWith("http")
+                                      ? link
+                                      : `https://${link}`
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-primary hover:underline font-semibold text-xs cursor-pointer"
+                                >
+                                  Bukti {i + 1}
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              ))}
+                            </div>
                           ) : (
                             <span className="text-muted-foreground italic">
                               Tidak Ada

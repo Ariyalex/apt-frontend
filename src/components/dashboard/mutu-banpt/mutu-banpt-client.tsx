@@ -5,9 +5,10 @@ import {
   Loader2,
   CheckCircle2,
   ShieldCheck,
-  FileText,
-  UploadCloud,
   Trash2,
+  ExternalLink,
+  Edit2,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,15 +20,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import {
-  Attachment,
-  AttachmentContent,
-  AttachmentTitle,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentActions,
-  AttachmentAction,
-} from "@/components/ui/attachment";
+
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { formatCategoryName, formatStageName } from "@/lib/utils";
 import {
@@ -48,10 +41,15 @@ import {
   useCreateAssessmentEvaluationMutation,
   useUpdateAssessmentEvaluationMutation,
 } from "@/store/services/assessmentEvaluationApi";
+
 import {
-  useUploadFileMutation,
-  useGetFileMutation,
-} from "@/store/services/fileApi";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 
 const mapCriteria = (criteria: string): string => {
   switch (criteria) {
@@ -156,6 +154,16 @@ export default function MutuBanptClientPage({
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>("");
   const [savingAspectId, setSavingAspectId] = useState<string | null>(null);
 
+  // link management states
+  const [addLinkOpen, setAddLinkOpen] = useState(false);
+  const [editLinkOpen, setEditLinkOpen] = useState(false);
+  const [activeAspectIdForLink, setActiveAspectIdForLink] = useState<
+    string | null
+  >(null);
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [editingUrl, setEditingUrl] = useState("");
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
   // RTK Query API Hooks
   const {
     data: indicatorsRes,
@@ -192,29 +200,29 @@ export default function MutuBanptClientPage({
     { skip: !activeAkredId || !currentUserId },
   );
 
-  const [uploadFile] = useUploadFileMutation();
-  const [createEvaluation] = useCreateAssessmentEvaluationMutation();
-  const [updateEvaluation] = useUpdateAssessmentEvaluationMutation();
-  const [getFile] = useGetFileMutation();
+  const [createEvaluation, { isLoading: isCreatingEval }] =
+    useCreateAssessmentEvaluationMutation();
+  const [updateEvaluation, { isLoading: isUpdatingEval }] =
+    useUpdateAssessmentEvaluationMutation();
 
-  const handleViewProof = (proofUrl: string) => {
-    if (!proofUrl) return;
-    const promise = getFile(proofUrl)
-      .unwrap()
-      .then((objectUrl) => {
-        window.open(objectUrl, "_blank");
-        return objectUrl;
-      });
+  // const handleViewProof = (proofUrl: string) => {
+  //   if (!proofUrl) return;
+  //   const promise = getFile(proofUrl)
+  //     .unwrap()
+  //     .then((objectUrl) => {
+  //       window.open(objectUrl, "_blank");
+  //       return objectUrl;
+  //     });
 
-    toast.promise(promise, {
-      loading: "Mengunduh file bukti...",
-      success: "File berhasil dimuat!",
-      error: (err: unknown) => {
-        const errorObj = err as { message?: string };
-        return errorObj.message || "Gagal memuat file bukti";
-      },
-    });
-  };
+  //   toast.promise(promise, {
+  //     loading: "Mengunduh file bukti...",
+  //     success: "File berhasil dimuat!",
+  //     error: (err: unknown) => {
+  //       const errorObj = err as { message?: string };
+  //       return errorObj.message || "Gagal memuat file bukti";
+  //     },
+  //   });
+  // };
 
   // Detect admin role
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
@@ -246,11 +254,6 @@ export default function MutuBanptClientPage({
     isIndicatorsFetching ||
     isRulesFetching ||
     isEvalsFetching;
-
-  // File upload state per aspect
-  const [uploadingAspectId] = useState<string | null>(null);
-  const [dragActiveId, setDragActiveId] = useState<string | null>(null);
-  const [localFiles, setLocalFiles] = useState<Record<string, File>>({});
 
   // Edit Mode states
   const [editModes, setEditModes] = useState<Record<string, boolean>>({});
@@ -364,7 +367,17 @@ export default function MutuBanptClientPage({
             }
           }
 
-          const hasSub = !!evalItem;
+          let linksArray: string[] = [];
+          if (evalItem?.proof) {
+            // Mengatasi jika response API dari backend adalah array asli, atau fallback string
+            if (Array.isArray(evalItem.proof)) {
+              linksArray = evalItem.proof;
+            } else if (typeof evalItem.proof === "string") {
+              linksArray = (evalItem.proof as string)
+                .split(",")
+                .filter(Boolean);
+            }
+          }
 
           return {
             id: rule.id, // API rule ID
@@ -373,10 +386,7 @@ export default function MutuBanptClientPage({
             description: rule.assessment,
             complianceDescription: rule.fulfillment,
             dataSource: rule.data_source,
-            proofUrl: evalItem?.proof || undefined,
-            proofFileName: evalItem?.proof
-              ? evalItem.proof.split("/").pop()
-              : undefined,
+            proofLinks: linksArray,
             buktiRequired: rule.proof_required,
             expectationResult: Number(rule.expectation_result || 0),
             expectationFormat:
@@ -393,7 +403,7 @@ export default function MutuBanptClientPage({
                   threshold: Number(rule.expectation_result || 0),
                 }
               : undefined,
-            isSubmitted: hasSub,
+            isSubmitted: !!evalItem,
           };
         });
 
@@ -401,7 +411,7 @@ export default function MutuBanptClientPage({
           aspects.length > 0 &&
           aspects.every((asp) => {
             if (!asp.isSubmitted) return false;
-            if (asp.buktiRequired && !asp.proofUrl) return false;
+            if (asp.buktiRequired && !asp.proofLinks) return false;
             return true;
           });
 
@@ -417,6 +427,72 @@ export default function MutuBanptClientPage({
       setIndicatorsState(mapped);
     }
   }, [indicatorsRes, rulesRes, evalsRes, currentUserId]);
+
+  const handleOpenAddLink = (aspectId: string) => {
+    setActiveAspectIdForLink(aspectId);
+    setNewLinkUrl("");
+    setAddLinkOpen(true);
+  };
+
+  const handleSaveAddLink = () => {
+    if (!newLinkUrl.trim() || !activeAspectIdForLink) return;
+    setIndicatorsState((prev) =>
+      prev.map((ind) => ({
+        ...ind,
+        aspects: ind.aspects?.map((asp) =>
+          asp.id == activeAspectIdForLink
+            ? {
+                ...asp,
+                proofLinks: [...(asp.proofLinks || []), newLinkUrl.trim()],
+              }
+            : asp,
+        ),
+      })),
+    );
+    setAddLinkOpen(false);
+  };
+
+  const handleOpenEditLink = (
+    aspectId: string,
+    index: number,
+    currentUrl: string,
+  ) => {
+    setActiveAspectIdForLink(aspectId);
+    setEditingIndex(index);
+    setEditingUrl(currentUrl);
+    setEditLinkOpen(true);
+  };
+
+  const handleSaveEditLink = () => {
+    if (!editingUrl.trim() || !activeAspectIdForLink || editingIndex === null)
+      return;
+    setIndicatorsState((prev) =>
+      prev.map((ind) => ({
+        ...ind,
+        aspects: ind.aspects?.map((asp) => {
+          if (asp.id !== activeAspectIdForLink) return asp;
+          const newLinks = [...(asp.proofLinks || [])];
+          newLinks[editingIndex] = editingUrl.trim();
+          return { ...asp, proofLinks: newLinks };
+        }),
+      })),
+    );
+    setEditLinkOpen(false);
+  };
+
+  const handleDeleteLink = (aspectId: string, index: number) => {
+    setIndicatorsState((prev) =>
+      prev.map((ind) => ({
+        ...ind,
+        aspects: ind.aspects?.map((asp) => {
+          if (asp.id !== aspectId) return asp;
+          const newLinks = [...(asp.proofLinks || [])];
+          newLinks.splice(index, 1);
+          return { ...asp, proofLinks: newLinks };
+        }),
+      })),
+    );
+  };
 
   // Sync state event listener
   useEffect(() => {
@@ -547,72 +623,6 @@ export default function MutuBanptClientPage({
     }
   };
 
-  // Document uploader events
-  const handleDrag = (e: React.DragEvent, aspectId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActiveId(aspectId);
-    } else if (e.type === "dragleave") {
-      setDragActiveId(null);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, aspectId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActiveId(null);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      setLocalFiles((prev) => ({ ...prev, [aspectId]: file }));
-      setIndicatorsState((prev) =>
-        prev.map((ind) => ({
-          ...ind,
-          aspects: (ind.aspects || []).map((asp) =>
-            asp.id === aspectId ? { ...asp, proofFileName: file.name } : asp,
-          ),
-        })),
-      );
-    }
-  };
-
-  const handleFileSelect = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    aspectId: string,
-  ) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setLocalFiles((prev) => ({ ...prev, [aspectId]: file }));
-      setIndicatorsState((prev) =>
-        prev.map((ind) => ({
-          ...ind,
-          aspects: (ind.aspects || []).map((asp) =>
-            asp.id === aspectId ? { ...asp, proofFileName: file.name } : asp,
-          ),
-        })),
-      );
-    }
-  };
-
-  const handleRemoveFile = (aspectId: string) => {
-    setLocalFiles((prev) => {
-      const copy = { ...prev };
-      delete copy[aspectId];
-      return copy;
-    });
-    setIndicatorsState((prev) =>
-      prev.map((ind) => ({
-        ...ind,
-        aspects: (ind.aspects || []).map((asp) =>
-          asp.id === aspectId
-            ? { ...asp, proofUrl: undefined, proofFileName: undefined }
-            : asp,
-        ),
-      })),
-    );
-  };
-
   const handleSaveEvaluation = async (aspectId: string) => {
     setSavingAspectId(aspectId);
     try {
@@ -621,26 +631,11 @@ export default function MutuBanptClientPage({
       );
       if (!aspect) return;
 
-      let proofUrl = aspect.proofUrl;
-
-      // Upload file only when saving/submitting if a local file exists
-      const localFile = localFiles[aspectId];
-      if (localFile) {
-        try {
-          const formData = new FormData();
-          formData.append("file", localFile);
-          const res = await uploadFile(formData).unwrap();
-          proofUrl = res.data.file_url;
-        } catch {
-          toast.error("Gagal mengunggah dokumen bukti.");
-          setSavingAspectId(null);
-          return;
-        }
-      }
-
-      // Check if proof document is required and we have a url (either from upload or existing)
-      if (aspect.buktiRequired && !proofUrl) {
-        toast.error("Dokumen bukti wajib diunggah!");
+      if (
+        aspect.buktiRequired &&
+        (!aspect.proofLinks || aspect.proofLinks.length === 0)
+      ) {
+        toast.error("Minimal satu link bukti dokumen wajib ditambahkan!");
         setSavingAspectId(null);
         return;
       }
@@ -676,7 +671,7 @@ export default function MutuBanptClientPage({
         level: "university",
         institute_id: null,
         study_program_id: null,
-        proof: proofUrl || "",
+        proof: aspect.proofLinks || [],
         input_variables: inputVars,
       };
 
@@ -691,13 +686,6 @@ export default function MutuBanptClientPage({
       } else {
         await createEvaluation(payload).unwrap();
       }
-
-      // Clean local file cache on successful submission
-      setLocalFiles((prev) => {
-        const copy = { ...prev };
-        delete copy[aspectId];
-        return copy;
-      });
 
       toast.success("Penilaian berhasil disimpan!");
       refetchEvals();
@@ -877,7 +865,7 @@ export default function MutuBanptClientPage({
                         : true;
 
                     const isProofFilled = asp.buktiRequired
-                      ? !!asp.proofFileName
+                      ? !!asp.proofLinks
                       : true;
 
                     const isReadOnly = asp.isSubmitted && !editModes[asp.id];
@@ -986,107 +974,99 @@ export default function MutuBanptClientPage({
                                 </div>
                               </div>
 
-                              {/* Upload Bukti Zone (File drag-drop) */}
+                              {/* Upload Bukti Zone  */}
                               {asp.buktiRequired && (
                                 <div className="space-y-1.5 flex-1 min-w-0">
-                                  <span className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider block">
-                                    Upload Bukti Dokumen (Wajib)
-                                  </span>
-                                  {asp.proofFileName ? (
-                                    <Attachment
-                                      state="done"
-                                      className={`w-full border-border ${asp.proofUrl ? "cursor-pointer hover:bg-muted/5 transition-colors" : ""}`}
-                                      onClick={() => {
-                                        if (asp.proofUrl) {
-                                          handleViewProof(asp.proofUrl);
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-bold text-[10px] text-muted-foreground uppercase">
+                                      Link Bukti Dokumen{" "}
+                                      <span className="text-error">*</span>
+                                    </span>
+                                    {!isReadOnly && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleOpenAddLink(asp.id)
                                         }
-                                      }}
-                                    >
-                                      <AttachmentMedia
-                                        variant="icon"
-                                        className="bg-primary/5 text-primary"
-                                      >
-                                        <FileText className="h-5 w-5" />
-                                      </AttachmentMedia>
-                                      <AttachmentContent>
-                                        <AttachmentTitle className="text-foreground font-semibold truncate">
-                                          {asp.proofFileName}
-                                        </AttachmentTitle>
-                                        <AttachmentDescription className="text-muted-foreground">
-                                          Selesai diunggah
-                                        </AttachmentDescription>
-                                      </AttachmentContent>
-                                      <AttachmentActions>
-                                        {!isReadOnly && (
-                                          <AttachmentAction
-                                            variant="ghost"
-                                            size="icon-xs"
-                                            onClick={() =>
-                                              handleRemoveFile(asp.id)
-                                            }
-                                            disabled={savingAspectId === asp.id}
-                                            className="text-error hover:bg-error/10 hover:text-error"
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </AttachmentAction>
-                                        )}
-                                      </AttachmentActions>
-                                    </Attachment>
-                                  ) : (
-                                    <div
-                                      onDragEnter={(e) =>
-                                        !isReadOnly && handleDrag(e, asp.id)
-                                      }
-                                      onDragOver={(e) =>
-                                        !isReadOnly && handleDrag(e, asp.id)
-                                      }
-                                      onDragLeave={(e) =>
-                                        !isReadOnly && handleDrag(e, asp.id)
-                                      }
-                                      onDrop={(e) =>
-                                        !isReadOnly && handleDrop(e, asp.id)
-                                      }
-                                      className={`border border-dashed rounded-lg p-3.5 text-center transition-all ${
-                                        dragActiveId === asp.id && !isReadOnly
-                                          ? "border-primary bg-primary/5"
-                                          : "border-border hover:border-primary/40"
-                                      } ${isReadOnly ? "opacity-60 cursor-not-allowed" : ""}`}
-                                    >
-                                      <input
-                                        type="file"
-                                        id={`file-upload-${asp.id}`}
                                         disabled={
-                                          isReadOnly ||
-                                          uploadingAspectId === asp.id ||
-                                          savingAspectId === asp.id
+                                          isCreatingEval || isUpdatingEval
                                         }
-                                        onChange={(e) =>
-                                          handleFileSelect(e, asp.id)
-                                        }
-                                        className="hidden"
-                                      />
-                                      {uploadingAspectId === asp.id ? (
-                                        <div className="flex items-center justify-center gap-1.5 py-1">
-                                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                                          <span className="font-semibold text-muted-foreground">
-                                            Uploading...
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <label
-                                          htmlFor={`file-upload-${asp.id}`}
-                                          className={`flex items-center justify-center gap-2 py-1 ${
-                                            isReadOnly
-                                              ? "cursor-not-allowed"
-                                              : "cursor-pointer"
-                                          }`}
+                                        className="h-7 px-2.5 border-border text-[10px] font-bold rounded flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <Plus className="h-3 w-3" /> Tambah Link
+                                      </Button>
+                                    )}
+                                  </div>
+
+                                  {!asp.proofLinks ||
+                                  asp.proofLinks.length === 0 ? (
+                                    <div className="text-center p-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground bg-muted/5">
+                                      Belum ada link bukti yang ditambahkan.
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
+                                      {asp.proofLinks.map((link, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="p-2.5 bg-muted/15 border border-border rounded-lg flex items-center justify-between gap-3 text-xs group"
                                         >
-                                          <UploadCloud className="h-5 w-5 text-muted-foreground" />
-                                          <span className="font-bold text-foreground">
-                                            Upload file bukti
-                                          </span>
-                                        </label>
-                                      )}
+                                          <a
+                                            href={
+                                              link.startsWith("http")
+                                                ? link
+                                                : `https://${link}`
+                                            }
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-mono text-primary truncate hover:underline flex-1 flex items-center gap-1.5"
+                                            title={link}
+                                          >
+                                            <ExternalLink className="h-3 w-3 shrink-0" />
+                                            <span className="truncate">
+                                              {link}
+                                            </span>
+                                          </a>
+
+                                          {!isReadOnly && (
+                                            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <button
+                                                type="button"
+                                                disabled={
+                                                  isCreatingEval ||
+                                                  isUpdatingEval
+                                                }
+                                                onClick={() =>
+                                                  handleOpenEditLink(
+                                                    asp.id,
+                                                    idx,
+                                                    link,
+                                                  )
+                                                }
+                                                className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-primary rounded cursor-pointer"
+                                                title="Edit Link"
+                                              >
+                                                <Edit2 className="h-3.5 w-3.5" />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                disabled={
+                                                  isCreatingEval ||
+                                                  isUpdatingEval
+                                                }
+                                                onClick={() =>
+                                                  handleDeleteLink(asp.id, idx)
+                                                }
+                                                className="p-1 hover:bg-error/10 text-muted-foreground hover:text-error rounded cursor-pointer"
+                                                title="Hapus Link"
+                                              >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
                                     </div>
                                   )}
                                 </div>
@@ -1244,104 +1224,96 @@ export default function MutuBanptClientPage({
                               {/* Upload Bukti Zone (File drag-drop) */}
                               {asp.buktiRequired && (
                                 <div className="space-y-1.5 flex-1 min-w-0">
-                                  <span className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider block">
-                                    Upload Bukti Dokumen (Wajib)
-                                  </span>
-                                  {asp.proofFileName ? (
-                                    <Attachment
-                                      state="done"
-                                      className={`w-full border-border ${asp.proofUrl ? "cursor-pointer hover:bg-muted/5 transition-colors" : ""}`}
-                                      onClick={() => {
-                                        if (asp.proofUrl) {
-                                          handleViewProof(asp.proofUrl);
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-bold text-[10px] text-muted-foreground uppercase">
+                                      Link Bukti Dokumen{" "}
+                                      <span className="text-error">*</span>
+                                    </span>
+                                    {!isReadOnly && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleOpenAddLink(asp.id)
                                         }
-                                      }}
-                                    >
-                                      <AttachmentMedia
-                                        variant="icon"
-                                        className="bg-primary/5 text-primary"
-                                      >
-                                        <FileText className="h-5 w-5" />
-                                      </AttachmentMedia>
-                                      <AttachmentContent>
-                                        <AttachmentTitle className="text-foreground font-semibold truncate">
-                                          {asp.proofFileName}
-                                        </AttachmentTitle>
-                                        <AttachmentDescription className="text-muted-foreground">
-                                          Selesai diunggah
-                                        </AttachmentDescription>
-                                      </AttachmentContent>
-                                      <AttachmentActions>
-                                        {!isReadOnly && (
-                                          <AttachmentAction
-                                            variant="ghost"
-                                            size="icon-xs"
-                                            onClick={() =>
-                                              handleRemoveFile(asp.id)
-                                            }
-                                            disabled={savingAspectId === asp.id}
-                                            className="text-error hover:bg-error/10 hover:text-error"
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </AttachmentAction>
-                                        )}
-                                      </AttachmentActions>
-                                    </Attachment>
-                                  ) : (
-                                    <div
-                                      onDragEnter={(e) =>
-                                        !isReadOnly && handleDrag(e, asp.id)
-                                      }
-                                      onDragOver={(e) =>
-                                        !isReadOnly && handleDrag(e, asp.id)
-                                      }
-                                      onDragLeave={(e) =>
-                                        !isReadOnly && handleDrag(e, asp.id)
-                                      }
-                                      onDrop={(e) =>
-                                        !isReadOnly && handleDrop(e, asp.id)
-                                      }
-                                      className={`border border-dashed rounded-lg p-3.5 text-center transition-all ${
-                                        dragActiveId === asp.id && !isReadOnly
-                                          ? "border-primary bg-primary/5"
-                                          : "border-border hover:border-primary/40"
-                                      } ${isReadOnly ? "opacity-60 cursor-not-allowed" : ""}`}
-                                    >
-                                      <input
-                                        type="file"
-                                        id={`file-upload-${asp.id}`}
                                         disabled={
-                                          isReadOnly ||
-                                          uploadingAspectId === asp.id ||
-                                          savingAspectId === asp.id
+                                          isCreatingEval || isUpdatingEval
                                         }
-                                        onChange={(e) =>
-                                          handleFileSelect(e, asp.id)
-                                        }
-                                        className="hidden"
-                                      />
-                                      {uploadingAspectId === asp.id ? (
-                                        <div className="flex items-center justify-center gap-1.5 py-1">
-                                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                                          <span className="font-semibold text-muted-foreground">
-                                            Uploading...
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <label
-                                          htmlFor={`file-upload-${asp.id}`}
-                                          className={`flex items-center justify-center gap-2 py-1 ${
-                                            isReadOnly
-                                              ? "cursor-not-allowed"
-                                              : "cursor-pointer"
-                                          }`}
+                                        className="h-7 px-2.5 border-border text-[10px] font-bold rounded flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <Plus className="h-3 w-3" /> Tambah Link
+                                      </Button>
+                                    )}
+                                  </div>
+
+                                  {!asp.proofLinks ||
+                                  asp.proofLinks.length === 0 ? (
+                                    <div className="text-center p-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground bg-muted/5">
+                                      Belum ada link bukti yang ditambahkan.
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
+                                      {asp.proofLinks.map((link, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="p-2.5 bg-muted/15 border border-border rounded-lg flex items-center justify-between gap-3 text-xs group"
                                         >
-                                          <UploadCloud className="h-5 w-5 text-muted-foreground" />
-                                          <span className="font-bold text-foreground">
-                                            Upload file bukti
-                                          </span>
-                                        </label>
-                                      )}
+                                          <a
+                                            href={
+                                              link.startsWith("http")
+                                                ? link
+                                                : `https://${link}`
+                                            }
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-mono text-primary truncate hover:underline flex-1 flex items-center gap-1.5"
+                                            title={link}
+                                          >
+                                            <ExternalLink className="h-3 w-3 shrink-0" />
+                                            <span className="truncate">
+                                              {link}
+                                            </span>
+                                          </a>
+
+                                          {!isReadOnly && (
+                                            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <button
+                                                type="button"
+                                                disabled={
+                                                  isCreatingEval ||
+                                                  isUpdatingEval
+                                                }
+                                                onClick={() =>
+                                                  handleOpenEditLink(
+                                                    asp.id,
+                                                    idx,
+                                                    link,
+                                                  )
+                                                }
+                                                className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-primary rounded cursor-pointer"
+                                                title="Edit Link"
+                                              >
+                                                <Edit2 className="h-3.5 w-3.5" />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                disabled={
+                                                  isCreatingEval ||
+                                                  isUpdatingEval
+                                                }
+                                                onClick={() =>
+                                                  handleDeleteLink(asp.id, idx)
+                                                }
+                                                className="p-1 hover:bg-error/10 text-muted-foreground hover:text-error rounded cursor-pointer"
+                                                title="Hapus Link"
+                                              >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
                                     </div>
                                   )}
                                 </div>
@@ -1448,6 +1420,92 @@ export default function MutuBanptClientPage({
           )}
         </>
       )}
+
+      {/* --- DIALOGS UNTUK LINK BUKTI --- */}
+      <Dialog open={addLinkOpen} onOpenChange={setAddLinkOpen}>
+        <DialogContent className="sm:max-w-md bg-card border border-border p-6 rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold uppercase tracking-wider">
+              Tambah Link Bukti
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3">
+            <Field>
+              <FieldLabel>URL / Tautan Dokumen</FieldLabel>
+              <Input
+                type="text"
+                placeholder="Contoh: https://drive.google.com/..."
+                value={newLinkUrl}
+                onChange={(e) => setNewLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveAddLink();
+                }}
+                className="h-10 text-xs"
+              />
+            </Field>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAddLinkOpen(false)}
+              className="text-xs h-9"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveAddLink}
+              disabled={!newLinkUrl.trim()}
+              className="bg-primary text-xs h-9 cursor-pointer"
+            >
+              Tambah
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editLinkOpen} onOpenChange={setEditLinkOpen}>
+        <DialogContent className="sm:max-w-md bg-card border border-border p-6 rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold uppercase tracking-wider">
+              Edit Link Bukti
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3">
+            <Field>
+              <FieldLabel>URL / Tautan Dokumen</FieldLabel>
+              <Input
+                type="text"
+                value={editingUrl}
+                onChange={(e) => setEditingUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveEditLink();
+                }}
+                className="h-10 text-xs"
+              />
+            </Field>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditLinkOpen(false)}
+              className="text-xs h-9"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveEditLink}
+              disabled={!editingUrl.trim()}
+              className="bg-primary text-xs h-9 cursor-pointer"
+            >
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
