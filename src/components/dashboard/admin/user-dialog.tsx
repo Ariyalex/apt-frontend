@@ -54,7 +54,11 @@ export function UserDialog({
           setUsername(user.username);
           setEmail(user.email || "");
           setJenisAkun(user.role);
-          setLembaga(user.institute_id !== null ? `lemb-${user.institute_id}` : "Tidak Ada");
+          setLembaga(
+            user.institute_id !== null
+              ? `lemb-${user.institute_id}`
+              : "Tidak Ada",
+          );
           setIsBanned(user.is_banned);
         } else {
           setName("");
@@ -97,7 +101,9 @@ export function UserDialog({
       return;
     }
 
-    const instituteId = lembaga.startsWith("lemb-") ? parseInt(lembaga.replace("lemb-", ""), 10) : null;
+    const instituteId = lembaga.startsWith("lemb-")
+      ? parseInt(lembaga.replace("lemb-", ""), 10)
+      : null;
 
     onSave({
       id: user?.id || "",
@@ -113,10 +119,13 @@ export function UserDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => {
-      if (isLoading) return;
-      onOpenChange(val);
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        if (isLoading) return;
+        onOpenChange(val);
+      }}
+    >
       <DialogContent className="sm:max-w-lg bg-card border border-border p-6 rounded-xl">
         <DialogHeader>
           <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
@@ -184,17 +193,39 @@ export function UserDialog({
             </FieldLabel>
             <Select
               value={jenisAkun}
-              onValueChange={(val) => handleJenisAkunChange(val as UserAdminModel["role"])}
+              onValueChange={(val) =>
+                handleJenisAkunChange(val as UserAdminModel["role"])
+              }
               disabled={isLoading}
             >
               <SelectTrigger className="w-full h-10 bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer justify-between disabled:opacity-50 disabled:cursor-not-allowed">
                 <SelectValue placeholder="Pilih Jenis Akun" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auditee" className="text-xs font-semibold cursor-pointer">Auditee</SelectItem>
-                <SelectItem value="auditor" className="text-xs font-semibold cursor-pointer">Auditor</SelectItem>
-                <SelectItem value="admin" className="text-xs font-semibold cursor-pointer">Admin</SelectItem>
-                <SelectItem value="assessor" className="text-xs font-semibold cursor-pointer">Assessor</SelectItem>
+                <SelectItem
+                  value="upps"
+                  className="text-xs font-semibold cursor-pointer"
+                >
+                  UPPS
+                </SelectItem>
+                <SelectItem
+                  value="lpm"
+                  className="text-xs font-semibold cursor-pointer"
+                >
+                  LPM
+                </SelectItem>
+                <SelectItem
+                  value="admin"
+                  className="text-xs font-semibold cursor-pointer"
+                >
+                  Admin
+                </SelectItem>
+                <SelectItem
+                  value="assessor"
+                  className="text-xs font-semibold cursor-pointer"
+                >
+                  Assessor
+                </SelectItem>
               </SelectContent>
             </Select>
           </Field>
@@ -215,9 +246,18 @@ export function UserDialog({
                     <SelectValue placeholder="Pilih Lembaga" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Tidak Ada" className="text-xs font-semibold cursor-pointer">Tidak Ada</SelectItem>
+                    <SelectItem
+                      value="Tidak Ada"
+                      className="text-xs font-semibold cursor-pointer"
+                    >
+                      Tidak Ada
+                    </SelectItem>
                     {lembagaList.map((lemb) => (
-                      <SelectItem key={lemb.id} value={`lemb-${lemb.id}`} className="text-xs font-semibold cursor-pointer">
+                      <SelectItem
+                        key={lemb.id}
+                        value={`lemb-${lemb.id}`}
+                        className="text-xs font-semibold cursor-pointer"
+                      >
                         {lemb.name}
                       </SelectItem>
                     ))}
@@ -302,4 +342,3 @@ export function UserDialog({
     </Dialog>
   );
 }
-

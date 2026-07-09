@@ -19,10 +19,12 @@ import { clearSession } from "@/store/slices/userSlice";
 import { toast } from "sonner";
 
 interface CustomErrorObject {
-  data?: {
-    message?: string;
-    error?: string;
-  } | string;
+  data?:
+    | {
+        message?: string;
+        error?: string;
+      }
+    | string;
 }
 
 const extractErrorMessage = (err: unknown): string => {
@@ -52,13 +54,14 @@ export default function ResetPasswordPage(): React.JSX.Element {
   const [newPassword, setNewPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  
+
   // Logged-in user state (defaults to dummy data)
-  const [currentUser, setCurrentUser] = useState<CurrentUser>({ 
-    name: "Ahmad Fauzi", 
-    username: "fakultas" 
+  const [currentUser, setCurrentUser] = useState<CurrentUser>({
+    name: "Ahmad Fauzi",
+    username: "upps",
   });
 
   useEffect(() => {
@@ -68,7 +71,10 @@ export default function ResetPasswordPage(): React.JSX.Element {
         try {
           const session = JSON.parse(raw);
           if (session.name && session.username) {
-            setCurrentUser({ name: session.name as string, username: session.username as string });
+            setCurrentUser({
+              name: session.name as string,
+              username: session.username as string,
+            });
           }
         } catch {
           // Keep fallback dummy data
@@ -105,7 +111,7 @@ export default function ResetPasswordPage(): React.JSX.Element {
       }).unwrap();
 
       toast.success(response.message || "Password Anda berhasil direset!");
-      
+
       // Clear forms
       setNewPassword("");
       setConfirmPassword("");

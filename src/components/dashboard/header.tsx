@@ -34,23 +34,24 @@ export function Header(): React.JSX.Element {
   }, []);
 
   const displayName = session?.name || "Ahmad Fauzi";
-  const displayRole = session?.role || "Auditee";
+  const displayRole = session?.role || "UPPS";
   const displayInstitute = useMemo(() => {
     if (!session) return "FST";
     if (!session.institute_id) return "";
     const matched = institutesResponse?.data?.find(
-      (l) => l.id.toString() === session.institute_id?.toString()
+      (l) => l.id.toString() === session.institute_id?.toString(),
     );
     return matched ? matched.name : `ID: ${session.institute_id}`;
   }, [session, institutesResponse]);
 
-  const initials = displayName
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "AF";
+  const initials =
+    displayName
+      .split(" ")
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "AF";
 
   return (
     <header className="flex h-16 w-full shrink-0 items-center justify-between border-b border-border bg-card px-6 sticky top-0 z-50">

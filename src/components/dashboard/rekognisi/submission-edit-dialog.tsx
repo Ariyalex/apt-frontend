@@ -46,14 +46,14 @@ export function SubmissionEditDialog({
   const [jenisRekognisi, setJenisRekognisi] = useState("narasumber");
   const [tahun, setTahun] = useState("2026");
   const [deskripsi, setDeskripsi] = useState("");
-  
+
   // Multiple proof link states
   const [linkBuktiList, setLinkBuktiList] = useState<string[]>([]);
   const [showAddInput, setShowAddInput] = useState(false);
   const [newLinkUrl, setNewLinkUrl] = useState("");
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
-  const [userRole, setUserRole] = useState<"Fakultas" | "Administrator">("Fakultas");
+  const [userRole, setUserRole] = useState<"LPM" | "Administrator">("LPM");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -73,11 +73,14 @@ export function SubmissionEditDialog({
   }, []);
 
   // Fetch lecturer details from backend
-  const { data: lecturerResponse } = useGetLecturerByNipQuery(selectedNip, { skip: !selectedNip });
+  const { data: lecturerResponse } = useGetLecturerByNipQuery(selectedNip, {
+    skip: !selectedNip,
+  });
   const selectedLecturerName = lecturerResponse?.data?.name || "";
 
   // Fetch categories from backend
-  const { data: categoriesResponse, isLoading: isCategoriesLoading } = useGetRecognitionCategoriesQuery();
+  const { data: categoriesResponse, isLoading: isCategoriesLoading } =
+    useGetRecognitionCategoriesQuery();
   const categoryList = categoriesResponse?.data || [];
 
   useEffect(() => {
@@ -87,7 +90,11 @@ export function SubmissionEditDialog({
         setJenisRekognisi(submission.jenisRekognisi);
         setTahun(submission.tahun);
         setDeskripsi(submission.deskripsi);
-        setLinkBuktiList(submission.linkBukti ? submission.linkBukti.split(",").filter(Boolean) : []);
+        setLinkBuktiList(
+          submission.linkBukti
+            ? submission.linkBukti.split(",").filter(Boolean)
+            : [],
+        );
         setShowAddInput(false);
         setNewLinkUrl("");
       }, 0);
@@ -134,15 +141,18 @@ export function SubmissionEditDialog({
   const handleSave = async () => {
     if (!submission) return;
     try {
-      await onSave({
-        ...submission,
-        nip: selectedNip,
-        nama: selectedLecturerName || submission.nama,
-        jenisRekognisi,
-        tahun,
-        deskripsi,
-        linkBukti: linkBuktiList.join(","),
-      }, lecturerResponse?.data?.id || "");
+      await onSave(
+        {
+          ...submission,
+          nip: selectedNip,
+          nama: selectedLecturerName || submission.nama,
+          jenisRekognisi,
+          tahun,
+          deskripsi,
+          linkBukti: linkBuktiList.join(","),
+        },
+        lecturerResponse?.data?.id || "",
+      );
       onOpenChange(false);
     } catch {
       // Keep dialog open on error
@@ -188,8 +198,12 @@ export function SubmissionEditDialog({
           {/* Field 2: Nama Dosen (Display Text, not input field) */}
           {selectedNip && (
             <div className="space-y-1 p-3 bg-muted/20 border border-border/60 rounded-lg">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nama Dosen</span>
-              <p className="text-xs font-bold text-foreground">{selectedLecturerName}</p>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Nama Dosen
+              </span>
+              <p className="text-xs font-bold text-foreground">
+                {selectedLecturerName}
+              </p>
             </div>
           )}
 
@@ -211,12 +225,20 @@ export function SubmissionEditDialog({
               <SelectContent>
                 {categoryList.length > 0 ? (
                   categoryList.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.name} className="text-xs font-semibold cursor-pointer capitalize">
+                    <SelectItem
+                      key={cat.id}
+                      value={cat.name}
+                      className="text-xs font-semibold cursor-pointer capitalize"
+                    >
                       {cat.name}
                     </SelectItem>
                   ))
                 ) : (
-                  <SelectItem value="narasumber" disabled className="text-xs font-semibold">
+                  <SelectItem
+                    value="narasumber"
+                    disabled
+                    className="text-xs font-semibold"
+                  >
                     Loading kategori...
                   </SelectItem>
                 )}
@@ -241,7 +263,10 @@ export function SubmissionEditDialog({
               showYearPicker
               dateFormat="yyyy"
               customInput={
-                <input disabled={isSaving} className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer text-foreground text-left disabled:opacity-50 disabled:cursor-not-allowed" />
+                <input
+                  disabled={isSaving}
+                  className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-primary transition-colors cursor-pointer text-foreground text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                />
               }
             />
           </Field>
@@ -253,7 +278,7 @@ export function SubmissionEditDialog({
                 Deskripsi Kegiatan <span className="text-error ml-0.5">*</span>
               </FieldTitle>
             </FieldLabel>
-            <textarea 
+            <textarea
               required
               rows={3}
               disabled={isSaving}
@@ -269,7 +294,8 @@ export function SubmissionEditDialog({
             <div className="flex justify-between items-center mb-1">
               <FieldLabel className="mb-0">
                 <FieldTitle>
-                  Link Bukti Dokumen <span className="text-error ml-0.5">*</span>
+                  Link Bukti Dokumen{" "}
+                  <span className="text-error ml-0.5">*</span>
                 </FieldTitle>
               </FieldLabel>
               {!showAddInput && (
@@ -329,13 +355,20 @@ export function SubmissionEditDialog({
 
             {linkBuktiList.length === 0 ? (
               <div className="text-center p-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground">
-                Belum ada link bukti. Klik tombol &quot;+ Tambah Link&quot; untuk menambahkan.
+                Belum ada link bukti. Klik tombol &quot;+ Tambah Link&quot;
+                untuk menambahkan.
               </div>
             ) : (
               <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 scrollbar-thin">
                 {linkBuktiList.map((link, idx) => (
-                  <div key={idx} className="p-2.5 bg-muted/15 border border-border rounded-lg flex items-center justify-between gap-3 text-xs">
-                    <span className="font-mono text-muted-foreground truncate select-all flex-1" title={link}>
+                  <div
+                    key={idx}
+                    className="p-2.5 bg-muted/15 border border-border rounded-lg flex items-center justify-between gap-3 text-xs"
+                  >
+                    <span
+                      className="font-mono text-muted-foreground truncate select-all flex-1"
+                      title={link}
+                    >
                       {link}
                     </span>
                     <div className="flex items-center gap-1 shrink-0">
@@ -376,7 +409,12 @@ export function SubmissionEditDialog({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isSaving || !selectedNip || !deskripsi || linkBuktiList.length === 0}
+            disabled={
+              isSaving ||
+              !selectedNip ||
+              !deskripsi ||
+              linkBuktiList.length === 0
+            }
             className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer disabled:opacity-50"
           >
             {isSaving ? (

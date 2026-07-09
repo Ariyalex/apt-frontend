@@ -232,7 +232,7 @@ export default function DosenManagementPage(): React.JSX.Element {
       if (raw) {
         try {
           const session = JSON.parse(raw);
-          if (session.role === "Auditor" || session.role === "Assessor") {
+          if (session.role === "LPM" || session.role === "Assessor") {
             setIsAllowed(false);
           } else if (
             session.role === "Administrator" ||

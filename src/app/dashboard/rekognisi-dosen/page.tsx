@@ -38,7 +38,10 @@ export default function RekognisiDosenPage(): React.JSX.Element {
   }, [debouncedSearch, tableProdi, tableJenis]);
 
   // Query recognition records from API for Chart and Filters
-  const { data: chartResponse } = useGetRecognitionListQuery({ status: "approved", limit: 1000 });
+  const { data: chartResponse } = useGetRecognitionListQuery({
+    status: "approved",
+    limit: 1000,
+  });
 
   // Query recognition records from API for Table
   const {
@@ -92,7 +95,7 @@ export default function RekognisiDosenPage(): React.JSX.Element {
       if (raw) {
         try {
           const session = JSON.parse(raw);
-          if (session.role === "Auditor") {
+          if (session.role === "LPM") {
             setIsAuditor(true);
           }
         } catch {
@@ -115,8 +118,6 @@ export default function RekognisiDosenPage(): React.JSX.Element {
       setSearchQuery("Cari...");
     }
   };
-
-
 
   // Get unique lists for filtering (from full chart data)
   const prodis = [

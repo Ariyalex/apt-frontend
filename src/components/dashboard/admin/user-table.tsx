@@ -62,10 +62,10 @@ export function UserTable({
                 if (roleLower === "admin") {
                   typeBadgeColor =
                     "bg-amber-500/10 text-amber-600 dark:text-amber-400";
-                } else if (roleLower === "auditee") {
+                } else if (roleLower === "upps") {
                   typeBadgeColor =
                     "bg-blue-500/10 text-blue-600 dark:text-blue-400";
-                } else if (roleLower === "auditor") {
+                } else if (roleLower === "lpm") {
                   typeBadgeColor =
                     "bg-purple-500/10 text-purple-600 dark:text-purple-400";
                 } else if (roleLower === "assessor") {

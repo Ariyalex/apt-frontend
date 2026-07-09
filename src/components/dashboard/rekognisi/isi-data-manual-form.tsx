@@ -197,7 +197,7 @@ export function IsiDataManualForm(): React.JSX.Element {
                 onSelect={(nip) => {
                   setSelectedNip(nip);
                 }}
-                userRole="Fakultas"
+                userRole="LPM"
                 defaultFaculty="Fakultas Sains dan Teknologi"
               />
             </Field>

@@ -1,37 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, ShieldCheck, Loader2, X } from "lucide-react";
+import { Plus, Edit2, Trash2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+
 import {
   HoverCard,
   HoverCardContent,
@@ -62,104 +36,21 @@ import {
   useDeleteAssessmentRuleMutation,
 } from "@/store/services/assessmentRuleApi";
 import { formatCategoryName, formatStageName } from "@/lib/utils";
+import {
+  formatFriendlyFormula,
+  mapCriteria,
+  mapTarget,
+} from "./mutu-banpt-helper";
+import IndicatorFormDialog from "./dialogs/indicatorFormDialog";
 
-interface AdminIndicatorTab extends IndicatorModel {
+import DeleteConfirmAlert from "../../deleteConfirmAlert";
+import AspectRuleFormDialog, {
+  AspectFormData,
+} from "./dialogs/aspectRuleFormDialog";
+
+export interface AdminIndicatorTab extends IndicatorModel {
   apiId?: string;
 }
-
-const isInternalConstant = (name: string): boolean => {
-  const lower = name.toLowerCase();
-  return (
-    lower.includes("numerator") ||
-    lower.includes("denominator") ||
-    lower.includes("denomerator") ||
-    lower.includes("constant")
-  );
-};
-
-const formatFriendlyFormula = (
-  expression: string,
-  variables: FormulaVariable[],
-): string => {
-  if (!expression) return "";
-  let formatted = expression;
-
-  // 1. Convert "Input_Numerator_[suffix] / Denominator_Percentage" -> "[value]%"
-  const percentageNumerators = variables.filter(
-    (v) =>
-      v.name.startsWith("Input_Numerator_") &&
-      variables.some((d) => d.name === "Denominator_Percentage"),
-  );
-  percentageNumerators.forEach((num) => {
-    const targetExpr = `${num.name} / Denominator_Percentage`;
-    if (formatted.includes(targetExpr)) {
-      formatted = formatted.replaceAll(targetExpr, `${num.value}%`);
-    }
-  });
-
-  // 2. Convert "Input_Numerator_[suffix] / Input_Denomerator_[suffix]" -> "[num_val]/[denom_val]"
-  const fractionNumerators = variables.filter((v) =>
-    v.name.startsWith("Input_Numerator_"),
-  );
-  fractionNumerators.forEach((num) => {
-    const suffix = num.name.replace("Input_Numerator_", "");
-    const denomName = `Input_Denomerator_${suffix}`;
-    const denom = variables.find((v) => v.name === denomName);
-    if (denom) {
-      const targetExpr = `${num.name} / ${denomName}`;
-      if (formatted.includes(targetExpr)) {
-        formatted = formatted.replaceAll(
-          targetExpr,
-          `${num.value}/${denom.value}`,
-        );
-      }
-    }
-  });
-
-  // 3. Convert "Input_Constant_[suffix]" -> "[value]"
-  const constants = variables.filter((v) =>
-    v.name.startsWith("Input_Constant_"),
-  );
-  constants.forEach((c) => {
-    formatted = formatted.replaceAll(c.name, String(c.value));
-  });
-
-  return formatted;
-};
-
-const mapCriteria = (criteria: string): string => {
-  switch (criteria) {
-    case "budaya-mutu":
-      return "quality_culture";
-    case "relevansi-pendidikan":
-      return "education_relevance";
-    case "relevansi-penelitian":
-      return "research_relevance";
-    case "relevansi-pkm":
-      return "community_service_relevance";
-    case "akuntabilitas":
-      return "accountability";
-    case "diferensiasi-misi":
-      return "mission_differentiation";
-    default:
-      return criteria;
-  }
-};
-
-const mapTarget = (target: string): string => {
-  switch (target) {
-    case "masukan":
-      return "input";
-    case "proses":
-      return "process";
-    case "luaran":
-      return "output";
-    case "dampak":
-      return "impact";
-    default:
-      return target;
-  }
-};
 
 interface MutuBanptAdminProps {
   criteria: string;
@@ -188,9 +79,7 @@ export default function MutuBanptAdminPage({
   // Indicator Form state
   const [editingIndicator, setEditingIndicator] =
     useState<AdminIndicatorTab | null>(null);
-  const [indNo, setIndNo] = useState<string>("");
-  const [indJustifikasi, setIndJustifikasi] = useState<string>("");
-  const [indDeskripsi, setIndDeskripsi] = useState<string>("");
+
   const [indDeleteConfirm, setIndDeleteConfirm] = useState<boolean>(false);
 
   // Aspect Form state
@@ -198,33 +87,11 @@ export default function MutuBanptAdminPage({
     null,
   );
   const [aspectType, setAspectType] = useState<"radio" | "formula">("radio");
-  const [aspDescription, setAspDescription] = useState<string>("");
-  const [aspCompliance, setAspCompliance] = useState<string>("");
-  const [aspDataSource, setAspDataSource] = useState<string>("");
-  const [aspExpectation, setAspExpectation] = useState<string>("");
-  const [aspFormat, setAspFormat] = useState<"decimal" | "percentage">(
-    "decimal",
-  );
-  const [aspBuktiRequired, setAspBuktiRequired] = useState<boolean>(true);
   const [aspDeleteConfirm, setAspDeleteConfirm] = useState<string | null>(null);
 
   // Variable management (within Aspect dialog)
-  const [formulaVariables, setFormulaVariables] = useState<FormulaVariable[]>(
-    [],
-  );
-  const [newVarName, setNewVarName] = useState<string>("");
-  const [newVarType, setNewVarType] = useState<"input" | "static">("input");
-  const [newVarValue, setNewVarValue] = useState<string>("0");
-
-  // Radio choices variables
-  const [radioVariables, setRadioVariables] = useState<RadioVariable[]>([]);
-  const [newRadioName, setNewRadioName] = useState<string>("");
-  const [newRadioValue, setNewRadioValue] = useState<string>("0");
 
   // Visual Formula Builder state
-  const [formulaExpression, setFormulaExpression] = useState<string>("");
-  const [formulaTokens, setFormulaTokens] = useState<string[]>([]); // for undo support
-  const [constInput, setConstInput] = useState<string>("");
   const [localConstants, setLocalConstants] = useState<LocalConstant[]>([]);
 
   // Load local constants from localStorage on mount
@@ -285,11 +152,13 @@ export default function MutuBanptAdminPage({
 
   const [createIndicator] = useCreateIndicatorMutation();
   const [updateIndicator] = useUpdateIndicatorMutation();
-  const [deleteIndicator] = useDeleteIndicatorMutation();
+  const [deleteIndicator, { isLoading: isDeletingInd }] =
+    useDeleteIndicatorMutation();
 
   const [createRule] = useCreateAssessmentRuleMutation();
   const [updateRule] = useUpdateAssessmentRuleMutation();
-  const [deleteRule] = useDeleteAssessmentRuleMutation();
+  const [deleteRule, { isLoading: isDeletingRule }] =
+    useDeleteAssessmentRuleMutation();
 
   // Sync active accreditation from local storage
   useEffect(() => {
@@ -418,29 +287,28 @@ export default function MutuBanptAdminPage({
   // INDICATOR ACTIONS
   const openAddIndicator = () => {
     setEditingIndicator(null);
-    setIndNo((indicators.length + 1).toString());
-    setIndJustifikasi("");
-    setIndDeskripsi("");
+
     setIsIndicatorDialogOpen(true);
   };
 
   const openEditIndicator = () => {
     if (!activeIndicator) return;
     setEditingIndicator(activeIndicator);
-    const match = activeIndicator.number.match(/\d+/);
-    setIndNo(match ? match[0] : "");
-    setIndJustifikasi(activeIndicator.justification);
-    setIndDeskripsi(activeIndicator.name);
+
     setIsIndicatorDialogOpen(true);
   };
 
-  const handleSaveIndicator = async () => {
-    const parsedNo = parseInt(indNo);
+  const handleSaveIndicator = async (formData: {
+    no: string;
+    justifikasi: string;
+    deskripsi: string;
+  }) => {
+    const parsedNo = parseInt(formData.no);
     if (isNaN(parsedNo)) {
       toast.error("Nomor indikator harus berupa angka!");
       return;
     }
-    if (!indDeskripsi.trim()) {
+    if (!formData.deskripsi.trim()) {
       toast.error("Deskripsi indikator tidak boleh kosong!");
       return;
     }
@@ -450,8 +318,8 @@ export default function MutuBanptAdminPage({
       const payload: SaveIndicatorRequest = {
         accreditation_id: activeAkredId,
         number: `Indikator ${parsedNo}`,
-        name: indDeskripsi,
-        justification: indJustifikasi,
+        name: formData.deskripsi,
+        justification: formData.justifikasi,
         criteria: mapCriteria(category),
         target: mapTarget(stage),
       };
@@ -502,19 +370,6 @@ export default function MutuBanptAdminPage({
   const openAddAspect = (type: "radio" | "formula") => {
     setEditingAspect(null);
     setAspectType(type);
-    setAspDescription("");
-    setAspCompliance("");
-    setAspDataSource("");
-    setAspExpectation("");
-    setAspFormat("decimal");
-    setAspBuktiRequired(true);
-    setConstInput("");
-
-    // Clear formula states
-    setFormulaVariables([]);
-    setRadioVariables([]);
-    setFormulaExpression("");
-    setFormulaTokens([]);
 
     setIsAspectDialogOpen(true);
   };
@@ -522,287 +377,13 @@ export default function MutuBanptAdminPage({
   const openEditAspect = (asp: AssessmentAspect) => {
     setEditingAspect(asp);
     setAspectType(asp.type);
-    setAspDescription(asp.description);
-    setAspCompliance(asp.complianceDescription);
-    setAspDataSource(asp.dataSource);
-    setAspExpectation(asp.expectationResult?.toString() ?? "");
-    setAspFormat(asp.expectationFormat ?? "decimal");
-    setAspBuktiRequired(asp.buktiRequired);
-    setConstInput("");
-
-    if (asp.type === "formula" && asp.formula) {
-      setFormulaVariables(asp.formula.variables || []);
-      let expr = asp.formula.expression || "";
-      const sortedConstants = [...localConstants].sort(
-        (a, b) => b.expression.length - a.expression.length,
-      );
-      for (const lc of sortedConstants) {
-        expr = expr.split(lc.expression).join(lc.label);
-      }
-      setFormulaExpression(expr);
-      setFormulaTokens(expr.split(/\s+/).filter(Boolean));
-    } else if (asp.type === "radio") {
-      setRadioVariables(asp.radioVariables || []);
-      let expr = asp.formula?.expression || "";
-      const sortedConstants = [...localConstants].sort(
-        (a, b) => b.expression.length - a.expression.length,
-      );
-      for (const lc of sortedConstants) {
-        expr = expr.split(lc.expression).join(lc.label);
-      }
-      setFormulaExpression(expr);
-      setFormulaTokens(expr.split(/\s+/).filter(Boolean));
-    }
-
     setIsAspectDialogOpen(true);
   };
 
   // Variables list helpers
-  const handleAddFormulaVariable = () => {
-    if (!newVarName.trim()) {
-      toast.error("Nama variabel tidak boleh kosong!");
-      return;
-    }
-    // Only letters & numbers
-    if (!/^[a-zA-Z0-9_]+$/.test(newVarName)) {
-      toast.error("Nama variabel hanya boleh huruf, angka, dan underscore!");
-      return;
-    }
-    if (formulaVariables.some((v) => v.name === newVarName)) {
-      toast.error("Variabel dengan nama tersebut sudah didefinisikan!");
-      return;
-    }
 
-    const newItem: FormulaVariable = {
-      name: newVarName.trim(),
-      label: newVarName.trim(),
-      type: newVarType,
-      value: newVarType === "static" ? parseFloat(newVarValue) || 0 : 0,
-    };
-
-    setFormulaVariables([...formulaVariables, newItem]);
-    setNewVarName("");
-    setNewVarValue("0");
-  };
-
-  const handleAddRadioVariable = () => {
-    if (!newRadioName.trim()) {
-      toast.error("Nama pilihan radio tidak boleh kosong!");
-      return;
-    }
-    const val = parseFloat(newRadioValue);
-    if (isNaN(val)) {
-      toast.error("Point pilihan radio harus berupa angka!");
-      return;
-    }
-
-    // We construct a clean variable name by replacing spaces with underscores
-    const varName = newRadioName.trim().replace(/\s+/g, "_");
-
-    if (radioVariables.some((v) => v.name === varName)) {
-      toast.error("Pilihan radio tersebut sudah dibuat!");
-      return;
-    }
-
-    const newItem: RadioVariable = {
-      name: varName,
-      value: val,
-    };
-
-    const updatedRadios = [...radioVariables, newItem];
-    setRadioVariables(updatedRadios);
-
-    // Auto-update formula and tokens for ordinary/radio assessment
-    // "berikan default var + var + var sesuai jumlah var yang sudah dibuat"
-    const expression = updatedRadios.map((r) => r.name).join(" + ");
-    setFormulaExpression(expression);
-    setFormulaTokens(
-      updatedRadios
-        .map((r) => r.name)
-        .flatMap((t, i) => (i > 0 ? ["+", t] : [t])),
-    );
-
-    setNewRadioName("");
-    setNewRadioValue("0");
-  };
-
-  const handleRemoveFormulaVariable = (name: string) => {
-    setFormulaVariables(formulaVariables.filter((v) => v.name !== name));
-    // Clear formula if it reference deleted variable to avoid compilation issues
-    if (formulaExpression.includes(name)) {
-      setFormulaExpression("");
-      setFormulaTokens([]);
-    }
-  };
-
-  const handleRemoveRadioVariable = (name: string) => {
-    const updatedRadios = radioVariables.filter((v) => v.name !== name);
-    setRadioVariables(updatedRadios);
-    const expression = updatedRadios.map((r) => r.name).join(" + ");
-    setFormulaExpression(expression);
-    setFormulaTokens(
-      updatedRadios
-        .map((r) => r.name)
-        .flatMap((t, i) => (i > 0 ? ["+", t] : [t])),
-    );
-  };
-
-  // Visual Formula building actions
-  const appendFormulaToken = (token: string) => {
-    const updatedTokens = [...formulaTokens, token];
-    setFormulaTokens(updatedTokens);
-    setFormulaExpression(updatedTokens.join(" "));
-  };
-
-  const handleCreateLocalConstant = () => {
-    const input = constInput.trim();
-    if (!input) {
-      toast.error("Input tidak boleh kosong!");
-      return;
-    }
-
-    if (localConstants.some((c) => c.label === input)) {
-      toast.error("Konstanta dengan nama tersebut sudah terdaftar!");
-      return;
-    }
-
-    const getNextLocalSuffix = (base: string, existing: LocalConstant[]) => {
-      let charCode = 65; // 'A'
-      while (true) {
-        const suffix = String.fromCharCode(charCode);
-        const name = `${base}_${suffix}`;
-        const collision = existing.some((c) =>
-          c.variables.some((v) => v.name === name),
-        );
-        if (!collision) return suffix;
-        charCode++;
-        if (charCode > 90) {
-          return Math.random().toString(36).substring(2, 5).toUpperCase();
-        }
-      }
-    };
-
-    let newConst: LocalConstant | null = null;
-
-    if (input.endsWith("%")) {
-      const valStr = input.slice(0, -1).trim();
-      const value = parseFloat(valStr);
-      if (isNaN(value)) {
-        toast.error("Format persen tidak valid!");
-        return;
-      }
-
-      const denomName = "Denominator_Percentage";
-      const suffix = getNextLocalSuffix("Input_Numerator", localConstants);
-      const numName = `Input_Numerator_${suffix}`;
-
-      const variables: FormulaVariable[] = [
-        {
-          name: numName,
-          label: `Konstanta Persen ${input}`,
-          type: "static",
-          value,
-        },
-        {
-          name: denomName,
-          label: "Denominator Persen (Default 100)",
-          type: "static",
-          value: 100,
-        },
-      ];
-
-      newConst = {
-        label: input,
-        expression: `${numName} / ${denomName}`,
-        variables,
-      };
-    } else if (input.includes("/")) {
-      const parts = input.split("/");
-      if (parts.length !== 2) {
-        toast.error("Format pecahan tidak valid!");
-        return;
-      }
-      const numVal = parseFloat(parts[0].trim());
-      const denomVal = parseFloat(parts[1].trim());
-      if (isNaN(numVal) || isNaN(denomVal) || denomVal === 0) {
-        toast.error("Nilai pembilang/penyebut tidak valid!");
-        return;
-      }
-
-      const suffix = getNextLocalSuffix("Input_Numerator", localConstants);
-      const numName = `Input_Numerator_${suffix}`;
-      const denomName = `Input_Denomerator_${suffix}`;
-
-      const variables: FormulaVariable[] = [
-        {
-          name: numName,
-          label: `Pembilang Pecahan ${input}`,
-          type: "static",
-          value: numVal,
-        },
-        {
-          name: denomName,
-          label: `Penyebut Pecahan ${input}`,
-          type: "static",
-          value: denomVal,
-        },
-      ];
-
-      newConst = {
-        label: input,
-        expression: `${numName} / ${denomName}`,
-        variables,
-      };
-    } else {
-      const staticVal = parseFloat(input);
-      if (isNaN(staticVal)) {
-        toast.error("Format tidak valid! Gunakan format seperti: 90% atau 5/3");
-        return;
-      }
-
-      const suffix = getNextLocalSuffix("Input_Constant", localConstants);
-      const constName = `Input_Constant_${suffix}`;
-
-      newConst = {
-        label: input,
-        expression: constName,
-        variables: [
-          {
-            name: constName,
-            label: `Konstanta ${input}`,
-            type: "static",
-            value: staticVal,
-          },
-        ],
-      };
-    }
-
-    if (newConst) {
-      const updated = [...localConstants, newConst];
-      setLocalConstants(updated);
-      localStorage.setItem(
-        "mutu_banpt_local_constants",
-        JSON.stringify(updated),
-      );
-      setConstInput("");
-      toast.success(`Konstanta local "${input}" berhasil disimpan!`);
-    }
-  };
-
-  const undoFormulaToken = () => {
-    if (formulaTokens.length === 0) return;
-    const updatedTokens = formulaTokens.slice(0, -1);
-    setFormulaTokens(updatedTokens);
-    setFormulaExpression(updatedTokens.join(" "));
-  };
-
-  const clearFormula = () => {
-    setFormulaTokens([]);
-    setFormulaExpression("");
-  };
-
-  const handleSaveAspect = async () => {
-    if (!aspDescription.trim() || !aspDataSource.trim()) {
+  const handleSaveAspect = async (formData: AspectFormData) => {
+    if (!formData.description.trim() || !formData.dataSource.trim()) {
       toast.error("Deskripsi dan sumber data tidak boleh kosong!");
       return;
     }
@@ -810,26 +391,34 @@ export default function MutuBanptAdminPage({
     const activeIndicatorApiId = activeIndicator.apiId;
     if (!activeIndicatorApiId) return;
 
-    const parsedExpectation = parseFloat(aspExpectation);
+    const parsedExpectation =
+      aspectType === "formula" ? parseFloat(formData.expectation) : 1;
 
     // Prepare variables list as RuleVariable[] for the database
     let variablesList: RuleVariable[] = [];
     if (aspectType === "formula") {
-      variablesList = formulaVariables.map((v) => ({
+      variablesList = formData.formulaVariables.map((v) => ({
         var: v.name,
         type: v.type,
         val: v.value,
       }));
     } else {
-      variablesList = radioVariables.map((rv) => ({
-        var: rv.name,
-        type: "input",
-        val: rv.value,
-      }));
+      variablesList = [
+        {
+          type: "input",
+          var: "Memenuhi",
+          val: 1,
+        },
+        {
+          type: "input",
+          var: "Tidak_Memenuhi",
+          val: 0,
+        },
+      ];
     }
 
     // Merge variables from used local constants in formula tokens
-    for (const tok of formulaTokens) {
+    for (const tok of formData.formulaTokens) {
       const found = localConstants.find((lc) => lc.label === tok);
       if (found) {
         for (const v of found.variables) {
@@ -845,7 +434,7 @@ export default function MutuBanptAdminPage({
     }
 
     // Map tokens to actual backend expressions
-    const mappedTokens = formulaTokens.map((tok) => {
+    const mappedTokens = formData.formulaTokens.map((tok) => {
       const found = localConstants.find((lc) => lc.label === tok);
       return found ? found.expression : tok;
     });
@@ -853,15 +442,18 @@ export default function MutuBanptAdminPage({
 
     const payload: SaveAssessmentRuleRequest = {
       indicator_id: activeIndicatorApiId,
-      assessment: aspDescription,
-      fulfillment: aspCompliance,
-      data_source: aspDataSource,
+      assessment: formData.description,
+      fulfillment: formData.compliance,
+      data_source: formData.dataSource,
       type: aspectType === "formula" ? "maths" : "points",
       input_rules: variablesList, // Backend typo 'inut_rules' matches SaveAssessmentRuleRequest
-      formula: finalExpression,
+      formula:
+        aspectType === "formula"
+          ? finalExpression
+          : "Memenuhi + Tidak_Memenuhi",
       expectation_result: isNaN(parsedExpectation) ? 0 : parsedExpectation,
-      result_format: aspFormat,
-      proof_required: aspBuktiRequired,
+      result_format: aspectType === "formula" ? formData.format : "decimal",
+      proof_required: false,
     };
 
     setIsSaving(true);
@@ -898,7 +490,6 @@ export default function MutuBanptAdminPage({
   };
 
   // Math operators catalog
-  const operators = ["(", ")", "+", "-", "*", "/"];
 
   if (isLoading) {
     return (
@@ -930,7 +521,7 @@ export default function MutuBanptAdminPage({
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
             Konfigurasi indikator, justifikasi, aspek penilaian, dan variabel
-            rumus untuk auditor.
+            rumus untuk LPM.
           </p>
         </div>
         {indicators.length > 0 && (
@@ -1181,664 +772,47 @@ export default function MutuBanptAdminPage({
       )}
 
       {/* Dialog Add/Edit Indicator */}
-      <Dialog
-        open={isIndicatorDialogOpen}
-        onOpenChange={setIsIndicatorDialogOpen}
-      >
-        <DialogContent className="sm:max-w-lg p-6 bg-card border border-border text-xs">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold text-foreground">
-              {editingIndicator
-                ? "Edit Indikator Mutu"
-                : "Tambah Indikator Mutu"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-3">
-            <Field>
-              <FieldLabel htmlFor="ind-no">Nomor Indikator</FieldLabel>
-              <Input
-                id="ind-no"
-                type="number"
-                value={indNo}
-                onChange={(e) => setIndNo(e.target.value)}
-                placeholder="1"
-                disabled={isSaving}
-                className="w-28 bg-card border-border text-foreground"
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="ind-justifikasi">
-                Justifikasi (Rujukan Hukum / SK)
-              </FieldLabel>
-              <Textarea
-                id="ind-justifikasi"
-                value={indJustifikasi}
-                onChange={(e) => setIndJustifikasi(e.target.value)}
-                placeholder="Tuliskan justifikasi..."
-                disabled={isSaving}
-                rows={3}
-                className="w-full bg-card border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary text-foreground resize-none"
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="ind-deskripsi">
-                Deskripsi Indikator
-              </FieldLabel>
-              <Textarea
-                id="ind-deskripsi"
-                value={indDeskripsi}
-                onChange={(e) => setIndDeskripsi(e.target.value)}
-                placeholder="Tuliskan deskripsi kriteria mutu..."
-                disabled={isSaving}
-                rows={4}
-                className="w-full bg-card border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary text-foreground resize-none"
-              />
-            </Field>
-          </div>
-
-          <DialogFooter className="flex-row items-center justify-between border-t border-border/40 pt-4 mt-2">
-            <div>
-              {editingIndicator && (
-                <Button
-                  onClick={() => setIndDeleteConfirm(true)}
-                  disabled={isSaving}
-                  className="bg-error hover:bg-error/90 text-error-foreground font-semibold text-xs h-9 cursor-pointer"
-                >
-                  Hapus Indikator
-                </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                disabled={isSaving}
-                onClick={() => setIsIndicatorDialogOpen(false)}
-                className="text-xs h-9 cursor-pointer"
-              >
-                Batal
-              </Button>
-              <Button
-                onClick={handleSaveIndicator}
-                disabled={isSaving}
-                className="bg-primary text-primary-foreground text-xs font-semibold h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm cursor-pointer"
-              >
-                {isSaving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  "Simpan"
-                )}
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <IndicatorFormDialog
+        isOpen={isIndicatorDialogOpen}
+        onClose={() => setIsIndicatorDialogOpen(false)}
+        isSaving={isSaving}
+        initialData={editingIndicator}
+        onSave={handleSaveIndicator}
+        onDeleteRequest={() => setIndDeleteConfirm(true)}
+      />
 
       {/* Dialog Add/Edit Aspect (Unified) */}
-      <Dialog open={isAspectDialogOpen} onOpenChange={setIsAspectDialogOpen}>
-        <DialogContent className="sm:max-w-2xl p-6 bg-card border border-border text-xs max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold text-foreground">
-              {editingAspect
-                ? `Edit Aspek Penilaian (${aspectType === "formula" ? "Rumus" : "Biasa"})`
-                : `Tambah Aspek Penilaian (${aspectType === "formula" ? "Rumus" : "Biasa"})`}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-3">
-            {/* Aspek Penilaian & Pemenuhan */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel htmlFor="asp-description">
-                  Aspek Penilaian (Deskripsi Aspek)
-                </FieldLabel>
-                <Textarea
-                  id="asp-description"
-                  value={aspDescription}
-                  onChange={(e) => setAspDescription(e.target.value)}
-                  placeholder="Tuliskan aspek penilaian..."
-                  disabled={isSaving}
-                  rows={3}
-                  className="w-full bg-card border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary text-foreground resize-none"
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="asp-compliance">
-                  Aspek Pemenuhan (Kriteria Lulus)
-                </FieldLabel>
-                <Textarea
-                  id="asp-compliance"
-                  value={aspCompliance}
-                  onChange={(e) => setAspCompliance(e.target.value)}
-                  placeholder="Tuliskan aspek pemenuhan..."
-                  disabled={isSaving}
-                  rows={3}
-                  className="w-full bg-card border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary text-foreground resize-none"
-                />
-              </Field>
-            </div>
-
-            {/* Sumber data */}
-            <Field>
-              <FieldLabel htmlFor="asp-data-source">Sumber Data</FieldLabel>
-              <Input
-                id="asp-data-source"
-                value={aspDataSource}
-                onChange={(e) => setAspDataSource(e.target.value)}
-                placeholder="Contoh: Website LPPM, Kepegawaian"
-                disabled={isSaving}
-                className="bg-card border-border text-foreground"
-              />
-            </Field>
-
-            {/* Harapan (Expectation) & Format */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel htmlFor="asp-expectation">
-                  Expectation Result (Nilai Kelulusan)
-                </FieldLabel>
-                <Input
-                  id="asp-expectation"
-                  type="number"
-                  value={aspExpectation}
-                  onChange={(e) => setAspExpectation(e.target.value)}
-                  placeholder="Contoh: 3, 40"
-                  disabled={isSaving}
-                  className="bg-card border-border text-foreground"
-                />
-              </Field>
-              <Field>
-                <FieldLabel>Format Output Harapan</FieldLabel>
-                <div className="flex gap-4 mt-2">
-                  <label className="flex items-center gap-1.5 font-semibold text-foreground cursor-pointer">
-                    <input
-                      type="radio"
-                      name="expect-format"
-                      value="decimal"
-                      checked={aspFormat === "decimal"}
-                      onChange={() => setAspFormat("decimal")}
-                      className="accent-primary"
-                    />
-                    Angka Desimal
-                  </label>
-                  <label className="flex items-center gap-1.5 font-semibold text-foreground cursor-pointer">
-                    <input
-                      type="radio"
-                      name="expect-format"
-                      value="percentage"
-                      checked={aspFormat === "percentage"}
-                      onChange={() => setAspFormat("percentage")}
-                      className="accent-primary"
-                    />
-                    Persentase (%)
-                  </label>
-                </div>
-              </Field>
-            </div>
-
-            {/* Kebutuhan Bukti */}
-            <Field>
-              <FieldLabel>Apakah Bukti Dokumen Diperlukan?</FieldLabel>
-              <div className="flex gap-4 mt-1.5">
-                <label className="flex items-center gap-1.5 font-semibold text-foreground cursor-pointer">
-                  <input
-                    type="radio"
-                    name="bukti-required"
-                    checked={aspBuktiRequired === true}
-                    onChange={() => setAspBuktiRequired(true)}
-                    className="accent-primary"
-                  />
-                  Ya, Diperlukan File Upload
-                </label>
-                <label className="flex items-center gap-1.5 font-semibold text-foreground cursor-pointer">
-                  <input
-                    type="radio"
-                    name="bukti-required"
-                    checked={aspBuktiRequired === false}
-                    onChange={() => setAspBuktiRequired(false)}
-                    className="accent-primary"
-                  />
-                  Tidak Diperlukan
-                </label>
-              </div>
-            </Field>
-
-            <Separator className="my-2 border-border/40" />
-
-            {/* VARIABLES MANAGEMENT ZONE */}
-            {aspectType === "radio" ? (
-              /* Variable builder for Radio / Ordinary aspect */
-              <div className="space-y-4">
-                <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-2">
-                  <span className="font-bold text-[10px] text-primary uppercase block">
-                    Definisikan Variabel Pilihan Radio
-                  </span>
-
-                  {/* Dynamic choices variables list */}
-                  {radioVariables.length === 0 ? (
-                    <p className="text-muted-foreground italic text-[11px] py-1">
-                      Belum ada pilihan radio. Definisikan minimal satu pilihan.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2 py-1">
-                      {radioVariables.map((v) => (
-                        <div
-                          key={v.name}
-                          className="flex items-center gap-1.5 bg-card border border-border px-2 py-1 rounded"
-                        >
-                          <span className="font-semibold text-foreground">
-                            {v.name.replace(/_/g, " ")} ({v.value})
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveRadioVariable(v.name)}
-                            className="text-error hover:bg-error/10 p-0.5 rounded cursor-pointer"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add radio variable fields */}
-                  <div className="flex flex-wrap gap-3 items-end pt-1">
-                    <Field className="flex-1 min-w-[150px]">
-                      <FieldLabel
-                        htmlFor="new-radio-name"
-                        className="text-[10px] font-bold text-muted-foreground uppercase"
-                      >
-                        Nama Pilihan
-                      </FieldLabel>
-                      <Input
-                        id="new-radio-name"
-                        value={newRadioName}
-                        onChange={(e) => setNewRadioName(e.target.value)}
-                        placeholder="Contoh: Baik, Unggul"
-                        className="bg-card text-xs h-8 border-border text-foreground"
-                      />
-                    </Field>
-                    <Field className="w-24">
-                      <FieldLabel
-                        htmlFor="new-radio-value"
-                        className="text-[10px] font-bold text-muted-foreground uppercase"
-                      >
-                        Poin / Nilai
-                      </FieldLabel>
-                      <Input
-                        id="new-radio-value"
-                        type="number"
-                        value={newRadioValue}
-                        onChange={(e) => setNewRadioValue(e.target.value)}
-                        className="bg-card text-xs h-8 border-border text-foreground text-right"
-                      />
-                    </Field>
-                    <Button
-                      type="button"
-                      onClick={handleAddRadioVariable}
-                      variant="outline"
-                      className="h-8 text-xs font-semibold border-border hover:bg-muted/40 text-foreground cursor-pointer shrink-0"
-                    >
-                      + Tambah Pilihan
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Variable builder for Formula aspect */
-              <div className="space-y-4">
-                <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-2">
-                  <span className="font-bold text-[10px] text-primary uppercase block">
-                    Definisikan Variabel Rumus
-                  </span>
-
-                  {/* Dynamic formula variables list */}
-                  {formulaVariables.filter((v) => !isInternalConstant(v.name))
-                    .length === 0 ? (
-                    <p className="text-muted-foreground italic text-[11px] py-1">
-                      Belum ada variabel rumus. Tambahkan variabel baru.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2 py-1">
-                      {formulaVariables
-                        .filter((v) => !isInternalConstant(v.name))
-                        .map((v) => (
-                          <div
-                            key={v.name}
-                            className="flex items-center gap-1.5 bg-card border border-border px-2 py-1 rounded"
-                          >
-                            <span className="font-semibold text-foreground">
-                              {v.name} (
-                              {v.type === "static"
-                                ? `Static: ${v.value}`
-                                : "Input Auditor"}
-                              )
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleRemoveFormulaVariable(v.name)
-                              }
-                              className="text-error hover:bg-error/10 p-0.5 rounded cursor-pointer"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-
-                  {/* Add formula variable sub-form */}
-                  <div className="flex flex-wrap gap-3 items-end pt-1">
-                    <Field className="flex-1 min-w-[150px]">
-                      <FieldLabel
-                        htmlFor="new-var-name"
-                        className="text-[10px] font-bold text-muted-foreground uppercase"
-                      >
-                        Nama Variabel
-                      </FieldLabel>
-                      <Input
-                        id="new-var-name"
-                        value={newVarName}
-                        onChange={(e) => setNewVarName(e.target.value)}
-                        placeholder="Contoh: NDT, NDS3"
-                        className="bg-card text-xs h-8 border-border text-foreground"
-                      />
-                    </Field>
-                    <Field className="w-32">
-                      <FieldLabel className="text-[10px] font-bold text-muted-foreground uppercase">
-                        Tipe
-                      </FieldLabel>
-                      <Select
-                        value={newVarType}
-                        onValueChange={(val) =>
-                          setNewVarType(val as "input" | "static")
-                        }
-                      >
-                        <SelectTrigger className="w-full bg-card border border-border rounded-lg text-xs h-8 px-2 text-foreground cursor-pointer">
-                          <SelectValue placeholder="Tipe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="input">Input Auditor</SelectItem>
-                          <SelectItem value="static">Static (Tetap)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    {newVarType === "static" && (
-                      <Field className="w-20">
-                        <FieldLabel
-                          htmlFor="new-var-value"
-                          className="text-[10px] font-bold text-muted-foreground uppercase"
-                        >
-                          Nilai
-                        </FieldLabel>
-                        <Input
-                          id="new-var-value"
-                          type="number"
-                          value={newVarValue}
-                          onChange={(e) => setNewVarValue(e.target.value)}
-                          className="bg-card text-xs h-8 border-border text-foreground text-right"
-                        />
-                      </Field>
-                    )}
-                    <Button
-                      type="button"
-                      onClick={handleAddFormulaVariable}
-                      variant="outline"
-                      className="h-8 text-xs font-semibold border-border hover:bg-muted/40 text-foreground cursor-pointer shrink-0"
-                    >
-                      + Tambah Variabel
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* VISUAL FORMULA BUILDER */}
-            {(aspectType === "formula" || aspectType === "radio") && (
-              <div className="p-4 border border-primary/20 bg-primary/5 rounded-xl space-y-3">
-                <span className="font-bold text-[10px] text-primary uppercase tracking-wider block">
-                  Visual Formula Builder (Rakit Rumus)
-                </span>
-
-                {/* Operator Selector buttons */}
-                <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
-                    Klik tombol operator:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {operators.map((op) => (
-                      <button
-                        key={op}
-                        type="button"
-                        onClick={() => appendFormulaToken(op)}
-                        className="bg-card hover:bg-muted border border-border px-3 py-1 rounded text-xs font-semibold text-foreground cursor-pointer font-mono shrink-0"
-                      >
-                        {op}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Local Constants buttons */}
-                <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
-                    Klik tombol konstanta local:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {localConstants.map((lc) => (
-                      <button
-                        key={lc.label}
-                        type="button"
-                        onClick={() => appendFormulaToken(lc.label)}
-                        className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-2.5 py-1 rounded text-xs font-semibold text-amber-600 dark:text-amber-400 cursor-pointer shrink-0"
-                      >
-                        {lc.label}
-                      </button>
-                    ))}
-                    {localConstants.length === 0 && (
-                      <span className="text-[11px] text-muted-foreground/60 italic">
-                        Belum ada konstanta local.
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Custom local constants builder */}
-                <div className="space-y-1.5 pt-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
-                    Rakit Konstanta Baru (Angka / Persen / Pecahan):
-                  </span>
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      id="const-input"
-                      value={constInput}
-                      onChange={(e) => setConstInput(e.target.value)}
-                      placeholder="Contoh: 90% atau 5/3"
-                      className="bg-card text-xs h-8 border-border text-foreground max-w-[200px]"
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleCreateLocalConstant}
-                      variant="outline"
-                      className="h-8 text-xs font-semibold border-border hover:bg-muted/40 text-foreground cursor-pointer shrink-0"
-                    >
-                      Simpan Konstanta
-                    </Button>
-                  </div>
-                  <span className="text-[9px] text-muted-foreground block leading-relaxed">
-                    (Input akan tersimpan di Local Storage dan memunculkan
-                    tombol konstanta baru di atas.)
-                  </span>
-                </div>
-
-                {/* Variable Selector buttons */}
-                <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase">
-                    Klik tombol variabel:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {aspectType === "formula"
-                      ? formulaVariables
-                          .filter((v) => !isInternalConstant(v.name))
-                          .map((v) => (
-                            <button
-                              key={v.name}
-                              type="button"
-                              onClick={() => appendFormulaToken(v.name)}
-                              className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
-                            >
-                              {v.name}
-                            </button>
-                          ))
-                      : radioVariables
-                          .filter((v) => !isInternalConstant(v.name))
-                          .map((v) => (
-                            <button
-                              key={v.name}
-                              type="button"
-                              onClick={() => appendFormulaToken(v.name)}
-                              className="bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded text-xs font-semibold text-primary cursor-pointer shrink-0"
-                            >
-                              {v.name}
-                            </button>
-                          ))}
-                    {((aspectType === "formula" &&
-                      formulaVariables.filter(
-                        (v) => !isInternalConstant(v.name),
-                      ).length === 0) ||
-                      (aspectType === "radio" &&
-                        radioVariables.filter(
-                          (v) => !isInternalConstant(v.name),
-                        ).length === 0)) && (
-                      <span className="text-[11px] text-muted-foreground/60 italic">
-                        Definisikan variabel di atas terlebih dahulu.
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Formula expression preview */}
-                <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase block">
-                    Preview Rumus Perhitungan
-                  </span>
-                  <div className="flex gap-2 items-center">
-                    <div className="bg-card border border-border p-2.5 rounded-lg font-mono text-foreground font-semibold flex-1 text-xs select-none">
-                      {formatFriendlyFormula(
-                        formulaExpression,
-                        formulaVariables,
-                      ) || (
-                        <span className="text-muted-foreground/50">
-                          Rumus kosong...
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={undoFormulaToken}
-                      variant="outline"
-                      className="h-8 text-xs font-semibold border-border text-foreground cursor-pointer shrink-0"
-                    >
-                      Undo
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={clearFormula}
-                      variant="outline"
-                      className="h-8 text-xs font-semibold border-border text-error hover:bg-error/5 cursor-pointer shrink-0"
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0 border-t border-border/40 pt-4 mt-2">
-            <Button
-              variant="outline"
-              disabled={isSaving}
-              onClick={() => setIsAspectDialogOpen(false)}
-              className="text-xs h-9 cursor-pointer"
-            >
-              Batal
-            </Button>
-            <Button
-              onClick={handleSaveAspect}
-              disabled={isSaving}
-              className="bg-primary text-primary-foreground text-xs font-semibold h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm cursor-pointer"
-            >
-              {isSaving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-              ) : (
-                "Simpan"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AspectRuleFormDialog
+        isOpen={isAspectDialogOpen}
+        onClose={() => setIsAspectDialogOpen(false)}
+        isSaving={isSaving}
+        aspectType={aspectType}
+        initialData={editingAspect}
+        localConstants={localConstants}
+        onSave={handleSaveAspect}
+      />
 
       {/* Delete Aspect Confirmation */}
-      <AlertDialog
-        open={!!aspDeleteConfirm}
-        onOpenChange={(o) => !o && setAspDeleteConfirm(null)}
-      >
-        <AlertDialogContent className="bg-card border border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm font-bold text-foreground">
-              Hapus Aspek Penilaian?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-muted-foreground leading-normal">
-              Aksi ini bersifat destruktif dan akan menghapus kriteria evaluasi
-              aspek ini secara permanen.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="text-xs">
-            <AlertDialogCancel className="text-xs h-9 cursor-pointer">
-              Batal
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() =>
-                aspDeleteConfirm && handleDeleteAspect(aspDeleteConfirm)
-              }
-              className="bg-error hover:bg-error/90 text-error-foreground font-semibold text-xs h-9 cursor-pointer"
-            >
-              Ya, Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmAlert
+        isOpen={!!aspDeleteConfirm}
+        isDeleting={isDeletingRule}
+        onClose={() => setAspDeleteConfirm(null)}
+        onConfirm={() =>
+          aspDeleteConfirm && handleDeleteAspect(aspDeleteConfirm)
+        }
+        title="Hapus Aspek Penilaian?"
+        description="Aksi ini bersifat destruktif dan akan menghapus kriteria evaluasi aspek ini secara permanen."
+      />
 
       {/* Delete Indicator Confirmation */}
-      <AlertDialog open={indDeleteConfirm} onOpenChange={setIndDeleteConfirm}>
-        <AlertDialogContent className="bg-card border border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm font-bold text-foreground">
-              Hapus Indikator {editingIndicator?.number}?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-muted-foreground leading-normal">
-              Aksi ini bersifat destruktif. Menghapus indikator akan
-              menghilangkan seluruh data justifikasi dan aspek penilaian di
-              bawahnya.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="text-xs">
-            <AlertDialogCancel className="text-xs h-9 cursor-pointer">
-              Batal
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteIndicator}
-              className="bg-error hover:bg-error/90 text-error-foreground font-semibold text-xs h-9 cursor-pointer"
-            >
-              Ya, Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmAlert
+        isOpen={indDeleteConfirm}
+        isDeleting={isDeletingInd}
+        onClose={() => setIndDeleteConfirm(false)}
+        onConfirm={handleDeleteIndicator}
+        title={`Hapus Indikator ${editingIndicator}?`}
+        description="Aksi ini bersifat destruktif. Menghapus indikator akan menghilangkan seluruh data justifikasi dan aspek penilaian di bawahnya."
+      />
     </div>
   );
 }

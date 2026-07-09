@@ -33,8 +33,6 @@ import type { IndicatorModel, AssessmentAspect } from "@/types/mutu-banpt";
 import { useGetAssessmentEvaluationListQuery } from "@/store/services/assessmentEvaluationApi";
 import { useGetAccreditationIndicatorStatsQuery } from "@/store/services/accreditationApi";
 import { useGetIndicatorListQuery } from "@/store/services/indicatorApi";
-import { useGetFileMutation } from "@/store/services/fileApi";
-import { toast } from "sonner";
 
 const mapCriteria = (criteria: string): string => {
   switch (criteria) {
@@ -83,31 +81,11 @@ export default function MutuCategoryClientPage({
   );
   const [selectedStageLabel, setSelectedStageLabel] = useState<string>("");
   const [drawerPage, setDrawerPage] = useState<number>(1);
-  const [getFile] = useGetFileMutation();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDrawerPage(1);
   }, [selectedAspect, isDrawerOpen]);
-
-  const handleViewProof = (proofUrl: string) => {
-    if (!proofUrl) return;
-    const promise = getFile(proofUrl)
-      .unwrap()
-      .then((objectUrl) => {
-        window.open(objectUrl, "_blank");
-        return objectUrl;
-      });
-
-    toast.promise(promise, {
-      loading: "Mengunduh file bukti...",
-      success: "File berhasil dimuat!",
-      error: (err: unknown) => {
-        const errorObj = err as { message?: string };
-        return errorObj.message || "Gagal memuat file bukti";
-      },
-    });
-  };
 
   useEffect(() => {
     const raw = localStorage.getItem("userSession");
@@ -225,7 +203,7 @@ export default function MutuCategoryClientPage({
               description: item.assessment,
               complianceDescription: item.fulfillment,
               dataSource: "-",
-              proofUrl: undefined,
+              proofLinks: undefined,
               buktiRequired: false,
               expectationResult: 0,
               expectationFormat: "decimal",
@@ -262,7 +240,7 @@ export default function MutuCategoryClientPage({
 
   // Role permissions
   const isAssessor = userRole === "Assessor";
-  const isAuditor = userRole === "Auditor";
+  const isAuditor = userRole === "LPM";
   const isAuthorized = isAdmin || isAssessor || isAuditor;
   const canInteract = isAdmin || isAssessor;
 
@@ -293,7 +271,7 @@ export default function MutuCategoryClientPage({
     nama: ev.user?.name || "Program Studi/Unit",
     institute: ev.institute || "-",
     studyProgram: ev.study_program || "-",
-    bukti: ev.proof || "",
+    bukti: Array.isArray(ev.proof) ? ev.proof : ev.proof ? [ev.proof] : [],
     expectationScore: Number(ev.calculation_rule.expectation_result || 0),
     score: Number(ev.calculated_result),
     status:
@@ -554,7 +532,7 @@ export default function MutuCategoryClientPage({
                             {sub.studyProgram}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        {/* <TableCell>
                           {sub.bukti ? (
                             <button
                               onClick={(e): void => {
@@ -566,6 +544,32 @@ export default function MutuCategoryClientPage({
                               Kunjungi Bukti
                               <ExternalLink className="h-3 w-3" />
                             </button>
+                          ) : (
+                            <span className="text-muted-foreground italic">
+                              Tidak Ada
+                            </span>
+                          )}
+                        </TableCell> */}
+                        <TableCell>
+                          {sub.bukti.length > 0 ? (
+                            <div className="flex flex-col gap-1.5">
+                              {sub.bukti.map((link, i) => (
+                                <a
+                                  key={i}
+                                  href={
+                                    link.startsWith("http")
+                                      ? link
+                                      : `https://${link}`
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-primary hover:underline font-semibold text-xs cursor-pointer"
+                                >
+                                  Bukti {i + 1}
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              ))}
+                            </div>
                           ) : (
                             <span className="text-muted-foreground italic">
                               Tidak Ada

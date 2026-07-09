@@ -1,11 +1,19 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Award, Users, FileCheck2 } from "lucide-react";
-import { RekognisiChart } from "@/components/dashboard/rekognisi/rekognisi-chart";
+import { Award, Users, FileCheck2, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { useGetAccreditationStatsQuery } from "@/store/services/accreditationApi";
 import { RekognisiPieChart } from "@/components/dashboard/rekognisi/rekognisi-pie-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -96,7 +104,7 @@ export default function Dashboard(): React.JSX.Element {
           // eslint-disable-next-line react-hooks/set-state-in-effect
           setUserLembaga(matched.name);
           // For regular auditees, lock selectedLembaga to their own institute
-          if (uSession.role === "Auditee") {
+          if (uSession.role === "UPPS") {
             setSelectedLembaga(matched.name);
           }
         }
@@ -121,7 +129,7 @@ export default function Dashboard(): React.JSX.Element {
 
   const isRoleWithLembagaFilter =
     isAdmin ||
-    (session && (session.role === "Auditor" || session.role === "Assessor"));
+    (session && (session.role === "LPM" || session.role === "Assessor"));
   const isLoading =
     isSessionLoading ||
     isApiLoading ||
@@ -332,12 +340,204 @@ export default function Dashboard(): React.JSX.Element {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RekognisiChart data={facultyData} />
+              <MutuInfo />
               <RekognisiPieChart data={facultyData} />
             </div>
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function formatCategoryName(key: string): string {
+  return key
+    .split("-")
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(" ");
+}
+
+function MutuInfo(): React.JSX.Element {
+  const [activeAkredId] = useState<string>(() =>
+    typeof window !== "undefined"
+      ? localStorage.getItem("active_akreditasi_id") || "akred-1"
+      : "akred-1",
+  );
+
+  const { data: statsRes } = useGetAccreditationStatsQuery(activeAkredId, {
+    skip: !activeAkredId,
+  });
+
+  const stats = statsRes?.data;
+
+  const categories = [
+    "budaya-mutu",
+    "relevansi-pendidikan",
+    "relevansi-penelitian",
+    "relevansi-pkm",
+    "akuntabilitas",
+    "diferensiasi-misi",
+  ];
+
+  const chartData = stats
+    ? categories.map((cat) => {
+        const prefix = ((): string => {
+          switch (cat) {
+            case "budaya-mutu":
+              return "quality_culture";
+            case "relevansi-pendidikan":
+              return "education_relevance";
+            case "relevansi-penelitian":
+              return "research_relevance";
+            case "relevansi-pkm":
+              return "community_service_relevance";
+            case "akuntabilitas":
+              return "accountability";
+            case "diferensiasi-misi":
+              return "mission_differentiation";
+            default:
+              return cat;
+          }
+        })();
+
+        // const toPercent = (v: number) => Number((v * (100 / 3)).toFixed(2));
+
+        const inputVal = Number(
+          stats[`${prefix}_input` as keyof typeof stats] || 0,
+        );
+        const processVal = Number(
+          stats[`${prefix}_process` as keyof typeof stats] || 0,
+        );
+        const outputVal = Number(
+          stats[`${prefix}_output` as keyof typeof stats] || 0,
+        );
+        const impactVal = Number(
+          stats[`${prefix}_impact` as keyof typeof stats] || 0,
+        );
+
+        return {
+          category: cat,
+          categoryLabel: formatCategoryName(cat),
+          masukan: inputVal,
+          proses: processVal,
+          luaran: outputVal,
+          dampak: impactVal,
+        };
+      })
+    : [];
+
+  const overallAvg = stats ? Number(stats.accreditation_total || 0) : 0;
+
+  const getProjectedStatus = (score: number) => {
+    if (score >= 80)
+      return {
+        label: "UNGGUL",
+        class: "bg-success/10 text-success border-success/20",
+        desc: "Perguruan Tinggi memiliki budaya mutu berkelanjutan yang unggul secara nasional.",
+      };
+
+    return {
+      label: "Tidak Unggul",
+      class: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+      desc: "Pemenuhan standar mutu BANPT belum mencukupi.",
+    };
+  };
+
+  const status = getProjectedStatus(overallAvg);
+
+  return (
+    <div className="flex flex-col justify-between space-y-6">
+      <Card className="border border-border shadow-sm bg-card">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-xs font-bold text-foreground tracking-wide">
+            Proyeksi Capaian Institusi
+          </CardTitle>
+          <CardDescription className="text-[10px] text-muted-foreground">
+            Hasil akumulasi penilaian instrumen mutu BANPT saat ini.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4 bg-muted/20 p-4 border border-border rounded-xl">
+            <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-primary/10 border border-primary/20 shrink-0 text-primary">
+              <Award className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
+                  Status:
+                </span>
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${status.class}`}
+                >
+                  {status.label}
+                </span>
+              </div>
+              <p className="text-base font-extrabold text-foreground mt-0.5">
+                Rerata Skor Mutu:{" "}
+                <span className="text-primary">{overallAvg}</span> / 100
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {status.desc} Isilah bukti dokumen di semua sub-menu untuk
+            mengoptimalkan kevalidan audit mutu.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border shadow-sm bg-card flex-1">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-xs font-bold text-foreground tracking-wide">
+            Detail Rincian Aspek per Kategori
+          </CardTitle>
+          <CardDescription className="text-[10px] text-muted-foreground">
+            Pilih menu di bawah ini untuk melihat detail pengisi indikator tiap
+            tahapan.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-3">
+          <div className="divide-y divide-border/40">
+            {chartData.map((data) => {
+              const avgCatPercent = parseFloat(
+                (
+                  (data.masukan + data.proses + data.luaran + data.dampak) /
+                  4
+                ).toFixed(2),
+              );
+              return (
+                <div
+                  key={data.category}
+                  className="flex items-center justify-between py-2.5 px-3 hover:bg-muted/30 rounded-lg transition-all duration-150"
+                >
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-foreground block capitalize">
+                      {data.categoryLabel}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground block">
+                      Masukan: {data.masukan}% | Proses: {data.proses}% |
+                      Luaran: {data.luaran}% | Dampak: {data.dampak}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-extrabold text-foreground text-right">
+                      {avgCatPercent}%
+                    </span>
+                    <Link href={`/dashboard/mutu-banpt/${data.category}`}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer"
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -20,8 +20,8 @@ const initialState: UserState = {
 const mapRole = (role: string): string => {
   const r = role.toLowerCase();
   if (r === "admin") return "Administrator";
-  if (r === "fakultas" || r === "auditee") return "Auditee";
-  if (r === "auditor") return "Auditor";
+  if (r === "upps") return "UPPS";
+  if (r === "lpm") return "LPM";
   if (r === "assessor") return "Assessor";
   return role;
 };
@@ -32,7 +32,11 @@ export const userSlice = createSlice({
   reducers: {
     setLoginSession: (
       state: UserState,
-      action: PayloadAction<{ accessToken: string; refreshToken: string; user: UserAuth }>
+      action: PayloadAction<{
+        accessToken: string;
+        refreshToken: string;
+        user: UserAuth;
+      }>,
     ): void => {
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
@@ -42,8 +46,15 @@ export const userSlice = createSlice({
       // Persist to localStorage for compatibility with other parts of the app
       if (typeof window !== "undefined") {
         const u = action.payload.user;
-        const initials = u.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "US";
-        const avatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop";
+        const initials =
+          u.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2) || "US";
+        const avatarUrl =
+          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop";
         const role = mapRole(u.role);
 
         localStorage.setItem(
@@ -60,7 +71,7 @@ export const userSlice = createSlice({
             institute_id: u.institute_id,
             is_banned: u.is_banned,
             created_at: u.created_at,
-          })
+          }),
         );
         localStorage.setItem("accessToken", action.payload.accessToken);
         localStorage.setItem("refreshToken", action.payload.refreshToken);
@@ -78,7 +89,10 @@ export const userSlice = createSlice({
         localStorage.removeItem("refreshToken");
       }
     },
-    updatePasswordStatus: (state: UserState, action: PayloadAction<boolean>): void => {
+    updatePasswordStatus: (
+      state: UserState,
+      action: PayloadAction<boolean>,
+    ): void => {
       if (state.user) {
         state.user.must_change_password = action.payload;
 
@@ -93,7 +107,7 @@ export const userSlice = createSlice({
                 JSON.stringify({
                   ...session,
                   must_change_password: action.payload,
-                })
+                }),
               );
             } catch {
               // ignore
@@ -105,5 +119,6 @@ export const userSlice = createSlice({
   },
 });
 
-export const { setLoginSession, clearSession, updatePasswordStatus } = userSlice.actions;
+export const { setLoginSession, clearSession, updatePasswordStatus } =
+  userSlice.actions;
 export default userSlice.reducer;
