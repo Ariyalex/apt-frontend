@@ -4,7 +4,7 @@ export interface UserAuth {
   name: string;
   email: string;
   institute_id: string | null;
-  role: "admin" | "fakultas" | "auditor" | string;
+  role: "admin" | "upps" | "lpm" | string;
   is_banned: boolean;
   must_change_password: boolean;
   created_at: string;

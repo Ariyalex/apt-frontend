@@ -4,7 +4,7 @@ export interface UserAdminModel {
   name: string;
   email: string;
   institute_id: number | null;
-  role: "admin" | "auditee" | "auditor" | "assessor";
+  role: "admin" | "upps" | "lpm" | "assessor";
   is_banned: boolean;
   must_change_password: boolean;
   created_at: string;
@@ -15,7 +15,7 @@ export interface AddUserRequest {
   email: string;
   name: string;
   institute_id: number | null;
-  role: "admin" | "auditee" | "auditor" | "assessor";
+  role: "admin" | "upps" | "lpm" | "assessor";
 }
 
 export interface EditUserRequest {
@@ -23,6 +23,6 @@ export interface EditUserRequest {
   email: string;
   name: string;
   institute_id: number | null;
-  role: "admin" | "auditee" | "auditor" | "assessor";
+  role: "admin" | "upps" | "lpm" | "assessor";
   is_banned: boolean;
 }

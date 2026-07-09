@@ -517,7 +517,7 @@ export default function MutuBanptClientPage({
     );
   }
 
-  if (userRole && userRole !== "Auditor" && userRole !== "Assessor") {
+  if (userRole && userRole !== "LPM" && userRole !== "Assessor") {
     return (
       <div className="p-6">
         <div className="bg-error/10 text-error p-4 rounded-lg font-semibold text-sm">

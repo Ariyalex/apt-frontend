@@ -315,7 +315,6 @@ export default function AspectRuleFormDialog({
 
     if (newConst) {
       const updated = [...localConstants, newConst];
-      updated;
       localStorage.setItem(
         "mutu_banpt_local_constants",
         JSON.stringify(updated),

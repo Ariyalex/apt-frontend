@@ -521,7 +521,7 @@ export default function MutuBanptAdminPage({
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
             Konfigurasi indikator, justifikasi, aspek penilaian, dan variabel
-            rumus untuk auditor.
+            rumus untuk LPM.
           </p>
         </div>
         {indicators.length > 0 && (

@@ -33,8 +33,6 @@ import type { IndicatorModel, AssessmentAspect } from "@/types/mutu-banpt";
 import { useGetAssessmentEvaluationListQuery } from "@/store/services/assessmentEvaluationApi";
 import { useGetAccreditationIndicatorStatsQuery } from "@/store/services/accreditationApi";
 import { useGetIndicatorListQuery } from "@/store/services/indicatorApi";
-import { useGetFileMutation } from "@/store/services/fileApi";
-import { toast } from "sonner";
 
 const mapCriteria = (criteria: string): string => {
   switch (criteria) {
@@ -83,31 +81,11 @@ export default function MutuCategoryClientPage({
   );
   const [selectedStageLabel, setSelectedStageLabel] = useState<string>("");
   const [drawerPage, setDrawerPage] = useState<number>(1);
-  const [getFile] = useGetFileMutation();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDrawerPage(1);
   }, [selectedAspect, isDrawerOpen]);
-
-  const handleViewProof = (proofUrl: string) => {
-    if (!proofUrl) return;
-    const promise = getFile(proofUrl)
-      .unwrap()
-      .then((objectUrl) => {
-        window.open(objectUrl, "_blank");
-        return objectUrl;
-      });
-
-    toast.promise(promise, {
-      loading: "Mengunduh file bukti...",
-      success: "File berhasil dimuat!",
-      error: (err: unknown) => {
-        const errorObj = err as { message?: string };
-        return errorObj.message || "Gagal memuat file bukti";
-      },
-    });
-  };
 
   useEffect(() => {
     const raw = localStorage.getItem("userSession");
@@ -262,7 +240,7 @@ export default function MutuCategoryClientPage({
 
   // Role permissions
   const isAssessor = userRole === "Assessor";
-  const isAuditor = userRole === "Auditor";
+  const isAuditor = userRole === "LPM";
   const isAuthorized = isAdmin || isAssessor || isAuditor;
   const canInteract = isAdmin || isAssessor;
 

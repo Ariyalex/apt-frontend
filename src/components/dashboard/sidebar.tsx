@@ -546,9 +546,9 @@ export function Sidebar(): React.JSX.Element {
   let activeMenuItems = isAdmin ? adminMenuItems : menuItems;
 
   if (!isAdmin) {
-    const hasMutuAccess = userRole === "Auditor" || userRole === "Assessor";
+    const hasMutuAccess = userRole === "LPM" || userRole === "Assessor";
     const isAssessor = userRole === "Assessor";
-    const isAuditor = userRole === "Auditor";
+    const isAuditor = userRole === "LPM";
 
     activeMenuItems = menuItems
       .filter((item) => {

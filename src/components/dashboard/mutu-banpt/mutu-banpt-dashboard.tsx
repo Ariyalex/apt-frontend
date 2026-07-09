@@ -3,14 +3,15 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
-import { ArrowRight, Award, TrendingUp } from "lucide-react";
+import { ArrowRight, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,7 +19,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -77,10 +77,10 @@ const mapCategoryToApiPrefix = (cat: string): string => {
   }
 };
 
-interface RadarDataPoint {
+interface DataPoint {
   category: string;
   categoryLabel: string;
-  masukan: number;
+  masukan: number; // percent 0-100
   proses: number;
   luaran: number;
   dampak: number;
@@ -88,15 +88,18 @@ interface RadarDataPoint {
 
 export default function MutuBanptDashboardPage(): React.JSX.Element {
   const [activeAkredId, setActiveAkredId] = useState<string>("");
-  const [selectedStage, setSelectedStage] = useState<"semua" | "masukan" | "proses" | "luaran" | "dampak">("semua");
+  const [selectedStage, setSelectedStage] = useState<
+    "semua" | "masukan" | "proses" | "luaran" | "dampak"
+  >("semua");
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [radarData, setRadarData] = useState<RadarDataPoint[]>([]);
+  const [radarData, setRadarData] = useState<DataPoint[]>([]);
   const [overallAvg, setOverallAvg] = useState<number>(0);
 
-  const { data: statsRes, isFetching: isStatsFetching } = useGetAccreditationStatsQuery(activeAkredId, {
-    skip: !activeAkredId,
-    refetchOnMountOrArgChange: true,
-  });
+  const { data: statsRes, isFetching: isStatsFetching } =
+    useGetAccreditationStatsQuery(activeAkredId, {
+      skip: !activeAkredId,
+      refetchOnMountOrArgChange: true,
+    });
 
   // Sync active accreditation
   useEffect(() => {
@@ -113,7 +116,6 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveAkredId(storedId);
     } else {
-       
       setActiveAkredId("akred-1"); // fallback default
     }
 
@@ -141,13 +143,24 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
         "akuntabilitas",
         "diferensiasi-misi",
       ];
-      
+
       const dataPoints = categories.map((cat) => {
         const prefix = mapCategoryToApiPrefix(cat);
-        const inputVal = Number(stats[`${prefix}_input` as keyof typeof stats] || 0);
-        const processVal = Number(stats[`${prefix}_process` as keyof typeof stats] || 0);
-        const outputVal = Number(stats[`${prefix}_output` as keyof typeof stats] || 0);
-        const impactVal = Number(stats[`${prefix}_impact` as keyof typeof stats] || 0);
+        const inputVal = Number(
+          stats[`${prefix}_input` as keyof typeof stats] || 0,
+        );
+        const processVal = Number(
+          stats[`${prefix}_process` as keyof typeof stats] || 0,
+        );
+        const outputVal = Number(
+          stats[`${prefix}_output` as keyof typeof stats] || 0,
+        );
+        const impactVal = Number(
+          stats[`${prefix}_impact` as keyof typeof stats] || 0,
+        );
+
+        // Convert 0-3 scale to 0-100 percent
+        // const toPercent = (v: number) => Number((v * (100 / 3)).toFixed(2));
 
         return {
           category: cat,
@@ -167,28 +180,33 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
     }
   }, [statsRes, isStatsFetching]);
 
+  // Dummy data to use during development.
+  // TOGGLE: USE_REAL_DATA
+  // To use real data, replace `chartData` below with `radarData`
+  // (radarData already converted to percent in the effect above).
+
+  // Use dummy data for now. To switch to real data, set `chartData = radarData`.
+  const chartData: DataPoint[] = radarData; // <-- swap to `radarData` when ready
+
   // Projected status badge details
   const getProjectedStatus = (score: number) => {
-    if (score >= 2.5)
+    if (score >= 80)
       return {
         label: "UNGGUL",
         class: "bg-success/10 text-success border-success/20",
         desc: "Perguruan Tinggi memiliki budaya mutu berkelanjutan yang unggul secara nasional.",
       };
-    if (score >= 2.0)
-      return {
-        label: "BAIK SEKALI",
-        class: "bg-primary/10 text-primary border-primary/20",
-        desc: "Tata pamong dan capaian standar mutu melampaui rata-rata nasional.",
-      };
+
     return {
-      label: "BAIK",
+      label: "Tidak Unggul",
       class: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-      desc: "Pemenuhan standar mutu BANPT mencakup aspek dasar secara cukup.",
+      desc: "Pemenuhan standar mutu BANPT belum mencukupi.",
     };
   };
 
   const status = getProjectedStatus(overallAvg);
+
+  // const chartWidth = Math.max(720, chartData.length * 140);
 
   return (
     <div className="w-full space-y-6 animate-fadeIn">
@@ -198,8 +216,8 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
           Dashboard Mutu BANPT
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Analisis integratif radar mutu penjaminan mutu BANPT lintas bidang dan
-          tahapan evaluasi.
+          Analisis integratif bar mutu penjaminan mutu BANPT lintas bidang dan
+          tahapan evaluasi (persentase 0–100).
         </p>
       </div>
 
@@ -228,22 +246,32 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
       ) : (
         /* Main Layout Content */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Left Column: Radar Chart */}
-          <div className="lg:col-span-6">
+          {/* Left Column: Bar Chart */}
+          <div className="lg:col-span-8">
             <Card className="h-full border border-border shadow-sm bg-card flex flex-col justify-between">
               <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-border/40 pb-4">
                 <div className="text-center sm:text-left">
                   <CardTitle className="text-xs font-bold text-foreground tracking-wide">
-                    Radar Capaian Standar Mutu
+                    Bar Capaian Standar Mutu
                   </CardTitle>
                   <CardDescription className="text-[10px] text-muted-foreground mt-1">
-                    Pemetaan skor masukan, proses, luaran, dan dampak (Skala 1.0 - 3.0)
+                    Pemetaan persentase masukan, proses, luaran, dan dampak
+                    (Skala 0 - 100)
                   </CardDescription>
                 </div>
                 <div className="w-[180px] shrink-0">
                   <Select
                     value={selectedStage}
-                    onValueChange={(v) => setSelectedStage(v as "semua" | "masukan" | "proses" | "luaran" | "dampak")}
+                    onValueChange={(v) =>
+                      setSelectedStage(
+                        v as
+                          | "semua"
+                          | "masukan"
+                          | "proses"
+                          | "luaran"
+                          | "dampak",
+                      )
+                    }
                   >
                     <SelectTrigger className="w-full h-8 bg-card border border-border rounded-lg px-2.5 py-1 text-[11px] font-semibold focus:outline-none focus:border-primary cursor-pointer justify-between">
                       <SelectValue placeholder="Pilih Tahap" />
@@ -258,104 +286,92 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
                   </Select>
                 </div>
               </CardHeader>
-              <CardContent className="pb-2">
+              <CardContent className="pb-2 h-full flex justify-center items-center">
                 <ChartContainer
                   config={chartConfig}
                   className="mx-auto aspect-square max-h-[420px] w-full"
                 >
                   <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart
-                      data={radarData}
-                      margin={{
-                        top: 10,
-                        bottom: 10,
-                        left: 20,
-                        right: 20,
-                      }}
+                    <BarChart
+                      data={chartData}
+                      margin={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent indicator="line" />}
-                      />
-                      <PolarAngleAxis
+                      <CartesianGrid vertical={false} stroke="var(--border)" />
+                      <XAxis
                         dataKey="categoryLabel"
+                        tickLine={false}
+                        axisLine={false}
                         tick={{
                           fill: "var(--foreground)",
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: 600,
                         }}
                       />
-                      <PolarGrid stroke="var(--border)" strokeWidth={0.8} />
-                      <PolarRadiusAxis
-                        domain={[0, 3]}
-                        tickCount={4}
-                        angle={90}
-                        tick={false}
+                      <YAxis
+                        domain={[0, 100]}
+                        tickFormatter={(v) => `${v}%`}
                         axisLine={false}
+                        tick={{ fill: "var(--foreground)" }}
+                        tickCount={6}
                       />
-                      {(selectedStage === "semua" || selectedStage === "masukan") && (
-                        <Radar
-                          name="Masukan"
+                      <ReferenceLine
+                        y={80}
+                        stroke="var(--border)"
+                        strokeDasharray="4 4"
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent />}
+                      />
+                      {(selectedStage === "semua" ||
+                        selectedStage === "masukan") && (
+                        <Bar
                           dataKey="masukan"
-                          stroke="var(--color-masukan)"
+                          name="Masukan"
                           fill="var(--color-masukan)"
-                          fillOpacity={0.35}
-                          strokeWidth={2.5}
+                          radius={[6, 6, 0, 0]}
                         />
                       )}
-                      {(selectedStage === "semua" || selectedStage === "proses") && (
-                        <Radar
-                          name="Proses"
+                      {(selectedStage === "semua" ||
+                        selectedStage === "proses") && (
+                        <Bar
                           dataKey="proses"
-                          stroke="var(--color-proses)"
+                          name="Proses"
                           fill="var(--color-proses)"
-                          fillOpacity={0.25}
-                          strokeWidth={2}
+                          radius={[6, 6, 0, 0]}
                         />
                       )}
-                      {(selectedStage === "semua" || selectedStage === "luaran") && (
-                        <Radar
-                          name="Luaran"
+                      {(selectedStage === "semua" ||
+                        selectedStage === "luaran") && (
+                        <Bar
                           dataKey="luaran"
-                          stroke="var(--color-luaran)"
+                          name="Luaran"
                           fill="var(--color-luaran)"
-                          fillOpacity={0.18}
-                          strokeWidth={1.5}
+                          radius={[6, 6, 0, 0]}
                         />
                       )}
-                      {(selectedStage === "semua" || selectedStage === "dampak") && (
-                        <Radar
-                          name="Dampak"
+                      {(selectedStage === "semua" ||
+                        selectedStage === "dampak") && (
+                        <Bar
                           dataKey="dampak"
-                          stroke="var(--color-dampak)"
+                          name="Dampak"
                           fill="var(--color-dampak)"
-                          fillOpacity={0.12}
-                          strokeWidth={1.5}
+                          radius={[6, 6, 0, 0]}
                         />
                       )}
                       <ChartLegend
                         className="mt-6"
                         content={<ChartLegendContent />}
                       />
-                    </RadarChart>
+                    </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
               </CardContent>
-              <CardFooter className="flex-col gap-1.5 pt-2 text-center border-t border-border/40 pb-4">
-                <div className="flex items-center justify-center gap-1.5 leading-none font-semibold text-[11px] text-foreground">
-                  Tren pengisian penjaminan mutu meningkat{" "}
-                  <TrendingUp className="h-3.5 w-3.5 text-success" />
-                </div>
-                <div className="text-[10px] text-muted-foreground">
-                  Evaluasi Kriteria BANPT - Terakhir disinkronkan 1 jam yang
-                  lalu
-                </div>
-              </CardFooter>
             </Card>
           </div>
 
           {/* Right Column: Comparison & Details */}
-          <div className="lg:col-span-6 flex flex-col justify-between space-y-6">
+          <div className="lg:col-span-4 flex flex-col justify-between space-y-6">
             {/* Projected Status Card */}
             <Card className="border border-border shadow-sm bg-card">
               <CardHeader className="pb-3">
@@ -384,7 +400,7 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
                     </div>
                     <p className="text-base font-extrabold text-foreground mt-0.5">
                       Rerata Skor Mutu:{" "}
-                      <span className="text-primary">{overallAvg}</span> / 3.00
+                      <span className="text-primary">{overallAvg}</span> / 100
                     </p>
                   </div>
                 </div>
@@ -408,8 +424,8 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
               </CardHeader>
               <CardContent className="px-3">
                 <div className="divide-y divide-border/40">
-                  {radarData.map((data) => {
-                    const avgCatScore = parseFloat(
+                  {chartData.map((data) => {
+                    const avgCatPercent = parseFloat(
                       (
                         (data.masukan +
                           data.proses +
@@ -428,13 +444,13 @@ export default function MutuBanptDashboardPage(): React.JSX.Element {
                             {data.categoryLabel}
                           </span>
                           <span className="text-[10px] text-muted-foreground block">
-                            Masukan: {data.masukan} | Proses: {data.proses} |
-                            Luaran: {data.luaran} | Dampak: {data.dampak}
+                            Masukan: {data.masukan}% | Proses: {data.proses}% |
+                            Luaran: {data.luaran}% | Dampak: {data.dampak}%
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-extrabold text-foreground text-right">
-                            {avgCatScore} / 3.0
+                            {avgCatPercent}%
                           </span>
                           <Link href={`/dashboard/mutu-banpt/${data.category}`}>
                             <Button
