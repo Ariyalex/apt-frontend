@@ -4,13 +4,12 @@ import React, { useState } from "react";
 import {
   Plus,
   Edit,
+  Edit2,
   Trash2,
   Shield,
   Calendar,
-  FileText,
+  ExternalLink,
   Loader2,
-  UploadCloud,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -43,27 +42,13 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import {
-  Attachment,
-  AttachmentContent,
-  AttachmentTitle,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentActions,
-  AttachmentAction,
-} from "@/components/ui/attachment";
 import type { Accreditation } from "@/types/mutu-banpt";
-import {
-  useGetFileMutation,
-  useUploadFileMutation,
-} from "@/store/services/fileApi";
 import {
   useCreateAccreditationMutation,
   useDeleteAccreditationMutation,
   useGetAccreditationListQuery,
   useUpdateAccreditationMutation,
 } from "@/store/services/accreditationApi";
-import { getFileCategory } from "@/lib/utils";
 
 export default function AkreditasiPage(): React.JSX.Element {
   const { data: responseData, isLoading } = useGetAccreditationListQuery();
@@ -76,112 +61,97 @@ export default function AkreditasiPage(): React.JSX.Element {
     useUpdateAccreditationMutation();
   const [deleteAccreditation, { isLoading: isDeleting }] =
     useDeleteAccreditationMutation();
-  const [uploadFile, { isLoading: isUploadingFile }] = useUploadFileMutation();
-  const [getFile, { isLoading: isGetFile }] = useGetFileMutation();
 
-  // Dialog Add/Edit State
+  const isMutating = isCreating || isUpdating;
+
+  // ─── Dialog Add/Edit State ───────────────────────────────────────────────
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [editingAkred, setEditingAkred] = useState<Accreditation | null>(null);
 
   // Form Fields
   const [formNama, setFormNama] = useState<string>("");
   const [formDeskripsi, setFormDeskripsi] = useState<string>("");
-  const [formTahun, setFormTahun] = useState(
+  const [formTahun, setFormTahun] = useState<string>(
     new Date().getFullYear().toString(),
   );
-  const [formRef, setFormRef] = useState<string>("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [formRefLinks, setFormRefLinks] = useState<string[]>([]);
 
-  // Attachment upload status
-  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "done">(
-    "idle",
-  );
+  // ─── Add Link sub-dialog ─────────────────────────────────────────────────
+  const [addLinkOpen, setAddLinkOpen] = useState<boolean>(false);
+  const [newLinkUrl, setNewLinkUrl] = useState<string>("");
 
-  // Drag & drop state
-  const [dragActive, setDragActive] = useState<boolean>(false);
+  // ─── Edit Link sub-dialog ────────────────────────────────────────────────
+  const [editLinkOpen, setEditLinkOpen] = useState<boolean>(false);
+  const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
+  const [editingLinkUrl, setEditingLinkUrl] = useState<string>("");
 
-  const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-      setUploadState("done");
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-      setUploadState("done");
-    }
-  };
-
-  const removeAttachment = () => {
-    setSelectedFile(null);
-    setFormRef("");
-    setUploadState("idle");
-  };
-
-  // Delete State
+  // ─── Delete State ────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<Accreditation | null>(null);
 
-  const openAddDialog = () => {
+  // ─── Link handlers ───────────────────────────────────────────────────────
+  const handleAddLink = (): void => {
+    if (!newLinkUrl.trim()) return;
+    let url = newLinkUrl.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      url = "https://" + url;
+    }
+    setFormRefLinks([...formRefLinks, url]);
+    setNewLinkUrl("");
+    setAddLinkOpen(false);
+  };
+
+  const handleRemoveLink = (index: number): void => {
+    setFormRefLinks(formRefLinks.filter((_, i) => i !== index));
+  };
+
+  const handleOpenEditLink = (index: number): void => {
+    setEditingLinkIndex(index);
+    setEditingLinkUrl(formRefLinks[index]);
+    setEditLinkOpen(true);
+  };
+
+  const handleSaveEditLink = (): void => {
+    if (editingLinkIndex === null || !editingLinkUrl.trim()) return;
+    const updated = [...formRefLinks];
+    updated[editingLinkIndex] = editingLinkUrl.trim();
+    setFormRefLinks(updated);
+    setEditLinkOpen(false);
+    setEditingLinkIndex(null);
+    setEditingLinkUrl("");
+  };
+
+  // ─── Dialog openers ──────────────────────────────────────────────────────
+  const openAddDialog = (): void => {
     setEditingAkred(null);
     setFormNama("");
     setFormDeskripsi("");
     setFormTahun(new Date().getFullYear().toString());
-    setFormRef("");
-    setSelectedFile(null);
-    setUploadState("idle");
+    setFormRefLinks([]);
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (item: Accreditation) => {
+  const openEditDialog = (item: Accreditation): void => {
     setEditingAkred(item);
     setFormNama(item.name);
     setFormDeskripsi(item.description);
     setFormTahun(item.year.toString());
-    setFormRef(item.reference);
-    setUploadState(item.reference ? "done" : "idle");
-    setSelectedFile(null);
+    setFormRefLinks(item.reference ?? []);
     setIsDialogOpen(true);
   };
 
-  const handleCreate = async () => {
-    if (!formNama.trim() || !formTahun || !selectedFile) {
-      toast.error("Nama akreditasi, tahun, dan referensi harus diisi!");
+  // ─── CRUD handlers ───────────────────────────────────────────────────────
+  const handleCreate = async (): Promise<void> => {
+    if (!formNama.trim() || !formTahun || formRefLinks.length === 0) {
+      toast.error(
+        "Nama akreditasi, tahun, dan minimal 1 link referensi harus diisi!",
+      );
       return;
     }
-
-    const ext = getFileCategory(
-      selectedFile.name.split(".").pop()!.toLowerCase(),
-    );
-
-    if (ext == null) {
-      toast.error(`format file ${ext} tidak diizinkan`);
-      return;
-    }
-    const formData = new FormData();
-
-    formData.append(ext, selectedFile);
 
     try {
-      const fileResponse = await uploadFile(formData).unwrap();
-
       const response = await createAccreditation({
         name: formNama,
-        reference: fileResponse.data.file_url,
+        reference: formRefLinks,
         description: formDeskripsi,
         year: Number(formTahun),
       }).unwrap();
@@ -197,47 +167,32 @@ export default function AkreditasiPage(): React.JSX.Element {
         data?: { message?: string };
         message?: string;
       };
-      const errMsg =
-        customErr?.data?.message ||
-        customErr?.message ||
-        "Terjadi kesalahan saat menyimpan data";
-      toast.error(errMsg);
+      toast.error(
+        customErr?.data?.message ??
+          customErr?.message ??
+          "Terjadi kesalahan saat menyimpan data",
+      );
     }
   };
 
-  const handleUpdate = async () => {
+  const handleUpdate = async (): Promise<void> => {
     if (editingAkred == null) {
-      toast.error("Item tidak terpillih");
+      toast.error("Item tidak terpilih");
       return;
     }
-    if (!formNama.trim() || !formTahun || (!selectedFile && !formRef)) {
-      toast.error("Nama akreditasi, tahun, dan referensi harus diisi!");
+    if (!formNama.trim() || !formTahun || formRefLinks.length === 0) {
+      toast.error(
+        "Nama akreditasi, tahun, dan minimal 1 link referensi harus diisi!",
+      );
       return;
     }
-
-    let fileResponse;
 
     try {
-      if (selectedFile != null) {
-        const ext = getFileCategory(
-          selectedFile.name.split(".").pop()!.toLowerCase(),
-        );
-
-        if (ext == null) {
-          toast.error(`format file ${ext} tidak diizinkan`);
-          return;
-        }
-        const formData = new FormData();
-
-        formData.append(ext, selectedFile);
-        fileResponse = await uploadFile(formData).unwrap();
-      }
-
       const response = await updateAccreditation({
-        id: editingAkred!.id,
+        id: editingAkred.id,
         body: {
           name: formNama,
-          reference: fileResponse ? fileResponse.data.file_url : formRef,
+          reference: formRefLinks,
           description: formDeskripsi,
           year: Number(formTahun),
         },
@@ -254,15 +209,15 @@ export default function AkreditasiPage(): React.JSX.Element {
         data?: { message?: string };
         message?: string;
       };
-      const errMsg =
-        customErr?.data?.message ||
-        customErr?.message ||
-        "Terjadi kesalahan saat menyimpan data";
-      toast.error(errMsg);
+      toast.error(
+        customErr?.data?.message ??
+          customErr?.message ??
+          "Terjadi kesalahan saat menyimpan data",
+      );
     }
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = async (): Promise<void> => {
     if (!deleteTarget) return;
 
     try {
@@ -274,32 +229,15 @@ export default function AkreditasiPage(): React.JSX.Element {
         data?: { message?: string };
         message?: string;
       };
-      const errMsg =
-        customErr?.data?.message ||
-        customErr?.message ||
-        "Terjadi kesalahan saat menyimpan data";
-      toast.error(errMsg);
+      toast.error(
+        customErr?.data?.message ??
+          customErr?.message ??
+          "Terjadi kesalahan saat menghapus data",
+      );
     }
   };
 
-  const handleViewFile = async (filePath: string) => {
-    try {
-      // getFile sekarang langsung mengembalikan string URL (contoh: "blob:http://localhost:3000/...")
-      const objectUrl = await getFile(filePath).unwrap();
-
-      // Buka URL tersebut di tab baru
-      window.open(objectUrl, "_blank");
-
-      // Bersihkan memori setelah 1 menit
-      setTimeout(() => {
-        URL.revokeObjectURL(objectUrl);
-      }, 60000);
-    } catch (error) {
-      console.error("Gagal memuat file:", error);
-      toast.error("Gagal memuat file gambar.");
-    }
-  };
-
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Title Header */}
@@ -310,7 +248,7 @@ export default function AkreditasiPage(): React.JSX.Element {
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
             Konfigurasi instrumen akreditasi penjaminan mutu BAN-PT untuk
-            institusi & program studi
+            institusi &amp; program studi
           </p>
         </div>
         <Button
@@ -358,81 +296,92 @@ export default function AkreditasiPage(): React.JSX.Element {
                   </TableHead>
                   <TableHead className="w-2/5 font-bold">Deskripsi</TableHead>
                   <TableHead className="text-center font-bold">Tahun</TableHead>
-                  <TableHead className="font-bold">Dokumen Referensi</TableHead>
+                  <TableHead className="font-bold">Link Referensi</TableHead>
                   <TableHead className="text-right font-bold">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {list.map((item) => (
-                  <TableRow
-                    key={item.id}
-                    className="hover:bg-muted/15 transition-colors"
-                  >
-                    <TableCell className="align-top font-medium">
-                      <div className="font-bold text-foreground leading-normal">
-                        {item.name}
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top text-muted-foreground leading-relaxed">
-                      {item.description || "-"}
-                    </TableCell>
-                    <TableCell className="align-top text-center font-semibold text-foreground">
-                      <span className="inline-flex items-center gap-1 rounded bg-muted/65 px-2 py-0.5 font-bold">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        {item.year}
-                      </span>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      {item.reference ? (
-                        <button
-                          type="button"
-                          onClick={() => handleViewFile(item.reference)}
-                          disabled={isGetFile}
-                          className="flex items-center gap-1.5 text-primary cursor-pointer font-semibold"
-                        >
-                          <FileText className="h-4 w-4 shrink-0" />
-                          <span
-                            className="truncate max-w-[150px]"
-                            title={item.reference}
-                          >
-                            {item.reference.split("/").pop()}
-                          </span>
-                        </button>
-                      ) : (
-                        <span className="text-muted-foreground/60 italic">
-                          Tidak ada
+                {list.map((item) => {
+                  const links = item.reference ?? [];
+                  return (
+                    <TableRow
+                      key={item.id}
+                      className="hover:bg-muted/15 transition-colors"
+                    >
+                      <TableCell className="align-top font-medium">
+                        <div className="font-bold text-foreground leading-normal">
+                          {item.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="align-top text-muted-foreground leading-relaxed">
+                        {item.description || "-"}
+                      </TableCell>
+                      <TableCell className="align-top text-center font-semibold text-foreground">
+                        <span className="inline-flex items-center gap-1 rounded bg-muted/65 px-2 py-0.5 font-bold">
+                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          {item.year}
                         </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="align-top text-right space-x-2 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(item)}
-                        className="h-8 w-8 hover:bg-muted text-foreground cursor-pointer"
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteTarget(item)}
-                        className="h-8 w-8 hover:bg-error/10 text-error hover:text-error cursor-pointer"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="align-top">
+                        {links.length > 0 ? (
+                          <div className="space-y-1">
+                            {links.map((link, idx) => (
+                              <a
+                                key={idx}
+                                href={link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-primary font-semibold hover:underline"
+                                title={link}
+                              >
+                                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate max-w-[180px] text-xs">
+                                  {link.replace(/^https?:\/\//, "")}
+                                </span>
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground/60 italic">
+                            Tidak ada
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="align-top text-right space-x-2 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(item)}
+                          className="h-8 w-8 hover:bg-muted text-foreground cursor-pointer"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteTarget(item)}
+                          className="h-8 w-8 hover:bg-error/10 text-error hover:text-error cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         )}
       </div>
 
-      {/* Add / Edit Dialog */}
+      {/* ── Add / Edit Dialog ─────────────────────────────────────────────── */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-lg p-6 bg-card border border-border">
+        <DialogContent
+          className="sm:max-w-lg p-6 bg-card border border-border"
+          onInteractOutside={(e) => {
+            e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-sm font-bold text-foreground">
               {editingAkred ? "Edit Data Akreditasi" : "Tambah Data Akreditasi"}
@@ -448,7 +397,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                 value={formNama}
                 onChange={(e) => setFormNama(e.target.value)}
                 placeholder="Contoh: Akreditasi BANPT 2026 - UIN Suka"
-                disabled={isCreating || isUpdating || isUploadingFile}
+                disabled={isMutating}
                 className="bg-card border-border text-foreground"
               />
             </Field>
@@ -461,7 +410,7 @@ export default function AkreditasiPage(): React.JSX.Element {
                 value={formDeskripsi}
                 onChange={(e) => setFormDeskripsi(e.target.value)}
                 placeholder="Tuliskan keterangan detail akreditasi..."
-                disabled={isCreating || isUpdating || isUploadingFile}
+                disabled={isMutating}
                 rows={3}
                 className="w-full bg-card border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary text-foreground resize-none"
               />
@@ -469,9 +418,7 @@ export default function AkreditasiPage(): React.JSX.Element {
 
             {/* Tahun */}
             <Field>
-              <FieldLabel htmlFor="form-tahun">
-                Tahun Akreditasi
-              </FieldLabel>
+              <FieldLabel htmlFor="form-tahun">Tahun Akreditasi</FieldLabel>
               <Input
                 id="form-tahun"
                 type="number"
@@ -479,96 +426,82 @@ export default function AkreditasiPage(): React.JSX.Element {
                 max={2100}
                 value={formTahun}
                 onChange={(e) => setFormTahun(e.target.value)}
-                disabled={isCreating || isUpdating || isUploadingFile}
+                disabled={isMutating}
                 placeholder="Contoh: 2026"
                 className="bg-card border-border text-foreground"
               />
             </Field>
 
-            {/* File Reference Drop uploader using Attachment component */}
+            {/* Link Referensi (multiple) */}
             <Field>
-              <FieldLabel>
-                Dokumen Referensi (jpg, png, zip, pdf, xlsx, docx)
-              </FieldLabel>
-
-              {uploadState === "idle" || uploadState === "uploading" ? (
-                <div
-                  onDragEnter={handleDrag}
-                  onDragOver={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
-                    dragActive
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/40"
-                  }`}
+              <div className="flex justify-between items-center mb-1">
+                <FieldLabel className="mb-0">
+                  Link Referensi <span className="text-error">*</span>
+                </FieldLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAddLinkOpen(true)}
+                  disabled={isMutating}
+                  className="h-8 px-2.5 border border-border hover:bg-muted/80 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  <input
-                    type="file"
-                    id="ref-file"
-                    disabled={isCreating || isUpdating || isUploadingFile}
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  {uploadState === "uploading" ? (
-                    <div className="flex flex-col items-center justify-center space-y-2 py-2">
-                      <Loader2 className="h-7 w-7 text-primary animate-spin" />
-                      <span className="font-semibold text-muted-foreground">
-                        Uploading file...
-                      </span>
-                    </div>
-                  ) : (
-                    <label
-                      htmlFor="ref-file"
-                      className="flex flex-col items-center justify-center space-y-2 cursor-pointer py-2"
-                    >
-                      <UploadCloud className="h-8 w-8 text-muted-foreground" />
-                      <div className="font-bold text-foreground">
-                        Drag & Drop file ke sini
-                      </div>
-                      <div className="text-muted-foreground">
-                        atau klik untuk menelusuri file komputer
-                      </div>
-                    </label>
-                  )}
+                  <Plus className="h-3.5 w-3.5" /> Tambah Link
+                </Button>
+              </div>
+
+              {formRefLinks.length === 0 ? (
+                <div className="text-center p-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground">
+                  Belum ada link referensi. Klik &quot;+ Tambah Link&quot; untuk
+                  menambahkan.
                 </div>
               ) : (
-                /* Show attached file using shadcn Attachment component */
-                <Attachment state="done" className="w-full border-border">
-                  <AttachmentMedia
-                    variant="icon"
-                    className="bg-primary/5 text-primary"
-                  >
-                    <FileText className="h-5 w-5" />
-                  </AttachmentMedia>
-                  <AttachmentContent>
-                    <AttachmentTitle className="text-foreground font-semibold truncate block max-w-[200px] sm:max-w-[320px]">
-                      {formRef.split("/").pop()}
-                    </AttachmentTitle>
-                    <AttachmentDescription className="text-muted-foreground">
-                      Lampiran referensi akreditasi aktif
-                    </AttachmentDescription>
-                  </AttachmentContent>
-                  <AttachmentActions>
-                    <AttachmentAction
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={removeAttachment}
-                      disabled={isCreating || isUpdating || isUploadingFile}
-                      className="text-error hover:bg-error/10 hover:text-error"
+                <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+                  {formRefLinks.map((link, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 bg-muted/15 border border-border rounded-lg flex items-center justify-between gap-3 text-xs"
                     >
-                      <X className="h-4 w-4" />
-                    </AttachmentAction>
-                  </AttachmentActions>
-                </Attachment>
+                      <span
+                        className="font-mono text-muted-foreground truncate select-all flex-1"
+                        title={link}
+                      >
+                        {link}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          disabled={isMutating}
+                          onClick={() => handleOpenEditLink(idx)}
+                          className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-primary rounded transition-colors cursor-pointer disabled:opacity-50"
+                          title="Edit Link"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isMutating}
+                          onClick={() => handleRemoveLink(idx)}
+                          className="p-1 hover:bg-error/10 text-muted-foreground hover:text-error rounded transition-colors cursor-pointer disabled:opacity-50"
+                          title="Hapus Link"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </Field>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 border-t border-border/40 pt-4 mt-2" aria-label="dialog-actions">
+          <DialogFooter
+            className="gap-2 sm:gap-0 border-t border-border/40 pt-4 mt-2"
+            aria-label="dialog-actions"
+          >
             <Button
               variant="outline"
-              disabled={isCreating || isUpdating || isUploadingFile}
+              disabled={isMutating}
               onClick={() => setIsDialogOpen(false)}
               className="text-xs h-9 cursor-pointer"
             >
@@ -576,10 +509,10 @@ export default function AkreditasiPage(): React.JSX.Element {
             </Button>
             <Button
               onClick={editingAkred ? handleUpdate : handleCreate}
-              disabled={isCreating || isUpdating || isUploadingFile}
+              disabled={isMutating}
               className="bg-primary text-primary-foreground text-xs font-semibold h-9 px-4 rounded-lg hover:bg-primary/95 shadow-sm cursor-pointer"
             >
-              {isCreating || isUpdating || isUploadingFile ? (
+              {isMutating ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                   Menyimpan...
@@ -592,7 +525,117 @@ export default function AkreditasiPage(): React.JSX.Element {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Alert */}
+      {/* ── Sub-Dialog: Tambah Link ──────────────────────────────────────── */}
+      <Dialog open={addLinkOpen} onOpenChange={setAddLinkOpen}>
+        <DialogContent
+          className="sm:max-w-md bg-card border border-border p-6 rounded-xl"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
+              Tambah Link Referensi
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3">
+            <Field>
+              <FieldLabel htmlFor="add-link-url">
+                URL / Tautan Dokumen
+              </FieldLabel>
+              <Input
+                id="add-link-url"
+                type="text"
+                placeholder="Contoh: drive.google.com/file/d/..."
+                value={newLinkUrl}
+                onChange={(e) => setNewLinkUrl(e.target.value)}
+                className="h-10 text-xs border border-border rounded-lg bg-transparent px-3 text-foreground font-mono"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddLink();
+                  }
+                }}
+              />
+            </Field>
+          </div>
+          <DialogFooter className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setNewLinkUrl("");
+                setAddLinkOpen(false);
+              }}
+              className="text-xs font-semibold h-9 rounded-lg"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddLink}
+              disabled={!newLinkUrl.trim()}
+              className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+            >
+              Tambah
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Sub-Dialog: Edit Link ────────────────────────────────────────── */}
+      <Dialog open={editLinkOpen} onOpenChange={setEditLinkOpen}>
+        <DialogContent className="sm:max-w-md bg-card border border-border p-6 rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
+              Edit Link Referensi
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3">
+            <Field>
+              <FieldLabel htmlFor="edit-link-url">
+                URL / Tautan Dokumen
+              </FieldLabel>
+              <Input
+                id="edit-link-url"
+                type="text"
+                placeholder="Contoh: drive.google.com/file/d/..."
+                value={editingLinkUrl}
+                onChange={(e) => setEditingLinkUrl(e.target.value)}
+                className="w-full text-xs h-10 border border-border bg-card rounded-lg focus-visible:ring-1 focus-visible:ring-primary font-mono"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSaveEditLink();
+                  }
+                }}
+              />
+            </Field>
+          </div>
+          <DialogFooter className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditingLinkUrl("");
+                setEditLinkOpen(false);
+                setEditingLinkIndex(null);
+              }}
+              className="text-xs font-semibold h-9 rounded-lg"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveEditLink}
+              disabled={!editingLinkUrl.trim()}
+              className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-lg hover:bg-primary/90 cursor-pointer"
+            >
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Confirmation Alert ─────────────────────────────────────── */}
       <AlertDialog
         open={!!deleteTarget}
         onOpenChange={(o) => !o && setDeleteTarget(null)}
