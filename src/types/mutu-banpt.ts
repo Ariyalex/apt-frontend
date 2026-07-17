@@ -45,7 +45,7 @@ export interface Accreditation {
   name: string;
   description: string;
   year: number;
-  reference: string;
+  reference: string[];
   created_at: string;
 }
 
@@ -53,7 +53,7 @@ export interface SaveAccreditationRequest {
   name: string;
   description?: string | null;
   year: number;
-  reference: string;
+  reference: string[];
 }
 
 export interface LocalConstant {
